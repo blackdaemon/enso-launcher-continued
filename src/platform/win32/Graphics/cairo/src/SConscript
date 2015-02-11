@@ -42,7 +42,7 @@ import glob
 # Build Actions
 # ----------------------------------------------------------------------------
 
-env = env.Copy()
+env = env.Clone()
 
 # Cairo exports all its functions using a .def file instead of in-line
 # in its source code (i.e., using something like

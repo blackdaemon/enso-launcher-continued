@@ -105,13 +105,13 @@ private:
 class FatalError : public TransparentWindowError
 {
 public:
-    FatalError( char *what ) : TransparentWindowError(what) {}    
+    FatalError( char *what ) : TransparentWindowError(what) {}
 };
 
 /* Exception thrown when an out-of-range parameter was passed in. */
 class RangeError : public TransparentWindowError {
 public:
-    RangeError( char *what ) : TransparentWindowError(what) {}    
+    RangeError( char *what ) : TransparentWindowError(what) {}
 };
 
 
@@ -178,6 +178,9 @@ public:
     void
     update( void );
 
+    void
+    hideWindow( void );
+
 #ifndef SWIG
     /* --------------------------------------------------------------------
      * Returns a Cairo surface representing the window's surface.
@@ -225,7 +228,7 @@ public:
      *
      * TransparentWindow.update() must subsequently be called for
      * changes to take effect.
-     * 
+     *
      * ------------------------------------------------------------------*/
 
     void
@@ -262,7 +265,7 @@ public:
      *
      * TransparentWindow.update() must subsequently be called for
      * changes to take effect.
-     * 
+     *
      * ------------------------------------------------------------------*/
 
     void
@@ -314,6 +317,9 @@ private:
     void
     _closeWindow( void );
 
+    void
+    _showWindow( void );
+
     static LRESULT
     _eventProc( HWND theWindow,
                 UINT msg,
@@ -345,6 +351,8 @@ private:
     /* Overall opacity of window on screen, from 0 to MAX_OPACITY; 0
      * is fully transparent, MAX_OPACITY is fully opaque. */
     int _overallOpacity;
+
+    bool _isVisible;
 
     /* A Cairo surface pointing to the window's surface. If
      * TransparentWindow.makeCairoSurface() has not yet been called,

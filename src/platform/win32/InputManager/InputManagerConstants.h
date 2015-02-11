@@ -3,7 +3,7 @@
 /*
  Copyright (c) 2008, Humanized, Inc.
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
 
@@ -17,7 +17,7 @@
     3. Neither the name of Enso nor the names of its contributors may
        be used to endorse or promote products derived from this
        software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -49,6 +49,7 @@
 #define KEYCODE_QUASIMODE_START 1
 #define KEYCODE_QUASIMODE_END 2
 #define KEYCODE_QUASIMODE_CANCEL 3
+#define KEYCODE_QUASIMODE_CANCEL2 4
 
 /* Virtual key constants */
 #define KEYCODE_LBUTTON 1

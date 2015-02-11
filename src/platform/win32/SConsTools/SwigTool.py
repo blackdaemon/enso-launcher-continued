@@ -83,7 +83,7 @@ def swigBuilderGenerator( source, target, env, for_signature ):
     # Assign param to dummy variable to ensure that pychecker
     # doesn't complain.
     _ = for_signature
-    
+
     import os.path
     sourceFile = str(source[0])
     targetFile = str(target[0])
@@ -130,7 +130,7 @@ def swigInterfaceFileScan( node, env, path, arg = None ):
     """
     Main function for Swig interface (.i) file Scanner.
     """
-    
+
     # Assign param to dummy variable to ensure that pychecker
     # doesn't complain.
     _ = arg

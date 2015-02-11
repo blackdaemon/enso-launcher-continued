@@ -3,7 +3,7 @@
 /*
  Copyright (c) 2008, Humanized, Inc.
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
 
@@ -17,7 +17,7 @@
     3. Neither the name of Enso nor the names of its contributors may
        be used to endorse or promote products derived from this
        software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -66,6 +66,9 @@ static int _endQuasimodeKeycode;
 
 /* Keycode to cancel the quasimode. */
 static int _cancelQuasimodeKeycode;
+
+/* Keycode 2 to cancel the quasimode. */
+static int _cancelQuasimodeKeycode2;
 
 /* If true, quasimode behaves modally. */
 static int _isModal = FALSE;
@@ -323,11 +326,11 @@ _handlePostThreadMessageError( int errorCode,
                                int lineNum )
 {
     char errorText[256];
-    
+
     if ( errorCode == 0 )
     {
         errorCode = GetLastError();
-        sprintf( errorText, 
+        sprintf( errorText,
                  "PostThreadMessage failed with error %d on line %d.",
                  errorCode, lineNum );
         errorMsg( errorText );
@@ -379,7 +382,7 @@ _mouseEventProcessFunction( int event_type,
  * shift, control, and the alt (aka menu) keys back to the OS so other
  * applications can process them. This is done for a number of
  * reasons:
- * 
+ *
  * (1) On certain keyboards, such as Japanese keyboards, the
  * user has to hold down a modifier key and then press Caps
  * Lock and then release the modifier key to use Caps Lock as
@@ -404,7 +407,7 @@ _mouseEventProcessFunction( int event_type,
  * because this will, in most standard Windows applications,
  * inadvertently activate the menu bar, which will destroy our ability
  * to examine the current selection.
- * 
+ *
  * ----------------------------------------------------------------------*/
 
 static int
@@ -414,7 +417,7 @@ _isKeyCodePassThrough( int vkCode,
     return (( vkCode == VK_LSHIFT ||
               vkCode == VK_RSHIFT ||
               vkCode == VK_LCONTROL ||
-              vkCode == VK_RCONTROL ||
+//              vkCode == VK_RCONTROL ||
               (vkCode == VK_LMENU && keypressType == WM_KEYUP) ||
               (vkCode == VK_RMENU && keypressType == WM_KEYUP) )
               && !(vkCode == _startQuasimodeKeycode) );
@@ -476,7 +479,8 @@ _keyEventProcessFunction( int event_type,
 
             if ( _inQuasimode && _isCurrentlyModal &&
                  ( (vkCode == _endQuasimodeKeycode) ||
-                   (vkCode == _cancelQuasimodeKeycode) ) )
+                   (vkCode == _cancelQuasimodeKeycode) ||
+                   (vkCode == _cancelQuasimodeKeycode2) ) )
             {
                 /* We are leaving the modal quasimode in some way. */
                 int quasimodeEventType;
@@ -515,7 +519,7 @@ _keyEventProcessFunction( int event_type,
         } else if ( vkCode != VK_SNAPSHOT ) {
             /* We're not in the quasimode, or it's a passthrough key;
              * just pass the key on as a WM_USER_SOMEKEY event. */
-            errorCode = PostThreadMessage( _keyThreadId, 
+            errorCode = PostThreadMessage( _keyThreadId,
                                            WM_USER_SOMEKEY,
                                            0, 0 );
             _handlePostThreadMessageError( errorCode, __LINE__ );
@@ -540,7 +544,7 @@ _keyEventProcessFunction( int event_type,
                                                KEYCODE_QUASIMODE_END );
                 _handlePostThreadMessageError( errorCode, __LINE__ );
             } else {
-                /* Other key released when in quasimode.  Pass it on 
+                /* Other key released when in quasimode.  Pass it on
                  * to be processed as part of a possible command name. */
 
                 errorCode = PostThreadMessage( _keyThreadId,
@@ -596,6 +600,9 @@ setQuasimodeKeycode( int quasimodeKeycode,
     case KEYCODE_QUASIMODE_CANCEL:
         _cancelQuasimodeKeycode = keycode;
         break;
+    case KEYCODE_QUASIMODE_CANCEL2:
+        _cancelQuasimodeKeycode2 = keycode;
+        break;
     default:
         errorMsg( "Invalid quasimodeKeycode." );
         break;
@@ -624,6 +631,9 @@ getQuasimodeKeycode( int quasimodeKeycode )
         break;
     case KEYCODE_QUASIMODE_CANCEL:
         keycode = _cancelQuasimodeKeycode;
+        break;
+    case KEYCODE_QUASIMODE_CANCEL2:
+        keycode = _cancelQuasimodeKeycode2;
         break;
     default:
         errorMsg( "Invalid quasimodeKeycode." );

@@ -3,7 +3,7 @@
 /*
  Copyright (c) 2008, Humanized, Inc.
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
 
@@ -17,7 +17,7 @@
     3. Neither the name of Enso nor the names of its contributors may
        be used to endorse or promote products derived from this
        software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -74,6 +74,7 @@ InputManager::InputManager( void ) :
     ::setQuasimodeKeycode( KEYCODE_QUASIMODE_START, VK_CAPITAL );
     ::setQuasimodeKeycode( KEYCODE_QUASIMODE_END, VK_RETURN );
     ::setQuasimodeKeycode( KEYCODE_QUASIMODE_CANCEL, VK_ESCAPE );
+    ::setQuasimodeKeycode( KEYCODE_QUASIMODE_CANCEL2, VK_RCONTROL );
 }
 
 
@@ -114,7 +115,7 @@ InputManager::_handleThreadMessage( UINT msg,
                                     WPARAM wParam,
                                     LPARAM lParam )
 {
-    switch ( msg ) { 
+    switch ( msg ) {
     case WM_TIMER:
         if ( wParam == _timerId )
             onTick( TICK_TIMER_INTRVL );
@@ -136,7 +137,7 @@ InputManager::_handleThreadMessage( UINT msg,
         onKeypress( wParam, lParam );
         break;
 
-    case WM_USER_QUIT: 
+    case WM_USER_QUIT:
         /* Sent by our owner when we're terminating.  We don't need to
          * do anything; this is just to kick the event loop. */
         debugMsg( "Message window thread: quit signal received." );
@@ -242,7 +243,7 @@ InputManager::setCapsLockMode( bool mode )
 }
 
 /* ------------------------------------------------------------------------
- * Registers the Windows timer event source. 
+ * Registers the Windows timer event source.
  * ........................................................................
  *
  * Here we set up the timer.  Note that we're not passing an hwnd,
@@ -267,7 +268,7 @@ InputManager::_registerTimer( void )
 }
 
 /* ------------------------------------------------------------------------
- * Unregisters the Windows timer event source. 
+ * Unregisters the Windows timer event source.
  * ........................................................................
  * ----------------------------------------------------------------------*/
 
@@ -433,12 +434,12 @@ InputManager::stop( void )
         char errorText[256];
 
         errorCode = GetLastError();
-        sprintf( errorText, 
+        sprintf( errorText,
                  "In InputManager::stop(): "
                  "PostThreadMessage failed with error %d.",
                  errorCode );
         errorMsg( errorText );
-        
+
         throw MehitabelException();
     }
 }

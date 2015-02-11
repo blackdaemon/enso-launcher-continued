@@ -1,0 +1,13 @@
+ClipboardBackend.py
+PythonClipboardFormatRenderer.py
+
+*_wrap.cxx
+*.obj
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+*_wrap.cxx
+*_wrap.h
+

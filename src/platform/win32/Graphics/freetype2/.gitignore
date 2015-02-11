@@ -1,0 +1,13 @@
+*.obj
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+src/**/*.obj
+src/**/*.dll
+src/**/*.lib
+src/**/*.pdb
+src/**/*.ilk
+src/**/*.exp

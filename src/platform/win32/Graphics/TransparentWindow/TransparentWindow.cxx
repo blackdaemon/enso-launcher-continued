@@ -107,7 +107,8 @@ TransparentWindow::TransparentWindow( int x,
     _maxHeight( maxHeight ),
     _currWidth( maxWidth ),
     _currHeight( maxHeight ),
-    _cairoSurface( 0 )
+    _cairoSurface( 0 ),
+    _isVisible( FALSE )
 {
     int screenWidth;
     int screenHeight;
@@ -185,6 +186,29 @@ TransparentWindow::makeCairoSurface( void )
 }
 
 
+void
+TransparentWindow::hideWindow( void )
+{
+    if ( _window )
+    {
+        //warnMsg( "Hiding Enso window." );
+        ShowWindow(_window, SW_HIDE);
+        _isVisible = FALSE;
+    }
+}
+
+void
+TransparentWindow::_showWindow( void )
+{
+    if ( _window && !_isVisible )
+    {
+        //warnMsg( "Showing and setting Enso window on-top." );
+        //ShowWindow(_window, SW_SHOW);
+        SetWindowPos(_window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+        _isVisible = TRUE;
+    }
+}
+
 /* ------------------------------------------------------------------------
  * Draw the contents of the transparent window to the screen.
  * ........................................................................
@@ -207,12 +231,18 @@ TransparentWindow::update( void )
 
     srcPoint.x = 0;
     srcPoint.y = 0;
-    
+
     destPoint.x = _x;
     destPoint.y = _y;
 
     rectSize.cx = _currWidth;
     rectSize.cy = _currHeight;
+
+    /* Push window on top again */
+    if (!_isVisible) {
+        //warnMsg( "Enso window not visible..." );
+        _showWindow();
+    }
 
     /* Set up a BLENDFUNCTION structure to specify per-pixel alpha
      * transparency. */
@@ -270,7 +300,7 @@ TransparentWindow::setOpacity( int opacity )
 {
     if ( opacity > MAX_OPACITY || opacity < 0 )
         throw RangeError( "Opacity out of range." );
-    
+
     _overallOpacity = opacity;
 }
 
@@ -441,12 +471,12 @@ TransparentWindow::_createWindow( void )
             WS_EX_TOPMOST |
             WS_EX_TRANSPARENT;
 
-        windowStyle = WS_VISIBLE |
+        windowStyle = //WS_VISIBLE |
             WS_POPUP;
 
         HWND oldForegroundWindow = GetForegroundWindow();
 
-        _window = CreateWindowEx( 
+        _window = CreateWindowEx(
             windowExStyle,                  /* dwExStyle    */
             WINDOW_CLASS_NAME,              /* lpClassName  */
             NULL,                           /* lpWindowName */
@@ -470,7 +500,7 @@ TransparentWindow::_createWindow( void )
             /* LONGTERM TODO: This may not be necessary anymore, since this
              * mechanism has been carried over from some legacy code;
              * determine whether it is needed or not. */
-            SetForegroundWindow( oldForegroundWindow );
+            //SetForegroundWindow( oldForegroundWindow );
 
             /* Create the device context that will hold the
              * transparent window's bitmap surface. */
@@ -507,9 +537,11 @@ TransparentWindow::_createWindow( void )
                     /*  Select the bitmap into our device context. */
                     if ( SelectObject(_hDC, _hBitmap) != NULL ) {
                         /* Show the transparent window. */
-                        ShowWindow( _window, SW_SHOW );
+                        SetWindowPos(_window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                        //ShowWindow( _window, SW_SHOW );
                         UpdateWindow( _window );
-                        
+                        _isVisible = TRUE;
+
                         success = true;
                     }
                 }
@@ -540,7 +572,7 @@ TransparentWindow::_closeWindow( void )
 {
     if ( _window )
     {
-        if ( _hDC != NULL ) 
+        if ( _hDC != NULL )
         {
             /* Delete the device context. */
             if ( DeleteDC(_hDC) == 0 )
@@ -613,18 +645,21 @@ void
 _getDesktopSize( int *width,
                  int *height )
 {
-    HWND hWndDesktop = GetDesktopWindow();
+    //TODO: Implement desktop size also for another monitor
+    //(where mouse cursor is?)
+
     RECT desktopRect;
 
+    HWND hWndDesktop = GetDesktopWindow();
     if ( GetWindowRect(hWndDesktop, &desktopRect) == 0 )
         throw FatalError( "Couldn't get desktop window size." );
 
-    *width = desktopRect.right;
-    *height = desktopRect.bottom;    
+    *width = (int) desktopRect.right;
+    *height = (int) desktopRect.bottom;
 }
 
 /* ------------------------------------------------------------------------
- * Get the dimensions of the desktop, in pixels.
+ * Get the offset of the desktop, in pixels.
  * ........................................................................
  * ----------------------------------------------------------------------*/
 
@@ -632,14 +667,51 @@ void
 _getDesktopOffset( int *left,
                  int *top )
 {
-    //HWND hWndDesktop = GetDesktopWindow();
-    //RECT desktopRect;
+    //TODO: Implement desktop offset also for another monitor
+    //(where mouse cursor is?)
 
-    //if ( GetWindowRect(hWndDesktop, &desktopRect) == 0 )
-    //    throw FatalError( "Couldn't get desktop window size." );
+    RECT desktopRect;
 
-    //TODO: IMplement desktop offset
-    *left = 0;
-    *top = 0;
+    HWND hWndDesktop = GetDesktopWindow();
+    if ( GetWindowRect(hWndDesktop, &desktopRect) == 0 )
+        throw FatalError( "Couldn't get desktop window size." );
+
+    *left = (int) desktopRect.left;
+    *top = (int) desktopRect.top;
 }
 
+/* ------------------------------------------------------------------------
+ * Get the dimensions of the workarea, in pixels.
+ * ........................................................................
+ * ----------------------------------------------------------------------*/
+
+void
+_getWorkareaSize( int *width,
+                 int *height )
+{
+    RECT workareaRect;
+
+    if ( SystemParametersInfo(SPI_GETWORKAREA, 0, &workareaRect, 0) == 0 )
+        throw FatalError( "Couldn't get workarea size (to get workarea size)." );
+
+    *width = (int) workareaRect.right;
+    *height = (int) workareaRect.bottom;
+}
+
+/* ------------------------------------------------------------------------
+ * Get the offset of the workarea, in pixels.
+ * ........................................................................
+ * ----------------------------------------------------------------------*/
+
+void
+_getWorkareaOffset( int *left,
+                 int *top )
+{
+    RECT workareaRect;
+
+    if ( SystemParametersInfo(SPI_GETWORKAREA, 0, &workareaRect, 0) == 0 )
+        throw FatalError( "Couldn't get workarea size (to get workarea offset)." );
+
+    *left = (int) workareaRect.left;
+    *top = (int) workareaRect.top;
+}
