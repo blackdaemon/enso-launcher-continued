@@ -12,6 +12,10 @@ QUASIMODE_CANCEL_KEY = "KEYCODE_ESCAPE"
 # Whether the Quasimode is actually modal ("sticky").
 IS_QUASIMODE_MODAL = False
 
+# Display Enso on active monitor (where mouse cursor is)
+# If set to False, Enso displays on primary-monitor.
+SHOW_ON_ACTIVE_MONITOR = True
+
 # Amount of time, in seconds (float), to wait from the time
 # that the quasimode begins drawing to the time that the
 # suggestion list begins to be displayed.  Setting this to a
