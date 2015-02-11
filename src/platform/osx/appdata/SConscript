@@ -1,0 +1,12 @@
+Import("env")
+
+env.Install("#bin/Enso.app/Contents", "PkgInfo")
+env.Install("#bin/Enso.app/Contents", "Info.plist")
+env.Install("#bin/Enso.app/Contents/Resources/English.lproj",
+            "InfoPlist.strings")
+env.Install("#bin/Enso.app/Contents/Resources/Fonts",
+            "#media/fonts/GenI102.TTF")
+env.Install("#bin/Enso.app/Contents/Resources/Fonts",
+            "#media/fonts/GenR102.TTF")
+env.Install("#bin/Enso.app/Contents/Resources",
+            "#media/images/Enso.icns")

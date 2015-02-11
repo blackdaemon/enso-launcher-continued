@@ -1,0 +1,15 @@
+In addition to the prerequisites outlined in the README, the Linux
+backend for Enso currently depends on:
+
+  * python-cairo
+  * python-gobject
+  * python-gtk2
+  * python-xlib - 0.13 or above is highly advised
+
+Having the xset program is optional, though it'll prevent bad key-repeat
+problems which could completely break the input handling (by constantly
+enabling/disabling Enso while holding the Quasimode trigger key).
+
+A composited environment, using for instance Compiz, KWin4, Metacity's
+or xfwin4's compositor or xcompmgr, isn't mandatory, though highly advised
+since proper blending will only be available with it.

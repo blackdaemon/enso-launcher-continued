@@ -1,0 +1,6 @@
+#! /usr/bin/python
+
+# This is just a fake replacement for 'pkg-config'; the cairo
+# configure system requires it, but won't actually retrieve any
+# pertinent information from it, so we're providing a fake
+# implementation here.

@@ -1,0 +1,92 @@
+Enso OS X Readme
+================
+
+To build the Enso OS X backend, in addition to the prerequisites
+outlined in the README, you'll need:
+
+  * Mac OS X 10.5 (Leopard)
+    This operating system comes packaged with an appropriate version
+    of Python, as well as a number of OS X-specific Python modules
+    needed by the backend.  The backend may also use some features of
+    OS X that are only available in OS X 10.5, but this has not been
+    verified; as such, it may be possible to run the backend on
+    an earlier, properly-configured version of OS X.
+
+  * Apple XCode tools
+    This is needed for the gcc toolchain.
+
+Configuring System Preferences for Enso
+---------------------------------------
+
+Unfortunately, there are two sticking points that make Enso
+a little difficult to set up and, to some extent, use on OS X.
+
+Firstly, in contrast to Windows, OS X has security restrictions
+against allowing any application to process incoming keystrokes--this
+is totally understandble, since it would be very easy to write a
+keyboard logger (which is, unsurprisingly, the case on Windows).
+
+In order to get around this on OS X, we need to either run the OS X
+key notifier process (installed at bin/EnsoKeyNotifier) with root
+privileges, or enable access for assistive devices in the Universal
+Access System Preferences.  The latter is the easiest to do; just mark
+the checkbox marked "Enable access for assistive devices" in the
+aforementioned control panel (the checkbox is near the bottom of the
+window).
+
+The second issue is that it appears to be impossible for user-level
+code to observe the key-up/key-down state of the caps lock key;
+instead, the caps lock state is reported modally, i.e. the operating
+system tells us whether the caps lock mode itself is on or off, but
+not whether the key is up or down.  At present, the easiest way to get
+around this is by mapping the caps lock key to the option key in the
+Keyboard & Mouse Preferences.  Just go to the "keyboard" section in
+this pane, click the "Modifier Keys..." button, and change the
+mapping.
+
+The first thing you'll notice that this means that the quasimode can
+now be activated by both your caps lock key AND your option key,
+effectively cutting you off from your option key!  While this is quite
+unfortunate, we have implemented a little workaround that lets you use
+your option key for basic things: if you enter the quasimode by
+pressing option, press exactly one key, and then exit the quasimode,
+Enso will re-send your keystrokes to the current application instead
+of trying to execute a nonexistent one-letter command.  This means
+that you can still press option-8 to get a bullet point character, but
+you can't continually press the "8" key twice while holding down
+option to get two bullet points, as this will instead be interpreted
+by Enso as the nonexistent command "88".  Instead, you'll have to
+press option-8, followed by another option-8.
+
+While this isn't particularly convenient, and the workaround doesn't
+work in certain applications like World of Warcraft, it's nonetheless
+the easiest way to do things for the time being.  Hopefully in the
+future, we'll get a contributor who knows how we can get ahold of the
+state of the caps lock key without remapping it to something else.  To
+this contributor will go much praise and beer.
+
+Troubleshooting
+---------------
+
+For some reason, SCons isn't currently very easy to install on OS X.
+The easiest way to install it is to obtain the tarball from
+www.scons.org; after unpacking it, cd into the scons directory and
+run:
+
+  sudo python setup.py install
+
+After this, when running 'scons', you may get the following traceback:
+
+   Traceback (most recent call last):
+     File "/usr/local/bin/scons", line 160, in <module>
+       import SCons.Script
+   ImportError: No module named SCons.Script
+
+If this happens, try adding the following line to your ~/.profile file:
+
+  export SCONS_LIB_DIR=/Library/scons-0.97
+
+(Change the path as apropriate if you're using a version of Scons
+newer than 0.97.)
+
+Then, restart your terminal session.

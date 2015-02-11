@@ -1,0 +1,61 @@
+#!/bin/bash
+# mkglick
+# Slightly altered by Stuart Langridge for Enso
+# taken from glick 0.2, http://www.gnome.org/~alexl/glick/releases/
+# altered to use Bash, not sh, and to use this folder as LIBDIR so can run uninstalled
+
+if [ $# -lt 2 ]; then
+  echo "Usage: mkglick <glick file> <ext2 image name> [--icon 48x48_icon.png] [--desktop-file desktop-file]"
+  exit 1
+fi
+GLICK_FILE=$1
+shift
+EXT2_IMAGE=$1
+shift
+
+ICON=
+DESKTOP_FILE=
+while [ $# != 0 ]; do
+    case $1 in
+	"--icon")
+	    shift
+	    ICON=$1
+	    ;;
+	"--desktop-file")
+	    shift
+	    DESKTOP_FILE=$1
+	    ;;
+    esac
+    shift;
+done
+
+DIR=`mktemp -d`
+
+cp $EXT2_IMAGE $DIR/image
+(cd $DIR; ld -r -b binary -o image.o image)
+objcopy --rename-section .data=.glick.image,alloc,load,readonly,data,cont $DIR/image.o
+OBJS="$DIR/image.o"
+
+if [ x$ICON != x ]; then
+    cp $ICON $DIR/icon
+    (cd $DIR; ld -r -b binary -o icon.o icon)
+    objcopy --rename-section .data=.xdg.icon.48,readonly,cont $DIR/icon.o
+    OBJS="$OBJS $DIR/icon.o"
+fi
+
+if [ x$DESKTOP_FILE != x ]; then
+    cp $DESKTOP_FILE $DIR/desktop_file
+    (cd $DIR; ld -r -b binary -o desktop_file.o desktop_file)
+    objcopy --rename-section .data=.xdg.desktop,readonly,cont $DIR/desktop_file.o
+    OBJS="$OBJS $DIR/desktop_file.o"
+fi
+
+# Dynamic ext2fs
+EXT2FS_LIB=`pkg-config --libs ext2fs`
+# Static ext2fs
+EXT2FS_LIB="/usr/lib/libext2fs.a /usr/lib/libcom_err.a"
+
+LIBDIR=$(dirname $0)
+gcc $LIBDIR/header.a.$(uname -m) $OBJS $EXT2FS_LIB `pkg-config --libs fuse` -o $GLICK_FILE
+rm -rf $DIR
+strip $GLICK_FILE

@@ -1,0 +1,18 @@
+#!/bin/bash
+ENSOROOT=$(readlink -f $(dirname $0)/../..)
+GLICK=$ENSOROOT/scripts/linux-glick
+BUILDROOT=$ENSOROOT/glick-build
+BUILDIN=$BUILDROOT/root
+mkdir $BUILDROOT
+mkdir $BUILDIN
+
+cd $BUILDIN
+cp -r $ENSOROOT/enso .
+cp -r $ENSOROOT/scripts .
+cp $ENSOROOT/scripts/linux-glick/start .
+sudo $GLICK/glick-mkext2 $BUILDROOT/image.ext2 $BUILDIN
+$GLICK/mkglick $BUILDROOT/ensoexe $BUILDROOT/image.ext2
+
+cp $BUILDROOT/ensoexe $ENSOROOT/enso-linux-$(uname -m)
+rm -rf $BUILDROOT
+

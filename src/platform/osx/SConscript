@@ -1,0 +1,157 @@
+# ----------------------------------------------------------------------------
+#
+#   enso_osx.graphics SConscript
+#
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Imports
+# ----------------------------------------------------------------------------
+
+Import( "env" )
+
+import os
+import sys
+import subprocess
+
+
+# ----------------------------------------------------------------------------
+# Helper Functions
+# ----------------------------------------------------------------------------
+
+def getOutput( params ):
+    """
+    Runs the given program, as specified by the parameter list.  Raises an
+    exception with stderr output if the process has a nonzero return
+    code.  Otherwise, it returns the stdout of the process as a string.
+    """
+
+    popen = subprocess.Popen( params,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE )
+    output, errors = popen.communicate()
+    if popen.returncode != 0:
+        sys.stderr.write( "Running '%s' failed.\n" % " ".join(params) )
+        sys.stderr.write( "Output was:\n%s\n(end of output)\n" % errors )
+        raise SystemError()
+    return output
+
+def installIntoRoot( env, path, files, alwaysInAppResources=False ):
+    if env["STANDALONE"] or alwaysInAppResources:
+        env.Install( "#bin/Enso.app/Contents/Resources/" + path,
+                     files )
+    env.Install( "#" + path, files )
+
+
+# ----------------------------------------------------------------------------
+# Build Actions
+# ----------------------------------------------------------------------------
+
+# cairo
+
+SConscript( "cairo/SConscript", exports="env" )
+Import( "cairo" )
+
+env = env.Copy()
+
+env.Append( CPPPATH = [cairo["include_dir"]], LIBPATH = [cairo["lib_dir"]] )
+
+# Flag needed for Python C extension modules, so that missing
+# Python symbols are looked-up (and found) when the module is loaded.
+FIND_MISSING_SYMS_AT_RUNTIME_FLAGS = ["-undefined", "dynamic_lookup"]
+
+# quartz cairo bridge
+
+qcbEnv = env.Copy()
+
+qcbEnv.Append(
+    CPPPATH=["pycairo"],
+    LINKFLAGS=FIND_MISSING_SYMS_AT_RUNTIME_FLAGS,
+    LIBS=[cairo["lib"]],
+    FRAMEWORKS=["AppKit"],
+    )
+
+quartzCairoBridge = qcbEnv.LoadableModule(
+    source = ["quartz_cairo_bridge.m"],
+    target = ["quartz_cairo_bridge.so"],
+    )
+
+installIntoRoot( qcbEnv, "enso/platform/osx", quartzCairoBridge )
+
+# key notifier
+
+keyNotifier = env.Program(
+    source = ["EnsoKeyNotifier.m"],
+    FRAMEWORKS = ["ApplicationServices", "Foundation", "AppKit"]
+    )
+
+installIntoRoot( env, "bin", keyNotifier, alwaysInAppResources=True )
+
+# key utils
+
+keyUtils = env.LoadableModule(
+    source = ["key_utils.m"],
+    target = ["key_utils.so"],
+    FRAMEWORKS = ["ApplicationServices"]
+    )
+
+installIntoRoot( env, "enso/platform/osx/selection", keyUtils )
+
+# Pycairo
+
+pycairoEnv = env.Copy()
+
+pycairoEnv.Append( LINKFLAGS=FIND_MISSING_SYMS_AT_RUNTIME_FLAGS )
+
+# Pycairo may raise warnings, and that's okay--it's not our code.
+pycairoEnv["CCFLAGS"].remove( "-Werror" )
+
+SConscript( "pycairo/SConscript", exports="pycairoEnv" )
+Import( "pycairoLib" )
+installIntoRoot( pycairoEnv, "enso/platform/osx/cairo", pycairoLib )
+
+# App
+
+enso = env.Program( "main.m",
+                    FRAMEWORKS=["Cocoa", "Python"] )
+env.InstallAs( "#bin/Enso.app/Contents/MacOS/Enso", enso )
+env.InstallAs( "#bin/Enso.app/Contents/Resources/main.py",
+               "#scripts/run_enso.py" )
+
+if env["STANDALONE"]:
+    env.Install( "#bin/Enso.app/Contents/MacOS", cairo["libs"] )
+
+SConscript( "appdata/SConscript", exports="env" )
+
+ensoPkgDir = Dir("#enso").abspath
+ensoAppBundleDir = Dir("#").abspath + "/bin/Enso.app/Contents/Resources/enso"
+
+def isSymLink( path ):
+    if os.path.exists( path ):
+        try:
+            os.readlink( path )
+            return True
+        except OSError:
+            pass
+    return False
+
+if env["STANDALONE"]:
+    if isSymLink( ensoAppBundleDir ):
+        Execute( "rm %s" % ensoAppBundleDir )
+    for dirpath, dirnames, filenames in os.walk( ensoPkgDir ):
+        if ".svn" in dirnames:
+            dirnames.remove( ".svn" )
+        pyfiles = [filename for filename in filenames
+                   if filename.endswith(".py")]
+        for filename in pyfiles:
+            abspath = os.path.join( dirpath, filename )
+            reldir = dirpath[len(ensoPkgDir)+1:]
+            env.Install( os.path.join(ensoAppBundleDir, reldir),
+                         abspath )
+else:
+    if not isSymLink( ensoAppBundleDir ):
+        if os.path.exists( ensoAppBundleDir ):
+            Execute( "rm -rf %s" % ensoAppBundleDir )
+        else:
+            Execute( "mkdir -p %s" % ensoAppBundleDir )
+        Execute( "ln -s -f %s %s" % (ensoPkgDir, ensoAppBundleDir) )

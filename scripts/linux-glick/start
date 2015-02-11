@@ -1,0 +1,3 @@
+#!/bin/bash
+ls -R /proc/self/fd/1023
+PYTHONPATH=/proc/self/fd/1023/ python /proc/self/fd/1023/scripts/run_enso.py

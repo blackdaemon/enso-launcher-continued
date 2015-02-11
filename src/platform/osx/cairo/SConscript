@@ -1,0 +1,114 @@
+Import("env")
+
+def download(target, source, env):
+    import urllib2
+
+    target = target[0]
+    source = source[0]
+
+    url = open(source.abspath, "r").read().strip()
+    print "Downloading %s from %s..." % (target.path, url)
+
+    # We're storing the whole file in memory, which isn't the best
+    # idea, but it's certainly the most expedient.
+    sourcefile_contents = urllib2.urlopen(url).read()
+    destfile = open(target.abspath, "wb")
+    destfile.write(sourcefile_contents)
+
+# Pseudo-builder; ideally we'd use env.AddMethod() for this, but older
+# versions of SCons don't support it.
+def download_and_build(env, name, libname, configure_flags="",
+                       dependencies=(), created_files=()):
+    tarball = "%s.tar.gz" % name
+    thisdir = Dir(".")
+    srcdir = Dir(name)
+    builddir = Dir("%s-build" % name)
+    distdir = Dir("%s-dist" % name)
+    makefile = File(builddir.abspath + "/Makefile")
+    configure = File(srcdir.abspath + "/configure")
+    lib = File("/".join([distdir.abspath, "lib", libname]))
+
+    env.Download(tarball, "%s.url" % name)
+
+    env.Command(
+        configure,
+        tarball,
+        "tar -zxvf ${SOURCE.abspath} -C ${THISDIR}",
+        THISDIR = thisdir
+        )
+    env.Clean(configure, srcdir)
+
+    env.Command(
+        makefile,
+        configure,
+        "mkdir -p ${BUILDDIR} && "
+        "cd ${BUILDDIR} && "
+        "${SRCDIR.abspath}/configure --prefix=${DISTDIR.abspath} "
+        '    LDFLAGS="-header-pad_max_install_names" ${CONFIGURE_FLAGS}',
+        SRCDIR = srcdir,
+        BUILDDIR = builddir,
+        DISTDIR = distdir,
+        CONFIGURE_FLAGS = configure_flags
+        )
+    env.Clean(makefile, builddir)
+
+    for dependency in dependencies:
+        env.Depends(makefile, dependency)
+
+    buildtargets = [lib]
+    for filename in created_files:
+        absfilename = "/".join([distdir.abspath, filename])
+        buildtargets.append(File(absfilename))
+
+    env.Command(
+        buildtargets,
+        makefile,
+        "cd ${BUILDDIR} && make && make install",
+        BUILDDIR = builddir
+        )
+    env.Clean(lib, distdir)
+
+    if env["STANDALONE"]:
+        env.AddPostAction(
+            lib,
+            "install_name_tool -id @executable_path/%(libname)s %(lib)s" %
+            {"libname" : libname,
+             "lib" : lib.abspath}
+            )
+
+    return lib, distdir
+
+env.Append(BUILDERS = {"Download" : Builder(action=download)})
+
+pixman_lib, pixman_dir = download_and_build(
+    env,
+    "pixman-0.10.0",
+    "libpixman-1.0.dylib"
+    )
+
+fake_pkgconfig = File("fake-pkg-config")
+
+cairo_lib, cairo_dir = download_and_build(
+    env,
+    "cairo-1.6.4",
+    "libcairo.2.dylib",
+    "--enable-quartz --disable-xlib --disable-png --disable-freetype "
+    "--disable-pdf --disable-ps --enable-quartz-font --disable-svg "
+    'pixman_CFLAGS="-I%(pixman_dir)s/include/pixman-1" '
+    'pixman_LIBS="-L%(pixman_dir)s/lib -lpixman-1" '
+    'PKG_CONFIG="%(fake_pkgconfig)s"' % \
+        {"pixman_dir" : pixman_dir.abspath,
+         "fake_pkgconfig" : fake_pkgconfig.abspath},
+    dependencies = [pixman_lib],
+    created_files = ["include/cairo/cairo.h"]
+    )
+
+cairo = {
+    "lib" : cairo_lib,
+    "libs" : [cairo_lib, pixman_lib],
+    "include_dir" : Dir("%s/include/cairo" % cairo_dir.abspath),
+    "lib_dir" : Dir("%s/lib" % cairo_dir.abspath),
+    "include_file" : File("%s/include/cairo/cairo.h" % cairo_dir.abspath),
+    }
+
+Export("cairo")

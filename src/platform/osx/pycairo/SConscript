@@ -1,0 +1,19 @@
+Import( "pycairoEnv" )
+Import( "cairo" )
+
+import glob
+
+sourceList = [
+    glob.glob( "*.c" )
+    ]
+
+objects = pycairoEnv.SharedObject( sourceList )
+pycairoEnv.Depends( objects, cairo["include_file"] )
+
+pycairoLib = pycairoEnv.LoadableModule(
+    target="_cairo.so",
+    source=objects,
+    LIBS=["python", cairo["lib"]]
+    )
+
+Export( "pycairoLib" )

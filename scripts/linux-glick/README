@@ -1,0 +1,9 @@
+To build a single-file Enso executable, run scripts/linux-glick/builder
+It builds for the arch that you're currently on. Later this will be changed
+ so that it can build for any Linux arch.
+header.a is arch-specific; you get it by doing "make" in a glick-0.2 folder.
+I've built separate versions for x86_64 and i686 and checked them into the repos.
+Future plans: allow builder to take an architecture option so it can build for
+ arches other than the one you're on (so one script can build binaries for all 
+ arches)
+

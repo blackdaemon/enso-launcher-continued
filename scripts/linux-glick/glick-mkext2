@@ -1,0 +1,54 @@
+#!/bin/bash
+# glick-mkext2
+# Slightly altered by Stuart Langridge for Enso
+# taken from glick 0.2, http://www.gnome.org/~alexl/glick/releases/
+# altered to use Bash, not sh, and to make img 180% larger. This needs tweaking.
+
+if [ $# != 2 ]; then
+  echo "Usage: glick-mkext2 <ext2 image name> <directory>"
+  exit 1
+fi
+EXT2_FILE=$1
+DIR=$2
+
+# Some distros have mke2fs etc in /sbin
+export PATH=/sbin:/usr/sbin:$PATH
+
+DIR_SIZE=`du -D -s -B 1024 $DIR | sed "s/\t.*//"`
+if [ $DIR_SIZE -lt 60 ]; then DIR_SIZE=60; fi
+
+# Make initial size 30% larger
+
+EXTRA_SIZE=$(( $DIR_SIZE * 180 / 100 ))
+MOUNT_PATH=`mktemp -d`
+
+dd if=/dev/zero of=$EXT2_FILE bs=1k count=$EXTRA_SIZE &> /dev/null
+mke2fs -b 1024 -F $EXT2_FILE &> /dev/null
+tune2fs -c 0 -i 0 $EXT2_FILE &> /dev/null
+
+if ! mount -o loop -t ext2 $EXT2_FILE $MOUNT_PATH; then
+ echo "ERROR: Unable to mount as loopback, you need to be root to run this"
+ rm -f $EXT2_FILE
+ exit 1
+fi
+    
+((cd $DIR; find . -depth -print0 | cpio -o -0) | (cd $MOUNT_PATH ; cpio -i -d)) &> /dev/null
+
+sync
+umount $MOUNT_PATH
+rm -rf $MOUNT_PATH
+
+# Try to minimize size, using resize2fs with a binary search
+
+MIN=$DIR_SIZE
+MAX=$EXTRA_SIZE
+CURRENT=$EXTRA_SIZE
+NEW_SIZE=$(( ($CURRENT + $MIN) / 2 ))
+while [ $(( $CURRENT - $NEW_SIZE )) -ge  2 ]; do
+    if resize2fs $EXT2_FILE $NEW_SIZE &> /dev/null; then
+	CURRENT=$NEW_SIZE
+    else
+	MIN=$NEW_SIZE
+    fi;
+    NEW_SIZE=$(( ($CURRENT + $MIN) / 2 ))
+done
