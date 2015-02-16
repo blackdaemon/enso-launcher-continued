@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -37,7 +37,7 @@
     commands.
 
     == Background ==============================================
-    
+
     In Enso, we are ultimately attempting to transform the characters
     typed by the user (the "user text") into an action (a "command").
 
@@ -109,13 +109,13 @@ class _CommandImpl( object ):
         """
         Initializes the command implementation object.
         """
-        
+
         self.__description = None
         self.__helpText = None
 
     # LONGTERM TODO: Consider using Python's property() function
     # for providing access to these data members.
-    
+
     def setDescription( self, descr ):
         self.__description = descr
 
@@ -136,14 +136,14 @@ class CommandObject( _CommandImpl ):
     command.  It also has various getters and setters for certain
     properties of commands.
     """
-    
+
     def __init__( self ):
         """
         Initializes the command object.
         """
-        
+
         _CommandImpl.__init__( self )
-        
+
         self.__name = None
 
 
@@ -206,7 +206,7 @@ class AbstractCommandFactory( _CommandImpl ):
 
         raise NotImplementedError()
 
-        
+
     def autoComplete( self, userText ):
         """
         If this factory can produce a match to userText, then returns
@@ -259,7 +259,7 @@ class CommandExpression:
 
     def __str__( self ):
         return self.getString()
-    
+
     def getString( self ):
         return self.__string
 
@@ -277,7 +277,7 @@ class CommandExpression:
         Calculates and stores all approriate information for
         expr.
         """
-        
+
         bracket1 = expr.find( "{" )
         bracket2 = expr.find( "}" )
 

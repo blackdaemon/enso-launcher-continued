@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -44,8 +44,11 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import re
+import logging
 import xml.sax
 import xml.sax.handler
+from xml.sax.expatreader import SAXParseException
 
 from enso.utils.memoize import memoized
 from enso.graphics import measurement
@@ -190,12 +193,12 @@ class StyleRegistry:
     class is not a singleton; rather, one StyleRegistry instance
     exists for each document that the client wants to layout.
     """
-    
+
     def __init__( self ):
         """
         Creates an empty StyleRegistry object.
         """
-        
+
         self._styleDict = {}
 
     def __validateKeys( self, dict ):
@@ -237,7 +240,7 @@ class StyleRegistry:
 
         if self._styleDict.has_key( selector ):
             raise ValueError( "Style '%s' already exists." % selector )
-        
+
         self.__validateKeys( properties )
         self._styleDict[ selector ] = properties
 
@@ -260,7 +263,7 @@ class StyleRegistry:
         >>> styles.findMatch( 'mystyle' ) == None
         True
         """
-        
+
         return self._styleDict.get( selector, None )
 
     def update( self, selector, **properties ):
@@ -281,14 +284,14 @@ class StyleRegistry:
 
         self.__validateKeys( properties )
         self._styleDict[ selector ].update( properties )
-        
-        
+
+
 class InvalidPropertyError( Exception ):
     """
     Exception raised by the StyleRegistry when a style with invalid
     properties is added to the registry.
     """
-    
+
     pass
 
 
@@ -309,7 +312,7 @@ class CascadingStyleStack:
         """
         Creates an empty stack.
         """
-        
+
         self.__stack = []
 
     def push( self, newStyle ):
@@ -317,7 +320,7 @@ class CascadingStyleStack:
         Push a new style onto the Cascading Style Stack, making it the
         current style.
         """
-        
+
         if len( self.__stack ) > 0:
             # "Cascade" the new style by combining it with our current
             # style, removing any uninherited properties first.
@@ -332,7 +335,7 @@ class CascadingStyleStack:
             self.__stack.append( currStyle )
         else:
             # Set this style as our current style.
-            
+
             self.__stack.append( newStyle )
 
     def pop( self ):
@@ -361,7 +364,7 @@ class CascadingStyleStack:
         Converts the value of the given property name into a
         floating-point value measured in points.
         """
-        
+
         propertyStr = self.__stack[-1][propertyName]
         return self._strToPoints( propertyStr )
 
@@ -370,7 +373,7 @@ class CascadingStyleStack:
         Converts the value of the given property name into an integer
         value.
         """
-        
+
         return int( self.__stack[-1][propertyName] )
 
     def _propertyToBool( self, propertyName ):
@@ -378,7 +381,7 @@ class CascadingStyleStack:
         Converts the value of the given property name into a boolean
         value.
         """
-        
+
         return stringToBool( self.__stack[-1][propertyName] )
 
     def _propertyToColor( self, propertyName ):
@@ -386,14 +389,14 @@ class CascadingStyleStack:
         Converts the value of the given property name into a (r, g, b,
         a) color tuple.
         """
-        
+
         return colorHashToRgba( self.__stack[-1][propertyName] )
 
     def _property( self, propertyName ):
         """
         Returns the value of the given property name as a string.
         """
-        
+
         return self.__stack[-1][propertyName]
 
     def makeNewDocument( self ):
@@ -423,16 +426,16 @@ class CascadingStyleStack:
             maxLines = self._propertyToInt("max_lines"),
             ellipsify = self._propertyToBool("ellipsify")
             )
-        
+
         return block
-    
+
     def makeNewGlyphs( self, characters ):
         """
         Makes new glyphs with the current style.
         """
 
         glyphs = []
-        
+
         fontObj = font.Font.get(
             self._property( "font_family" ),
             self._propertyToPoints( "font_size" ),
@@ -461,12 +464,12 @@ class XmlMarkupTagAliases:
     Implementation of XML markup tag aliases, a simple feature that
     allows one tag name to be aliased as another tag name.
     """
-    
+
     def __init__( self ):
         """
         Creates an empty set of tag aliases.
         """
-        
+
         self._aliases = {}
 
     def add( self, name, baseElement ):
@@ -483,7 +486,7 @@ class XmlMarkupTagAliases:
 
         It should also be noted the same tag alias can't be defined
         more than once, e.g.:
-        
+
         >>> tagAliases.add( 'foo', baseElement = 'inline' )
         >>> tagAliases.add( 'foo', baseElement = 'block' )
         Traceback (most recent call last):
@@ -511,7 +514,7 @@ class XmlMarkupTagAliases:
         ...
         KeyError: 'caption'
         """
-        
+
         return self._aliases[name]
 
     def has( self, name ):
@@ -527,7 +530,7 @@ class XmlMarkupTagAliases:
         >>> tagAliases.has( 'caption' )
         False
         """
-        
+
         return self._aliases.has_key( name )
 
 
@@ -539,13 +542,13 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
     """
     XML content handler for XML text layout markup.
     """
-    
+
     def __init__( self, styleRegistry, tagAliases=None ):
         """
         Initializes the content handler with the given style registry
         and tag aliases.
         """
-        
+
         xml.sax.handler.ContentHandler.__init__( self )
         self.styleRegistry = styleRegistry
 
@@ -558,7 +561,7 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
         Called by the XML parser at the beginning of parsing the XML
         document.
         """
-        
+
         self.style = CascadingStyleStack()
         self.document = None
         self.block = None
@@ -577,10 +580,10 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
         if styleAttr:
             styleDict = self.styleRegistry.findMatch( styleAttr )
 
-        if styleDict == None:
+        if styleDict is None:
             styleDict = self.styleRegistry.findMatch( name )
 
-        if styleDict == None:
+        if styleDict is None:
             raise ValueError, "No style found for: %s, %s" % (
                 name,
                 str( styleAttr )
@@ -592,7 +595,7 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
         """
         Handles the beginning of an XML element.
         """
-        
+
         if name == "document":
             self._pushStyle( name, attrs )
             self.document = self.style.makeNewDocument()
@@ -620,14 +623,14 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
         """
         Handles the end of an XML element.
         """
-        
+
         if name == "document":
             self.style.pop()
             self.document.layout()
         elif name == "block":
             ellipsisGlyph = self.style.makeNewGlyphs( u"\u2026" )[0]
             self.block.setEllipsisGlyph( ellipsisGlyph )
-            
+
             self.style.pop()
             self.block.addGlyphs( self.glyphs )
             self.document.addBlock( self.block )
@@ -658,7 +661,7 @@ class XmlMarkupUnknownElementError( Exception ):
     Exception raised when an unknown XML text layout markup element is
     encountered.
     """
-    
+
     pass
 
 
@@ -667,7 +670,7 @@ class XmlMarkupUnexpectedElementError( Exception ):
     Exception raised when a recognized, but unexpected XML text layout
     markup element is encountered.
     """
-    
+
     pass
 
 
@@ -676,7 +679,7 @@ class XmlMarkupUnexpectedCharactersError( Exception ):
     Exception raised when characters are encountered in XML text
     layout in a place where they're not expected.
     """
-    
+
     pass
 
 
@@ -688,11 +691,9 @@ def xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
     """
     Converts the given XML text into a textlayout.Document object that
     has been fully laid out and is ready for rendering, using the
-    given style registry and tag alises.
+    given style registry and tag aliases.
     """
 
-    import re
-    
     # Convert all occurrences of multiple contiguous whitespace
     # characters to a single space character.
     text = re.sub( r"\s+", " ", text )
@@ -704,5 +705,9 @@ def xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
 
     xmlMarkupHandler = _XmlMarkupHandler( styleRegistry, tagAliases )
     text = text.encode( "ascii", "xmlcharrefreplace" )
-    xml.sax.parseString( text, xmlMarkupHandler )
+    try:
+        xml.sax.parseString( text, xmlMarkupHandler )
+    except SAXParseException, e:
+        logging.error(text)
+        raise
     return xmlMarkupHandler.document

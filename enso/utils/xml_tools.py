@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -127,7 +127,7 @@ def get_inner_text( dom_node ):
             text_strings.append( node.data )
         else:
             text_strings.append( get_inner_text( node ) )
-        
+
     return "".join( text_strings ).strip()
 
 
@@ -161,7 +161,7 @@ def escape_xml( xml_data ):
     been escaped once (e.g., "&" -> "&amp;", and "<" -> "&lt;"), and
     also removes any invalid control characters from xml_data.
     """
-    
+
     xml_data = xml_data.replace( "&", "&amp;" )
     xml_data = xml_data.replace( "<", "&lt;" )
     # This is needed to escape the sequence "]]>"

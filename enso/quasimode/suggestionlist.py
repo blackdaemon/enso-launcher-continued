@@ -1,6 +1,9 @@
+# -*- coding: utf-8 -*-
+# vim:set tabstop=4 softtabstop=4 shiftwidth=4 expandtab:
+#
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +17,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -40,9 +43,10 @@
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
+import time
 
 from enso import commands
-from enso.commands.suggestions import AutoCompletion
+from enso.commands.suggestions import Suggestion, AutoCompletion
 from enso import config
 
 
@@ -50,11 +54,11 @@ from enso import config
 # The SuggestionList Singleton
 # ----------------------------------------------------------------------------
 
-class TheSuggestionList:
-    """ 
+class SuggestionList( object ):
+    """
     A singleton class that encapsulates all of the textual information
     created when a user types in the quasimode, including the user's
-    typed text, the auto-completion, any suggestions, and the command
+    typed text, the auto-completion, any suggestions, the command
     description/help text.
     """
 
@@ -74,6 +78,7 @@ class TheSuggestionList:
         """
         Initializes the SuggestionList.
         """
+        super(SuggestionList, self).__init__()
 
         self.__cmdManager = commandManager
 
@@ -91,26 +96,36 @@ class TheSuggestionList:
         # the "source" information, i.e., the information from which
         # all the rest is calculated.
         self.__userText = ""
-        
+        self.__userTextPrefix = ""
+
         # An index of the above suggestion list indicating which
         # command name the user has indicated.
         self.__activeIndex = 0
-        
+
         # The current auto-completion object.
         self.__autoCompletion = AutoCompletion( originalText = "",
                                                 suggestedText = "" )
-        
+
         # The current list of suggestions. The 0th element is the
         # auto-completion.
         self.__suggestions = [ self.__autoCompletion ]
-        
+
+        self.__activeCommand = None
+
         # A boolean telling whether the suggestion list and
         # auto-completion attributes above need to be updated.
-        self.__suggestionsDirty = False
+        self.__isDirty = False
 
 
-    def getUserText( self ):
-        return self.__userText
+    def getUserText( self, prefixed=False ):
+        if prefixed and self.__userTextPrefix:
+            return self.__userTextPrefix + " " + self.__userText
+        else:
+            return self.__userText
+
+
+    def getSuggestedTextPrefix( self ):
+        return self.__userTextPrefix
 
 
     def setUserText( self, text ):
@@ -121,15 +136,34 @@ class TheSuggestionList:
         typed by the user; for example, multiple contiguous spaces in
         text may be reduced to a single space.
         """
-        
+
         # Only single spaces are allowed in the user text; additional
         # spaces are ignored.
         while text.find( " "*2 ) != -1:
             text = text.replace( " "*2, " " )
-        
+
+        is_dirty = (text != self.__userText)
+
         self.__userText = text
-        # One of the source variables has changed.
-        self.__markDirty()
+
+        if is_dirty:
+            # One of the source variables has changed.
+            self.__markDirty()
+
+
+    def setSuggestedTextPrefix( self, textPrefix ):
+        """
+        Sets the user text prefix.
+        The prefix is calculated and provided programatically.
+        """
+
+        is_dirty = (textPrefix != self.__userTextPrefix)
+
+        self.__userTextPrefix = textPrefix
+
+        if is_dirty:
+            # One of the source variables has changed.
+            self.__markDirty()
 
 
     def autoType( self ):
@@ -137,7 +171,7 @@ class TheSuggestionList:
         Sets the stored user text to the value indicated by the
         current autocompleted suggestion.
         """
-        
+
         self.__update()
 
         completion = self.__suggestions[ self.__activeIndex ]
@@ -161,19 +195,21 @@ class TheSuggestionList:
         suggestion list and auto-completion objects, as such calls (by
         their nature) involve a fair amount of string processing and can
         be performance sensitive.
-        
+
         It updates the __suggestions and __autoCompletion attributes
         to reflect the current userText.
         """
 
-        if self.__suggestionsDirty:
-            self.__suggestionsDirty = False
-
-            # NOTE: in the next two lines, ".strip()" is called because the
-            # autcompletions and suggestions should ignore trailing whitespace.
+        if self.__isDirty:
+            # NOTE: in the next line, ".lstrip()" is called because the
+            # autcompletions hould ignore heading whitespace.
+            # Leaving the trailing space intact so we can indicate it by dot
+            # in special cases (user typing command parameter).
             self.__autoCompletion = self.__autoComplete(
-                self.getUserText().strip()
+                self.getUserText().lstrip()
                 )
+            # NOTE: in the next line, ".strip()" is called because the
+            # suggestions should ignore trailing whitespace.
             self.__suggestions = self.__findSuggestions(
                 self.getUserText().strip()
                 )
@@ -184,6 +220,14 @@ class TheSuggestionList:
             # updated.
             maxIndex = max( [ len(self.__suggestions)-1, 0 ] )
             self.__activeIndex = min( [self.__activeIndex, maxIndex] )
+
+            activeCommandName = self.__suggestions[self.__activeIndex].toText()
+            if not activeCommandName:
+                self.__activeCommand = None
+            else:
+                self.__activeCommand = self.__cmdManager.getCommand( activeCommandName )
+
+            self.__isDirty = False
 
 
     def __autoComplete( self, userText ):
@@ -200,28 +244,13 @@ class TheSuggestionList:
             autoCompletion = AutoCompletion( userText, "" )
         else:
             autoCompletion = self.__cmdManager.autoComplete( userText )
-            if autoCompletion == None:
+            if autoCompletion is None:
                 autoCompletion = AutoCompletion( userText, "" )
-                
+
         return autoCompletion
-    
 
-    def __findSuggestions( self, userText ):
-        """
-        Uses the command manager to determine if there are any inexact
-        but near matches of command names to userText.
 
-        Returns a complete suggestion list, where the 0th element is
-        the auto-completion, and each subsequent element (if any) is a
-        suggestion different than the autocompletion for a command
-        name that is similar to userText.
-        """
-        
-        if len( userText ) < config.QUASIMODE_MIN_AUTOCOMPLETE_CHARS:
-            return [ self.__autoCompletion ]
-
-        suggestions = self.__cmdManager.retrieveSuggestions( userText )
-
+    def __restrictSuggestionsByNearness( self, suggestions ):
         # BEGIN: Performance-improving code.
         # Eliminate most of the suggestions before sorting them.
         threshold = 0.0
@@ -234,7 +263,7 @@ class TheSuggestionList:
         # greater than x, first see if thresh( 0.5 ) >
         # QUASIMODE_MAX_SUGGESTIONS; if so, see if thresh( 0.75 ) is,
         # but if not, see if thresh( 0.25 ) is, and so forth.
-        while (len( restrictedSuggestions ) > 
+        while (len( restrictedSuggestions ) >
                config.QUASIMODE_MAX_SUGGESTIONS):
             threshold += 0.05
             oldRestrictedSuggestions = restrictedSuggestions
@@ -248,19 +277,50 @@ class TheSuggestionList:
         # fewer than we want.
         suggestions = oldRestrictedSuggestions
         # END: Performance-improving code.
-        
+
+        return suggestions
+
+
+    def __findSuggestions( self, userText ):
+        """
+        Uses the command manager to determine if there are any inexact
+        but near matches of command names to userText.
+
+        Returns a complete suggestion list, where the 0th element is
+        the auto-completion, and each subsequent element (if any) is a
+        suggestion different than the autocompletion for a command
+        name that is similar to userText.
+        """
+
+        if len( userText ) < config.QUASIMODE_MIN_AUTOCOMPLETE_CHARS:
+            return [ self.__autoCompletion ]
+
+        # Cache current autocompletion
+        auto = self.__autoCompletion
+
+        suggestions = self.__cmdManager.retrieveSuggestions( userText )
+
+        # BEGIN: Performance-improving code.
+        # Eliminate most of the suggestions before sorting them.
+        # Make sense only for really large amounts
+        if len(suggestions) > 2 * config.QUASIMODE_MAX_SUGGESTIONS:
+            suggestions = self.__restrictSuggestionsByNearness(suggestions)
+        # END: Performance-improving code.
+
         # Because the Suggestion object implements __cmp__ to sort
         # by nearness, we can simply sort the suggestions in place.
         suggestions.sort()
         suggestions = suggestions[:config.QUASIMODE_MAX_SUGGESTIONS]
-        
+
         # Make the auto-completion the 0th suggestion, and not listed
         # more than once.
-        auto = self.__autoCompletion
-        if len( auto.toText() ) > 0:
-            suggestions = [ s for s in suggestions
-                            if not s.toText() == auto.toText() ]
+        suggestions = [ s for s in suggestions
+                        if not s.toText() == auto.toText() ]
         return [ auto ] + suggestions
+
+
+    def markDirty( self ):
+        self.__isDirty = True
 
 
     def __markDirty( self ):
@@ -268,9 +328,9 @@ class TheSuggestionList:
         Sets an internal variable telling the class that the suggestion list
         is "dirty", and should be updated before returning any information.
         """
-        
-        self.__suggestionsDirty = True
-        
+
+        self.__isDirty = True
+
 
     def getSuggestions( self ):
         """
@@ -278,18 +338,18 @@ class TheSuggestionList:
         suggestion list, making sure that the internal variable is
         updated.
         """
-        
+
         self.__update()
 
         return self.__suggestions
 
-    
+
     def getAutoCompletion( self ):
         """
         In a pair with getSuggestions(), this method gets the latest
         auto-completion, making sure that the internal variable is updated.
         """
-        
+
         self.__update()
 
         return self.__autoCompletion
@@ -300,8 +360,10 @@ class TheSuggestionList:
         Determines and returns the description for the currently
         active command.
         """
-        
-        if self.getActiveCommand() == None:
+
+        active_cmd = self.getActiveCommand()
+
+        if active_cmd is None:
             if len( self.getAutoCompletion().getSource() ) \
                    < config.QUASIMODE_MIN_AUTOCOMPLETE_CHARS:
                 # The user hasn't typed enough to match a command.
@@ -313,7 +375,7 @@ class TheSuggestionList:
             # The active index is more than one, so one of the elements
             # of the suggestion list is active, and we are assured
             # that the active command exists.
-            descText = self.getActiveCommand().getDescription()
+            descText = active_cmd.getDescription()
 
         descText = descText.strip()
 
@@ -332,12 +394,8 @@ class TheSuggestionList:
         then the function returns None.
         """
 
-        activeName = self.getActiveCommandName()
-
-        if activeName == "":
-            return None
-        else:
-            return self.__cmdManager.getCommand( activeName )
+        self.__update()
+        return self.__activeCommand
 
 
     def getActiveCommandName( self ):
@@ -348,10 +406,9 @@ class TheSuggestionList:
         """
 
         self.__update()
-        activeSugg = self.__suggestions[self.__activeIndex]
-        return activeSugg.toText()
+        return self.__suggestions[self.__activeIndex].toText()
 
-        
+
     def cycleActiveSuggestion( self, distance ):
         """
         Changes which of the suggestions is "active", i.e., which suggestion
@@ -359,7 +416,7 @@ class TheSuggestionList:
 
         Used to implement the up/down arrow key behavior.
         """
-        
+
         self.__activeIndex += distance
         if len( self.getSuggestions() ) > 0:
             truncateLength = len( self.getSuggestions() )
@@ -368,11 +425,12 @@ class TheSuggestionList:
             self.__activeIndex = 0
         # One of the source variables has changed.
         self.__markDirty()
+        return self.__activeIndex
 
 
     def getActiveIndex( self ):
         return self.__activeIndex
-    
+
 
     def resetActiveSuggestion( self ):
         """

@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -64,7 +64,7 @@ def setPixelsPerInch( ppi ):
     It is further assumed that the screen has square pixels (i.e., the
     horizontal and vertical PPI of the screen are the same).
     """
-    
+
     global _ppi
     _ppi = float(ppi)
 
@@ -72,7 +72,7 @@ def getPixelsPerInch():
     """
     Returns the current PPI of the screen in the Measurement module.
     """
-    
+
     return _ppi
 
 
@@ -85,7 +85,7 @@ def pointsToPixels( points ):
     Converts the given number of points to pixels, using the current
     PPI settings.
     """
-    
+
     return points * getPixelsPerInch() / 72.0
 
 def pixelsToPoints( pixels ):
@@ -93,21 +93,21 @@ def pixelsToPoints( pixels ):
     Converts the given number of pixels to points, using the current
     PPI settings.
     """
-    
-    return pixels * 72.0 / getPixelsPerInch() 
+
+    return pixels * 72.0 / getPixelsPerInch()
 
 def inchesToPoints( inches ):
     """
     Converts the given number of inches to points.
     """
-    
+
     return inches * 72.0
 
 def picasToPoints( picas ):
     """
     Converts the given number of picas to points.
     """
-    
+
     return picas * 12.0
 
 def calculateScreenPpi( screenDiagonal, hres, vres ):
@@ -130,7 +130,7 @@ def convertUserSpaceToPoints( cairoContext ):
     It is assumed that prior to this call, the Cairo Context's CTM is
     the identity matrix.
     """
-    
+
     scaleFactor = getPixelsPerInch() / 72.0
     cairoContext.scale( scaleFactor, scaleFactor )
 

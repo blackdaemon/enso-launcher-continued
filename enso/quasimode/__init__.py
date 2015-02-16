@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -48,9 +48,10 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import weakref
+import time
 import logging
 import traceback
+import operator
 
 from enso import messages
 from enso import config
@@ -58,8 +59,11 @@ from enso import input
 
 from enso.utils.strings import stringRatioBestMatch
 from enso.utils.xml_tools import escape_xml
-from enso.quasimode.suggestionlist import TheSuggestionList
-from enso.quasimode.window import TheQuasimodeWindow
+from enso.quasimode.suggestionlist import SuggestionList
+from enso.quasimode.window import QuasimodeWindow
+from enso.quasimode import layout
+from enso.messages.windows import computeWidth
+from enso.utils.memoize import memoized
 
 # Import the standard allowed key dictionary, which relates virtual
 # key codes to character strings.
@@ -71,7 +75,7 @@ from enso.quasimode.charmaps import STANDARD_ALLOWED_KEYCODES \
 # TheQuasimode
 # ----------------------------------------------------------------------------
 
-class Quasimode:
+class Quasimode(object):
     """
     Encapsulates the command quasimode state and event-handling.
 
@@ -118,7 +122,7 @@ class Quasimode:
         # maintaining all the information about the auto-completed
         # command and suggested command names, and the text typed
         # by the user.
-        self.__suggestionList = TheSuggestionList( self.__cmdManager )
+        self.__suggestionList = SuggestionList( self.__cmdManager )
 
         # Boolean variable that should be set to True whenever an event
         # occurs that requires the quasimode to be redrawn, and which
@@ -140,20 +144,34 @@ class Quasimode:
         self.__eventMgr.createEventType( "startQuasimode" )
         self.__eventMgr.createEventType( "endQuasimode" )
 
+        # Creates new event type that code can subscribe to, to find out
+        # when the quasimode text has been modified.
+        self.__eventMgr.createEventType( "textModified" )
+
         # Read settings from config file: are we modal?
         # What key activates the quasimode?
         # What keys exit and cancel the quasimode?
 
-        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_START,
+        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_START, #IGNORE:E1101
                                     config.QUASIMODE_START_KEY )
-        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_END,
+        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_END, #IGNORE:E1101
                                     config.QUASIMODE_END_KEY )
-        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_CANCEL,
+        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_CANCEL, #IGNORE:E1101
                                     config.QUASIMODE_CANCEL_KEY )
+        self.setQuasimodeKeyByName( input.KEYCODE_QUASIMODE_CANCEL2, #IGNORE:E1101
+                                    config.QUASIMODE_CANCEL_KEY2 )
 
         self.__isModal = config.IS_QUASIMODE_MODAL
 
         self.__eventMgr.setModality( self.__isModal )
+
+        self.__lastQuasimodeStarted = None
+
+        self._lastRunCommand = None
+
+        # Unique numeric ID of the Quasimode "session"
+        self.__quasimodeID = 0
+
 
 
     def setQuasimodeKeyByName( self, function_name, key_name ):
@@ -163,11 +181,11 @@ class Quasimode:
         # the KEYCODE_QUASIMODE_START/END/CANCEL constants also defined
         # in input.)
         key_code = getattr( input, key_name )
-        assert( key_code, "Undefined quasimode key in config file." )
+        assert key_code, "Undefined quasimode key in config file: %s." % key_name
         self.__eventMgr.setQuasimodeKeycode( function_name, key_code )
 
-    def getQuasimodeKey( self ):
-        self.__eventMgr.getQuasimodeKeycode()
+    def getQuasimodeKeyByName( self, function_name ):
+        return self.__eventMgr.getQuasimodeKeycode( function_name )
 
     def isModal( self ):
         return self.__isModal
@@ -175,60 +193,92 @@ class Quasimode:
     def setModal( self, isModal ):
         assert type( isModal ) == bool
         config.IS_QUASIMODE_MODAL = isModal
-        
+
         self.__isModal = isModal
         self.__eventMgr.setModality( isModal )
 
     def getSuggestionList( self ):
         return self.__suggestionList
 
+    def getLastRunCommand(self):
+        return self._lastRunCommand
+
     def onKeyEvent( self, eventType, keyCode ):
         """
         Handles a key event of particular type.
         """
 
-        if eventType == input.EVENT_KEY_QUASIMODE:
+        if eventType == input.EVENT_KEY_QUASIMODE: #IGNORE:E1101
 
-            if keyCode == input.KEYCODE_QUASIMODE_START:
-                assert not self._inQuasimode
-                self.__quasimodeBegin()
-            elif keyCode == input.KEYCODE_QUASIMODE_END:
-                assert self._inQuasimode
-                self.__quasimodeEnd()
-            elif keyCode == input.KEYCODE_QUASIMODE_CANCEL:
+            if keyCode == input.KEYCODE_QUASIMODE_START: #IGNORE:E1101
+                #assert not self._inQuasimode
+                #self.__quasimodeBegin()
+                if not self._inQuasimode:
+                    self.__quasimodeBegin()
+            elif keyCode == input.KEYCODE_QUASIMODE_END: #IGNORE:E1101
+                #assert self._inQuasimode
+                #self.__quasimodeEnd()
+                if self._inQuasimode:
+                    self.__quasimodeEnd()
+                else:
+                    self.__quasimodeEnd()
+            elif keyCode in [input.KEYCODE_QUASIMODE_CANCEL, input.KEYCODE_QUASIMODE_CANCEL2]: #IGNORE:E1101
                 self.__suggestionList.clearState()
                 self.__quasimodeEnd()
 
-        elif eventType == input.EVENT_KEY_DOWN and self._inQuasimode:
+        elif eventType == input.EVENT_KEY_DOWN and self._inQuasimode: #IGNORE:E1101
             # The user has typed a character, and we need to redraw the
             # quasimode.
-            self.__needsRedraw = True
+            oldText = self.__suggestionList.getUserText()
 
-            if keyCode == input.KEYCODE_TAB:
+            if keyCode in (input.KEYCODE_TAB, input.KEYCODE_RIGHT): #IGNORE:E1101
+                # Allow handlers to act upon Tab key even if the text
+                # has not been modified
+                self.__eventMgr.triggerEvent("textModified", keyCode, oldText, oldText)
                 self.__suggestionList.autoType()
-            elif keyCode == input.KEYCODE_RETURN:
+            elif keyCode == input.KEYCODE_RETURN: #IGNORE:E1101
                 self.__suggestionList.autoType()
-            elif keyCode == input.KEYCODE_ESCAPE:
+            elif keyCode == input.KEYCODE_ESCAPE: #IGNORE:E1101
                 self.__suggestionList.clearState()
-            elif keyCode == input.KEYCODE_BACK:
+            elif keyCode == input.KEYCODE_DELETE: #IGNORE:E1101
+                self.__onDelete()
+                self.__onParameterModified(keyCode, oldText, self.__suggestionList.getUserText())
+            elif keyCode == input.KEYCODE_BACK: #IGNORE:E1101
                 # Backspace has been pressed.
                 self.__onBackspace()
-            elif keyCode == input.KEYCODE_DOWN:
+                self.__onParameterModified(keyCode, oldText, self.__suggestionList.getUserText())
+            elif keyCode == input.KEYCODE_DOWN: #IGNORE:E1101
                 # The user has pressed the down arrow; change which of the
                 # suggestions is "active" (i.e., will be executed upon
                 # termination of the quasimode)
                 self.__suggestionList.cycleActiveSuggestion( 1 )
                 self.__nextRedrawIsFull = True
-            elif keyCode == input.KEYCODE_UP:
+            elif keyCode == input.KEYCODE_UP: #IGNORE:E1101
                 # Up arrow; change which suggestion is active.
                 self.__suggestionList.cycleActiveSuggestion( -1 )
                 self.__nextRedrawIsFull = True
-            elif ALLOWED_KEYCODES.has_key( keyCode ):
+            elif ALLOWED_KEYCODES.has_key( keyCode ): #IGNORE:E1101
                 # The user has typed a valid key to add to the userText.
                 self.__addUserChar( keyCode )
+                self.__onParameterModified(keyCode, oldText, self.__suggestionList.getUserText())
             else:
                 # The user has pressed a key that is not valid.
                 pass
+
+            self.__needsRedraw = True
+
+
+    def __onParameterModified( self, keyCode, oldText, newText ):
+        cmd = self.__suggestionList.getActiveCommand()
+        if hasattr(cmd, "onParameterModified"):
+            prefixLen = len(cmd.PREFIX)
+            try:
+                cmd.onParameterModified(keyCode,
+                    oldText[prefixLen:], newText[prefixLen:])
+            except Exception, e:
+                logging.error(e)
+
+        self.__eventMgr.triggerEvent("textModified", keyCode, oldText, newText)
 
 
     def __addUserChar( self, keyCode ):
@@ -250,7 +300,7 @@ class Quasimode:
         """
         Deletes one character, if possible, from the user text.
         """
-        
+
         oldUserText = self.__suggestionList.getUserText()
         if len( oldUserText ) == 0:
             # There is no user text; backspace does nothing.
@@ -262,7 +312,17 @@ class Quasimode:
         # then hitting backspace snaps the active suggestion back to
         # the user text.
         self.__suggestionList.resetActiveSuggestion()
-        
+
+
+    def __onDelete( self ):
+        userText = self.__suggestionList.getUserText()
+        if userText:
+            prefix = self.__cmdManager.getCommandPrefix(userText)
+            if prefix is not None and len(userText) > len(prefix):
+                self.__suggestionList.setUserText(prefix)
+            else:
+                self.__suggestionList.clearState()
+
 
     def __quasimodeBegin( self ):
         """
@@ -271,19 +331,24 @@ class Quasimode:
 
         assert self._inQuasimode == False
 
-        if self.__quasimodeWindow == None:
-            logging.info( "Created a new quasimode window!" )
-            self.__quasimodeWindow = TheQuasimodeWindow()
+        self.__quasimodeID = time.clock()
+
+        self.__lastQuasimodeStarted = time.time()
+
+        if self.__quasimodeWindow is None:
+            assert logging.debug( "Created a new quasimode window!" ) or True
+            self.__quasimodeWindow = QuasimodeWindow()
 
         self.__eventMgr.triggerEvent( "startQuasimode" )
-        
-        self.__eventMgr.registerResponder( self.__onTick, "timer" )
 
         self._inQuasimode = True
         self.__needsRedraw = True
 
+        self.__eventMgr.registerResponder( self.__onTick, "timer" )
+
         # Postcondition
         assert self._inQuasimode == True
+
 
     def __onTick( self, timePassed ):
         """
@@ -294,7 +359,7 @@ class Quasimode:
         performance reasons.  If a user mashed down 10 keys in
         the space of a few milliseconds, and the quasimode was re-drawn
         on every single keystroke, then the quasimode could suddenly
-        be lagging behind the user a half a second or more. 
+        be lagging behind the user a half a second or more.
         """
 
         # So pychecker doesn't complain...
@@ -302,15 +367,16 @@ class Quasimode:
 
         assert self._inQuasimode == True
 
-        if self.__needsRedraw:
-            self.__needsRedraw = False
-            self.__quasimodeWindow.update( self, self.__nextRedrawIsFull )
-            self.__nextRedrawIsFull = False
-        else:
-            # If the quasimode hasn't changed, then continue drawing
-            # any parts of it (such as the suggestion list) that
-            # haven't been drawn/updated yet.
-            self.__quasimodeWindow.continueDrawing()
+        if self._inQuasimode:
+            if self.__needsRedraw:
+                self.__needsRedraw = False
+                self.__quasimodeWindow.update( self, self.__nextRedrawIsFull )
+                self.__nextRedrawIsFull = False
+            else:
+                # If the quasimode hasn't changed, then continue drawing
+                # any parts of it (such as the suggestion list) that
+                # haven't been drawn/updated yet.
+                self.__quasimodeWindow.continueDrawing()
 
 
     def __quasimodeEnd( self ):
@@ -318,29 +384,38 @@ class Quasimode:
         Executed when user releases the quasimode key.
         """
 
+        self.__eventMgr.removeResponder( self.__onTick, sync=True )
+
+        self._inQuasimode = False
+        
         # The quasimode has terminated; remove the timer responder
         # function as an event responder.
         self.__eventMgr.triggerEvent( "endQuasimode" )
-        self.__eventMgr.removeResponder( self.__onTick )
 
-        # LONGTERM TODO: Determine whether deleting or hiding is better.
-        logging.info( "Deleting the quasimode window." )
-
-        # Delete the Quasimode window.
-        del self.__quasimodeWindow
-        self.__quasimodeWindow = None
+        # Hide the Quasimode window.
+        self.__quasimodeWindow.hide()
 
         activeCommand = self.__suggestionList.getActiveCommand()
+        cmdName = self.__suggestionList.getActiveCommandName()
         userText = self.__suggestionList.getUserText()
-        if activeCommand != None:
-            cmdName = self.__suggestionList.getActiveCommandName()
+        if activeCommand is None and len( userText ) > config.BAD_COMMAND_MSG_MIN_CHARS and config.NO_COMMAND_FALLBACK:
+            cmdName = config.NO_COMMAND_FALLBACK % userText
+            activeCommand = self.__get_fallback_command( cmdName )
+
+        if activeCommand is not None:
             self.__executeCommand( activeCommand, cmdName )
         elif len( userText ) > config.BAD_COMMAND_MSG_MIN_CHARS:
             # The user typed some text, but there was no command match
             self.__showBadCommandMsg( userText )
 
-        self._inQuasimode = False
         self.__suggestionList.clearState()
+
+        self.__quasimodeID = 0
+
+
+    def __get_fallback_command(self, cmdName ):
+        return self.__cmdManager.getCommand( cmdName )
+
 
     def __executeCommand( self, cmd, cmdName ):
         """
@@ -358,11 +433,13 @@ class Quasimode:
         logging.info( "COMMAND EXECUTED: %s" % cmdName )
         try:
             cmd.run()
+            self._lastRunCommand = cmd
         except Exception:
             # An exception occured during the execution of the command.
             logging.error( "Command \"%s\" failed." % cmdName )
             logging.error( traceback.format_exc() )
             raise
+
 
     def __showBadCommandMsg( self, userText ):
         """
@@ -382,14 +459,14 @@ class Quasimode:
         text = text % ( badCmd, caption )
 
         messages.displayMessage( text )
-        
+
 
     def __commandSuggestionCaption( self, userText ):
         """
         Creates and returns a caption suggesting one or two commands
         that are similar to userText.
         """
-        
+
         # Retrieve one or two command name suggestions.
         suggestions = self.__cmdManager.retrieveSuggestions( userText )
         cmds = [ s.toText() for s in suggestions ]
@@ -402,3 +479,36 @@ class Quasimode:
             caption = ""
 
         return caption
+
+
+    def quasimodeBegin(self):
+        assert not self._inQuasimode
+        self.__quasimodeBegin()
+
+    def quasimodeEnd(self):
+        assert self._inQuasimode
+        self.__quasimodeEnd()
+
+    def replaceText( self, newText ):
+        userText = self.__suggestionList.getUserText()
+        if userText:
+            prefix = self.__cmdManager.getCommandPrefix(userText)
+            if prefix is not None and len(userText) > len(prefix):
+                self.__suggestionList.setUserText(prefix + " " + newText)
+            else:
+                self.__suggestionList.setUserText(newText)
+
+
+    def forceRedraw(self):
+        self.__needsRedraw = True
+        self.__nextRedrawIsFull = True
+        self.__suggestionList.markDirty()
+        #self.__quasimodeWindow.updateSuggestionList( self )
+        # If the user had indicated one of the suggestions, then
+        # typing a character snaps the active suggestion back to the
+        # user text and auto-completion.
+        #self.__suggestionList.resetActiveSuggestion()
+        #self.__quasimodeWindow.updateSuggestionList( self )
+        #self.__suggestionList.markDirty()
+        #self.__quasimodeWindow.updateSuggestionList( self )
+

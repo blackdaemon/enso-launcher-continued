@@ -8,6 +8,7 @@
 QUASIMODE_START_KEY = "KEYCODE_CAPITAL"
 QUASIMODE_END_KEY = "KEYCODE_RETURN"
 QUASIMODE_CANCEL_KEY = "KEYCODE_ESCAPE"
+QUASIMODE_CANCEL_KEY2 = "KEYCODE_DELETE"
 
 # Whether the Quasimode is actually modal ("sticky").
 IS_QUASIMODE_MODAL = False
@@ -30,13 +31,22 @@ QUASIMODE_MAX_SUGGESTIONS = 6
 # auto-completion mechanism engages.
 QUASIMODE_MIN_AUTOCOMPLETE_CHARS = 2
 
+# Highlight trailing space in the input area.
+# To disable the feature set this to None.
+QUASIMODE_TRAILING_SPACE_STRING = u"\u00b7" # MIDDLE DOT
+
 # The message displayed when the user types some text that is not a command.
 BAD_COMMAND_MSG = "<p><command>%s</command> is not a command.</p>"\
                   "%s"
 
-# Minimum number of characters that should have been typed into the 
-# quasimode for a bad command message to be shown. 
+# Minimum number of characters that should have been typed into the
+# quasimode for a bad command message to be shown.
 BAD_COMMAND_MSG_MIN_CHARS = 2
+
+# Try to run the program if no matching command found.
+# Typing 'msconfig' would run msconfig utility even that it's not in the list
+# of learned commands or not directly accessible from desktop/startmenu
+NO_COMMAND_FALLBACK = "" # "run %s"
 
 # The captions for the above message, indicating commands that are related
 # to the command the user typed.
@@ -49,7 +59,7 @@ QUASIMODE_DEFAULT_HELP = u"Welcome to Enso! Enter a command, " \
 
 # The string displayed when the user has typed some characters but there
 # is no matching command.
-QUASIMODE_NO_COMMAND_HELP = "There is no matching command. "\
+QUASIMODE_NO_COMMAND_HELP = "There is no matching command. " \
     "Use backspace to delete characters."
 
 # Message XML for the Splash message shown when Enso first loads.
@@ -85,4 +95,6 @@ PLUGINS = ["enso.contrib.scriptotron",
 # If set to False, no locale is forced.
 PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
 
-# vim:set tabstop=4 shiftwidth=4 expandtab:
+# Uncomment and change following to override default Enso commands
+# folder placement.
+#SCRIPTS_FOLDER_NAME = "c:\\documents\\ensocommands")

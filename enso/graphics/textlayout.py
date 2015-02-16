@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -64,7 +64,7 @@ class Document:
     vertical section of text with its own alignment and margins (e.g.,
     the <p> tag in HTML).
     """
-    
+
     def __init__( self, width, marginTop, marginBottom ):
         """
         Creates a Document with the given width and margins, all in
@@ -82,12 +82,11 @@ class Document:
 
         # Total height of the block, in points.
         self.height = None
-        
+
     def addBlock( self, block ):
         """
         Adds the given Block object to the document.
         """
-        
         self.blocks.append( block )
 
     def layout( self ):
@@ -95,7 +94,7 @@ class Document:
         Lays out the Document; must always be caled before drawing the
         document and after all the blocks have been added.
         """
-        
+
         blocksHeight = 0
         for block in self.blocks:
             block.layout()
@@ -107,7 +106,7 @@ class Document:
         Draws the document with its top-left corner at the given
         position (in points), using the given cairo context.
         """
-        
+
         y += self.marginTop
         for block in self.blocks:
             block.draw( x, y, cairoContext )
@@ -124,7 +123,7 @@ class Block:
     of individual lines, and cannot have any layout elements to its
     sides.
     """
-    
+
     def __init__( self, width, lineHeight, marginTop, marginBottom, textAlign,
                   maxLines, ellipsify ):
         """
@@ -170,14 +169,13 @@ class Block:
         inserted at the end of the final line of a block if maxLines
         has been exceeded and ellipsify is set.
         """
-        
+
         self.ellipsisGlyph = ellipsisGlyph
 
     def addGlyphs( self, glyphs ):
         """
         Adds the given glyphs to the block.
         """
-        
         self.__glyphs.extend( glyphs )
 
     def __addLine( self, line, isPartialLine = False ):
@@ -187,7 +185,7 @@ class Block:
         is not full--i.e., if the line doesn't have enough characters
         on it that it needs to be word-wrapped.
         """
-        
+
         if isPartialLine and self.textAlign == "justify":
             # A partial line (e.g., the last line) of justified text
             # shouldn't be justified (or else it'll be "force
@@ -204,7 +202,7 @@ class Block:
         block is drawn, yet after all glyphs have been added to the
         block.
         """
-        
+
         currLineLength = 0
         currWordStartIndex = 0
         currWordLength = 0
@@ -246,7 +244,7 @@ class Block:
                 # If our current line has no words in it, just add
                 # what we've got so far (not including the glyph we're
                 # looking at) and count it as a "word".
-                
+
                 # Alternatively, if this character is whitespace, then
                 # we're at the end of a word; we'll effectively
                 # replace the whitespace with a newline.
@@ -313,7 +311,7 @@ class Block:
         Draws the block with its upper-left corner at the given
         coordinates (in points), using the given cairo context.
         """
-        
+
         for line in self.lines:
             line.draw( x, y, cairoContext )
             y += self.lineHeight
@@ -333,7 +331,7 @@ class MaxLinesExceededError( Exception ):
     Exception thrown by a Block object when the maximum number of
     lines for the block has been exceeded.
     """
-    
+
     pass
 
 
@@ -349,12 +347,12 @@ class Line:
     terminology taken from Cascading Style Sheets; in particular, see
     'CSS Pocket Reference', 2nd edition, pgs. 12-13.
     """
-    
+
     def __init__( self ):
         """
         Creates an empty line.
         """
-        
+
         self.glyphs = []
 
         # Current cursor position at which next glyph will be placed
@@ -382,7 +380,7 @@ class Line:
 
         # Distance from the top of the line's line box to its baseline.
         self.distanceToBaseline = None
-        
+
         # The bounding box in screen coordinates, relative to the
         # top-left of the line's line box.
         self.xMin = None
@@ -399,18 +397,18 @@ class Line:
         'right', 'center', or 'justify'), the width of the line in
         points, and the line height in points.
         """
-        
+
         # Local variables xMin, xMax, yMin, and yMax are used here to
         # correspond to their values in this image:
         # http://freetype.sourceforge.net/freetype2/docs/glyphs/Image3.png
-        
+
         # Cut off a trailing whitespace character, if it exists.
         if len( self.glyphs ) > 1 and self.glyphs[-1].isWhitespace:
             self.glyphs = self.glyphs[:-1]
 
         # Determine our bounding box.
         INFINITY = 999999999
-        
+
         xMin = INFINITY
         xMax = -INFINITY
         yMin = INFINITY
@@ -470,7 +468,7 @@ class Line:
                                   self.descent) )
         self.distanceToBaseline = ( self.externalLeading / 2.0 ) + \
                                   self.ascent
-        
+
         # Set the bounding box in screen coordinates, relative to the
         # top-left of the line's line box.
         self.xMin = xMin + self.__alignOfs
@@ -482,7 +480,7 @@ class Line:
         """
         Adds the given glyphs to the end of the line.
         """
-        
+
         if len( self.glyphs ) > 0:
             lastGlyph = self.glyphs[-1]
         else:
@@ -516,7 +514,7 @@ class Line:
         than the given maximum width.  Then, the ellipsis glyph is
         appended to the line.
         """
-        
+
         ellipsisWidth = ellipsisGlyph.fontGlyph.advance
 
         # Remove glyphs (if necessary) until there's enough room on
@@ -532,7 +530,7 @@ class Line:
         Draws the line to the given cairo context so that the top-left
         of the line's line box is at the given coordinates, in points.
         """
-        
+
         y += self.distanceToBaseline
         spaceOfs = 0.0
         glyphX = 0.0
@@ -560,7 +558,7 @@ class InvalidAlignmentError( Exception ):
     Exception raised when an invalid alignment is used as an argument
     to a function or method.
     """
-    
+
     pass
 
 
@@ -580,7 +578,7 @@ class Glyph:
         """
         Creates the glyph from the given font glyph and color.
         """
-        
+
         self.fontGlyph = fontGlyph
         self.color = color
         self.pos = 0.0

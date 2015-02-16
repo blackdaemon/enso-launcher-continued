@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -50,11 +50,12 @@
 # ----------------------------------------------------------------------------
 
 import re
+import logging
 
 from enso.commands.suggestions import AutoCompletion, Suggestion
 from enso.commands.interfaces import AbstractCommandFactory, CommandObject
-from enso.messages import displayMessage
-
+from enso import config
+from enso import clipboard
 
 # ----------------------------------------------------------------------------
 # Private Utility Functions
@@ -65,7 +66,7 @@ def _equivalizeChars( userText ):
     Returns a regular expression in which certain characters are
     replaced with equivalent character sets, e.g., "2" by "[2@]".
     """
-    
+
     # TODO: These appear to only be equivalent characters for US
     # keyboard layouts.
 
@@ -86,7 +87,7 @@ def _equivalizeChars( userText ):
         "-" : "-_",
         "'" : "'\"",
         }
-    
+
     searchText = re.escape( userText )
     for char in EQUIVALENT_CHARS.keys():
         expr = EQUIVALENT_CHARS[char]
@@ -126,7 +127,7 @@ class GenericPrefixFactory( AbstractCommandFactory ):
     # The portion of the command expression that is common to all
     # the command names that this command factory produces.
     PREFIX = ""
-    
+
     # This class variable defines the "help text" displayed in
     # place of a valid postfix; because *any* postfix is valid,
     # we want to display something to indicate to the user
@@ -139,13 +140,14 @@ class GenericPrefixFactory( AbstractCommandFactory ):
     # not been displayed.
     DESCRIPTION_TEXT = None
 
+
     def __init__( self ):
         """
         Instantiantes the command factory.
 
         Must be called by overriden constructors.
         """
-        
+
         AbstractCommandFactory.__init__( self )
 
         # Each postfix corresponds to one command that this command
@@ -156,8 +158,14 @@ class GenericPrefixFactory( AbstractCommandFactory ):
 
         self.__searchString = ""
 
+        self.userText = ""
+
+        self.__lastGeneratedCommandObj = None
+        self.__lastCommandParameter = None
+
+
     def getPostfixes( self ):
-        return self.__postfixes 
+        return self.__postfixes
 
     def setPostfixes( self, postfixes ):
         self.__postfixesChanged = True
@@ -187,7 +195,7 @@ class GenericPrefixFactory( AbstractCommandFactory ):
 
         self.update()
         return [ self.PREFIX + post for post in self._postfixes ]
-        
+
 
     def __update( self ):
         """
@@ -195,11 +203,15 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         """
 
         self.update()
-        
+
         if self.__postfixesChanged:
             self.__postfixesChanged = False
             self.__searchString = "\n".join( self.__postfixes )
-            
+
+    def afterUpdate(self):
+        if self.__postfixesChanged:
+            self.__postfixesChanged = False
+            self.__searchString = "\n".join( self.__postfixes )
 
     # LONGTERM TODO: This is not the greatest design.  Perhaps in
     # Mehitabel Core 2.0 this can be replaced with an Observer pattern.
@@ -228,6 +240,7 @@ class GenericPrefixFactory( AbstractCommandFactory ):
 
         This returns a list of Suggestion objects.
         """
+        self.userText = userText
 
         pattern = userText[len(self.PREFIX):]
         pattern = _equivalizeChars( pattern )
@@ -235,10 +248,10 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         # Match any command that contains the user postfix (i.e.,
         # any characters followed by the user postfix).
         pattern = ".*" + pattern
-        
+
         matches = self.__findMatches( pattern )
 
-        suggestions = [ Suggestion( userText, self.PREFIX + m )
+        suggestions = [ Suggestion( userText, self.PREFIX + m[0] )
                         for m in matches ]
 
         if self.PREFIX.startswith( userText ):
@@ -264,7 +277,6 @@ class GenericPrefixFactory( AbstractCommandFactory ):
             # If seed text is all or part of the prefix, then
             # autocomplete with help text.
             return AutoCompletion( userText, self.PREFIX, self.HELP_TEXT )
-
         elif not userText.startswith( self.PREFIX ):
             return None
 
@@ -273,17 +285,25 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         matches = self.__findMatches( pattern )
         if len( self.PREFIX ) > 0 and len( matches ) == 0:
             # We have a real prefix; look for beginings of words.
-            matches = self.__findMatches( ".*\\b" + pattern )
+            # Instead of \b for word boundary, use [^a-zA-Z0-9] so the underscore
+            # character is also considered as a word boundary
+            matches = self.__findMatches( r".*?(?:^|[^a-zA-Z0-9])(%s)" % re.escape(pattern) )
         if len(matches) < 1:
             return None
-        match = matches[0]
-        matchLocation = re.search( pattern, match, re.I ).start()
+
+        # Take first hit by default...
+        match, match_location = matches[0]
+
+        # TODO: This is incorrect. It matches the first one, not the correct one
+        #matchLocation = re.search( pattern, match, re.I ).start()
 
         newUserText = self.PREFIX
-        start = matchLocation
-        end = matchLocation + len(userText) - len(self.PREFIX)
+        start = match_location
+        end = match_location + len(userText) - len(self.PREFIX)
         newUserText += match[start:end]
-        completion = AutoCompletion( newUserText, self.PREFIX + match )
+        completion = AutoCompletion(
+            newUserText, self.PREFIX + match, None,
+            len(self.PREFIX), start, end )
         return completion
 
 
@@ -292,8 +312,11 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         Finds all command names that:
           (1) start with the correct prefix, and
           (2) match pattern.
+
+        Returns list of tuples:
+        (match:string, match_location:int)
         """
-        
+
         self.__update()
 
         # This part works by using regular expressions to quickly grab
@@ -301,7 +324,7 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         # the pattern.  NOTE: This will allow us to modify the pattern
         # into a more advanced regexp, allowing ( for example ) the
         # user text "open boo 9temp0" to match to the command named
-        # "open boo (temp)".  
+        # "open boo (temp)".
 
         # ^ matches begining of line or begining of string
         # $ matches end of line or end of string
@@ -310,12 +333,18 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         # re.M means that "multiline mode" is used, so "." does not
         # match newlines.
         # re.I matches case-insensitively
-        matches = re.findall( pattern = "^" + pattern +".*$",
-                              string = self.__searchString,
-                              flags = re.M | re.I )
-        matches = [ m for m in matches if len(m) > 0 ]
+        if "(" not in pattern or ")" not in pattern:
+            pattern = r"(%s)" % pattern
+        re_pattern = re.compile(r"^%s.*$" % pattern, re.M | re.I)
+        #print [(m.groups(), m.start(0), m.start(1)) for m in re_pattern.finditer(self.__searchString)]
+        matches = [
+            (m.group(0), m.start(1)-m.start(0))
+            for m in re_pattern.finditer(self.__searchString)
+            if m and m.groups() and m.group(0)
+            ]
         matches.sort()
         return matches
+
 
     def getCommandObj( self, commandName ):
         """
@@ -323,14 +352,21 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         """
 
         prefix = self.PREFIX
-        if ( len( commandName ) > len( prefix ) ) and \
-               commandName.startswith( prefix ):
-            parameter = commandName.split( self.PREFIX, 1 )[1]
-            return self._generateCommandObj( parameter )
-        elif commandName.startswith( prefix ) or \
-             prefix.startswith( commandName ):
+        if (len(commandName) > len(prefix)) and commandName.startswith(prefix):
+            parameter = commandName.split(self.PREFIX, 1)[1]
+            try:
+                #TODO: This must not crash Enso
+                return self._generateCommandObj( parameter )
+            except Exception, e:
+                logging.error("Error in command-factory generating command object: %s", e)
+        elif commandName.startswith( prefix ) or prefix.startswith( commandName ):
             parameter = None
-            return self._generateCommandObj( parameter )
+            try:
+                #TODO: This must not crash Enso
+                return self._generateCommandObj( parameter )
+            except Exception, e:
+                logging.error("Error in command-factory generating command object: %s", e)
+                return None
         else:
             return None
 
@@ -352,6 +388,34 @@ class ArbitraryPostfixFactory( GenericPrefixFactory ):
     commands, and other command families that can take any argument.
     """
 
+    def __init__( self ):
+        """
+        Instantiantes the command factory.
+
+        Must be called by overriden constructors.
+        """
+        GenericPrefixFactory.__init__( self )
+
+        self.__parameterSuggestionsChanged = False
+        self.__parameterSuggestions = []
+
+
+    """
+    def getParameterSuggestions( self, keyCode, oldText, newText ):
+        return None
+    """
+    def getParameterSuggestions( self ):
+        return self.__parameterSuggestions
+
+    def setParameterSuggestions( self, parameterSuggestions ):
+        self.__parameterSuggestionsChanged = True
+        self.__parameterSuggestions = parameterSuggestions
+
+    #A protected property; subclasses should maintain this and update
+    #it in the .update() method.
+    _parameterSuggestions = property( fget = getParameterSuggestions,
+        fset = setParameterSuggestions, )
+
     def autoComplete( self, seedText ):
         """
         Returns an autocompletion for seedText if seedText begins
@@ -361,7 +425,7 @@ class ArbitraryPostfixFactory( GenericPrefixFactory ):
 
         Returns None otherwise.
         """
-        
+
         if self.PREFIX.startswith( seedText ):
             # If seed text is all or part of the prefix, then
             # autocomplete with help text.
@@ -389,6 +453,9 @@ class ArbitraryPostfixFactory( GenericPrefixFactory ):
         else:
             return []
 
+
+    def textModified( self, keyCode, oldText, newText, quasimodeId=None ):
+        pass
 
     def update( self ):
         """

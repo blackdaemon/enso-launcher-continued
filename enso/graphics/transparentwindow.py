@@ -29,6 +29,9 @@ class TransparentWindow( object ):
     def update( self ):
         return self._impl.update()
 
+    def hide( self ):
+        return self._impl.hideWindow()
+
     def setOpacity( self, opacity ):
         return self._impl.setOpacity( opacity )
 

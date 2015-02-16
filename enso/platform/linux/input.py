@@ -70,6 +70,29 @@ KEYCODE_TAB = -1
 KEYCODE_BACK = -1
 KEYCODE_DOWN = -1
 KEYCODE_UP = -1
+KEYCODE_LEFT = -1
+KEYCODE_RIGHT = -1
+KEYCODE_INSERT = -1
+KEYCODE_HOME = -1
+KEYCODE_END = -1
+KEYCODE_DELETE = -1
+KEYCODE_KP_ADD = -1
+KEYCODE_KP_SUBTRACT = -1
+KEYCODE_KP_MULTIPLY = -1
+KEYCODE_KP_DIVIDE = -1
+KEYCODE_KP_DECIMAL = -1
+KEYCODE_KP_DELETE = -1
+KEYCODE_KP_ENTER = -1
+KEYCODE_KP_0 = -1
+KEYCODE_KP_1 = -1
+KEYCODE_KP_2 = -1
+KEYCODE_KP_3 = -1
+KEYCODE_KP_4 = -1
+KEYCODE_KP_5 = -1
+KEYCODE_KP_6 = -1
+KEYCODE_KP_7 = -1
+KEYCODE_KP_8 = -1
+KEYCODE_KP_9 = -1
 
 EVENT_KEY_UP = 0
 EVENT_KEY_DOWN = 1
@@ -78,10 +101,12 @@ EVENT_KEY_QUASIMODE = 2
 KEYCODE_QUASIMODE_START = 0
 KEYCODE_QUASIMODE_END = 1
 KEYCODE_QUASIMODE_CANCEL = 2
+KEYCODE_QUASIMODE_CANCEL2 = 3
 
 QUASIMODE_TRIGGER_KEYS = ["Caps_Lock"]
 
-CASE_INSENSITIVE_KEYCODE_MAP = {}
+from CharMaps import STANDARD_ALLOWED_KEYCODES as CASE_INSENSITIVE_KEYCODE_MAP
+#CASE_INSENSITIVE_KEYCODE_MAP = {}
 
 def fill_keymap ():
     '''Fill keymap'''
@@ -105,6 +130,68 @@ def fill_keymap ():
             special_keycodes["KEYCODE_UP"] = i
         elif keyval == gtk.keysyms.Down:
             special_keycodes["KEYCODE_DOWN"] = i
+        elif keyval == gtk.keysyms.Left:
+            special_keycodes["KEYCODE_LEFT"] = i
+        elif keyval == gtk.keysyms.Right:
+            special_keycodes["KEYCODE_RIGHT"] = i
+        elif keyval == gtk.keysyms.Insert:
+            special_keycodes["KEYCODE_INSERT"] = i
+        elif keyval == gtk.keysyms.Home:
+            special_keycodes["KEYCODE_HOME"] = i
+        elif keyval == gtk.keysyms.End:
+            special_keycodes["KEYCODE_END"] = i
+        elif keyval == gtk.keysyms.Delete:
+            special_keycodes["KEYCODE_DELETE"] = i
+        elif keyval == gtk.keysyms.KP_Add:
+            special_keycodes["KEYCODE_KP_ADD"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "+"
+        elif keyval == gtk.keysyms.KP_Subtract:
+            special_keycodes["KEYCODE_KP_SUBTRACT"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "-"
+        elif keyval == gtk.keysyms.KP_Multiply:
+            special_keycodes["KEYCODE_KP_MULTIPLY"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "*"
+        elif keyval == gtk.keysyms.KP_Divide:
+            special_keycodes["KEYCODE_KP_DIVIDE"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "/"
+        elif keyval == gtk.keysyms.KP_Decimal:
+            special_keycodes["KEYCODE_KP_DECIMAL"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "."
+        elif keyval == gtk.keysyms.KP_Delete:
+            special_keycodes["KEYCODE_KP_DELETE"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "."
+        elif keyval in (gtk.keysyms.KP_0, gtk.keysyms.KP_Insert):
+            special_keycodes["KEYCODE_KP_0"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "0"
+        elif keyval in (gtk.keysyms.KP_1, gtk.keysyms.KP_End):
+            special_keycodes["KEYCODE_KP_1"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "1"
+        elif keyval in (gtk.keysyms.KP_2, gtk.keysyms.KP_Down):
+            special_keycodes["KEYCODE_KP_2"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "2"
+        elif keyval in (gtk.keysyms.KP_3, gtk.keysyms.KP_Page_Down):
+            special_keycodes["KEYCODE_KP_3"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "3"
+        elif keyval in (gtk.keysyms.KP_4, gtk.keysyms.KP_Left):
+            special_keycodes["KEYCODE_KP_4"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "4"
+        elif keyval == gtk.keysyms.KP_5:
+            special_keycodes["KEYCODE_KP_5"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "5"
+        elif keyval in (gtk.keysyms.KP_6, gtk.keysyms.KP_Right):
+            special_keycodes["KEYCODE_KP_6"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "6"
+        elif keyval in (gtk.keysyms.KP_7, gtk.keysyms.KP_Home):
+            special_keycodes["KEYCODE_KP_7"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "7"
+        elif keyval in (gtk.keysyms.KP_8, gtk.keysyms.KP_Up):
+            special_keycodes["KEYCODE_KP_8"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "8"
+        elif keyval in (gtk.keysyms.KP_9, gtk.keysyms.KP_Page_Up):
+            special_keycodes["KEYCODE_KP_9"] = i
+            CASE_INSENSITIVE_KEYCODE_MAP[i] = "9"
+        elif keyval == gtk.keysyms.KP_Enter:
+            special_keycodes["KEYCODE_KP_ENTER"] = i
         else:
             char = unichr (int (keyval))
             if len (char) > 0 and ord (char) > 0:
@@ -191,6 +278,10 @@ class _KeyListener (Thread):
                         keyval = \
                             self.__display.keycode_to_keysym (event.detail,
                                                               state)
+                    #print keyval, event.detail
+                    #FIXME: Handling of numpad "5" key, converting it to normal "5" key
+                    if keyval == 65437:
+                        keyval, event.detail = 53, 14
                     if event.detail in EXTRA_KEYCODES \
                        or sanitize_char (keyval):
                         if event.type == X.KeyPress:
@@ -284,24 +375,24 @@ key-repeat problems")
         '''Ungrab a specific key'''
         root_window = self.__display.screen ().root
         root_window.ungrab_key (keycode, 0)
-        
+
     def disable_caps_lock (self):
         '''Disable Caps Lock'''
         if self.__caps_lock:
-            logging.debug ("Using xmodmap to disable Caps Lock")
+            assert logging.debug ("Using xmodmap to disable Caps Lock") or True
             os.system ('xmodmap -e "clear Lock"')
-        
+
     def enable_caps_lock (self):
         '''Enable Caps Lock'''
         if self.__caps_lock:
-            logging.debug ("Using xmodmap to enable Caps Lock")
+            assert logging.debug ("Using xmodmap to enable Caps Lock") or True
             os.system ('xmodmap -e "add Lock = %s"' % self.__caps_lock)
 
 class InputManager (object):
     '''Input event manager object'''
 
     __mouseEventsEnabled = False
-    __qmKeycodes = [0, 0, 0]
+    __qmKeycodes = [0, 0, 0, 0]
     __isModal = False
     __inQuasimode = False
 
@@ -317,7 +408,7 @@ class InputManager (object):
             self.onTick (_TIMER_INTERVAL_IN_MS)
         except KeyboardInterrupt:
             gtk.main_quit ()
-        return True # Return true to keep the timeout running 
+        return True # Return true to keep the timeout running
 
     def __keyCallback (self, info):
         '''Handle callbacks from KeyListener'''
@@ -353,8 +444,12 @@ class InputManager (object):
             try:
                 self.onInit ()
                 gtk.main ()
-            except KeyboardInterrupt:
-                pass
+            except KeyboardInterrupt, e:
+                logging.error(e)
+            except IOError, e:
+                logging.error(e)
+            except Exception, e:
+                logging.error(e)
         finally:
             self.__keyListener.stop ()
             gobject.source_remove (timeout_source)

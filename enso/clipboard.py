@@ -28,29 +28,51 @@
 
 # ----------------------------------------------------------------------------
 #
-#   enso.quasimode.charmaps
+#   enso.clipboard
 #
 # ----------------------------------------------------------------------------
 
 """
-    Contains the maps that convert virtual key codes to characters.
+    This module provides access to manipulating the current selection
+    on the end-user's system.
 
-    Each of the dictionaries maps windows vkCodes (which equals the
-    ascii code, for alphanumerics) to one-character strings of the
-    corresponding character.  Characters which we don't want as input
-    during the quasimode have no entry in this map, and so will never
-    appear in the quasimode or be part of a command name.
+    A selection is represented by a Python dictionary-like object
+    called a "Selection Dictionary", or "seldict" for short.  The keys
+    in a seldict are strings that correspond to different formats that
+    the current selection can be interpreted as; each value contains
+    the selection in a particular format.
+
+    The three most common formats are:
+
+      'text'  -- Unicode text.
+      'html'  -- Unicode HTML.
+      'files' -- A tuple of absolute file paths.
 """
 
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
 
-from enso import input
+import enso.providers
 
 
 # ----------------------------------------------------------------------------
-# The Standard map
+# Module variables
 # ----------------------------------------------------------------------------
 
-STANDARD_ALLOWED_KEYCODES = input.CASE_INSENSITIVE_KEYCODE_MAP
+# Actual implementation provider for this module.
+__impl = enso.providers.getInterface( "selection" )
+
+
+# ----------------------------------------------------------------------------
+# Functions
+# ----------------------------------------------------------------------------
+
+def getText():
+    """
+    Returns the current contents of the clipboard.
+    If no content could be retrieved, an empty dictionary is returned.
+    """
+
+    return __impl.getClipboardText()
+

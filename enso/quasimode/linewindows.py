@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -60,7 +60,7 @@ class TextWindow:
     rounded corners and an optional "override width", which overides the
     default width (margins + text width).
     """
-    
+
     def __init__( self, height, position ):
         """
         Creates the underlying TransparentWindow and Cairo context.
@@ -68,21 +68,46 @@ class TextWindow:
         Position and height should be in pixels.
         """
 
-        # Use the maximum width that we can, i.e., the desktop width.
-        width, _ = graphics.getDesktopSize()
-        left, top = graphics.getDesktopOffset()
+        self.__setupWindow(height, position)
 
-        xPos, yPos = position
-        self.__window = TransparentWindow(xPos + left, yPos, width, height )
+
+    def __setupWindow( self, height=None, position=None ):
+        # Use the maximum width that we can, i.e., the desktop width.
+        if height is not None:
+            self.__height = height
+        if position is not None:
+            self.__xPos, self.__yPos = position
+        self.__width, _ = graphics.getDesktopSize()
+        left, top = graphics.getDesktopOffset()
+        try:
+            self.__window = TransparentWindow(self.__xPos + left, self.__yPos,
+                self.__width, self.__height )
+        except Exception, e:
+            print e
         self.__context = self.__window.makeCairoContext()
-        
+        self.__is_visible = True
+
 
     def getHeight( self ):
         """
         LONGTERM TODO: Document this.
         """
-        
+
         return self.__window.getHeight()
+
+
+    def getPosition(self):
+        """
+        TODO: Document this.
+        """
+        return self.__window.getX(), self.__window.getY()
+
+
+    def setPosition(self, x, y):
+        """
+        TODO: Document this.
+        """
+        self.__window.setPosition(x, y)
 
 
     def draw( self, document ):
@@ -92,6 +117,9 @@ class TextWindow:
         An updating call; at the end of this method, the displayed
         window should reflect the drawn content.
         """
+        if self.__width != graphics.getDesktopSize()[0]:
+            del self.__window
+            self.__setupWindow()
 
         width = document.ragWidth + layout.L_MARGIN + layout.R_MARGIN
         height = self.__window.getMaxHeight()
@@ -118,10 +146,12 @@ class TextWindow:
             corners.append( rounded_rect.UPPER_RIGHT )
         if document.roundLowerRight:
             corners.append( rounded_rect.LOWER_RIGHT )
+        if document.roundLowerLeft:
+            corners.append( rounded_rect.LOWER_LEFT )
 
         cr.set_source_rgba( *document.background )
         rounded_rect.drawRoundedRect( context = cr,
-                                      rect = ( 0, 0, width, height ), 
+                                      rect = ( 0, 0, width, height ),
                                       softenedCorners = corners )
         cr.fill_preserve()
         cr.restore()
@@ -136,12 +166,15 @@ class TextWindow:
 
         self.__window.setSize( width, height )
         self.__window.update()
+        self.__is_visible = True
 
 
     def hide( self ):
         """
         Clears the window's surface (making it disappear).
         """
+        if not self.__is_visible:
+            return
 
         # LONGTERM TODO: Clearing the surface, i.e., painting it
         # clear, seems like a potential performance bottleneck.
@@ -158,3 +191,7 @@ class TextWindow:
         self.__context.set_operator (cairo.OPERATOR_OVER)
 
         self.__window.update()
+        self.__window.hide()
+
+        self.__is_visible = False
+

@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -40,11 +40,13 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import operator
 import logging
 
 from enso.commands.interfaces import CommandExpression, CommandObject
 from enso.commands.interfaces import AbstractCommandFactory
 from enso.commands.factories import GenericPrefixFactory
+from enso import config
 
 
 # ----------------------------------------------------------------------------
@@ -98,6 +100,10 @@ class CommandManager:
             assert isinstance( cmdObj, AbstractCommandFactory ), \
                 "Command object with a parameter must be instance " \
                 "of AbstractCommandFactory"
+            assert hasattr(cmdObj, "PREFIX"), \
+                "Missing attribute 'PREFIX' in the command object '%s'" % cmdName
+            assert hasattr(cmdObj, "HELP_TEXT"), \
+                "Missing attribute 'HELP_TEXT' in the command object '%s'" % cmdName
             assert not self.__cmdFactoryDict.has_key( cmdExpr ),\
                 "Command is already registered: %s" % cmdExpr
             self.__cmdFactoryDict[ cmdExpr ] = cmdObj
@@ -121,6 +127,59 @@ class CommandManager:
             cmdFound = True
         if not cmdFound:
             raise RuntimeError( "Command '%s' does not exist." % cmdName )
+
+    def getCommandPrefix( self, commandName ):
+        """
+        Returns the unique command expression that is associated with
+        commandName.  For example, if commandName is 'open emacs', and
+        the command expression was 'open {file}', then a command expression
+        object for 'open {file}' will be returned.
+        """
+
+        commands = []
+
+        for expr in self.__cmdFactoryDict.iterkeys():
+            if expr.matches( commandName ):
+                # This expression matches commandName; try to fetch a
+                # command object from the corresponding factory.
+                cmd = self.__cmdFactoryDict[expr].getCommandObj( commandName )
+                if expr == self.CMD_KEY and cmd != None:
+                    commands.append( ( commandName, commandName ) )
+                elif cmd != None:
+                    # The factory returned a non-nil command object.
+                    # Make sure that nothing else has matched this
+                    # commandName.
+                    commands.append( (expr.getPrefix(), expr) )
+
+        if len(commands) == 0:
+            return None
+        elif len(commands) == 1:
+            # There is exactly one match
+            return commands[0][0]
+        else:
+            # There are more matches, choose the best one
+            prefixes = [ (e,c) for (e,c) in commands ]
+            prefixes_dict = dict(prefixes)
+            # Try to find longest possible exact match first:
+
+            longest_name = commandName
+            # If there is no space at the end, it is a parameter there
+            if not longest_name.endswith(' '):
+                # Strip parameter off
+                longest_name = longest_name[:longest_name.rfind(" ")]
+            else:
+                longest_name = longest_name.rstrip(" ")
+            for _ in xrange(longest_name.count(" ") + 1):
+                match = prefixes_dict.get(longest_name+' ')
+                if match:
+                    logging.debug("EXACTMATCH: '%s'", longest_name)
+                    return longest_name+' '
+                longest_name = longest_name[:longest_name.rfind(" ")]
+
+            # Longest match not found so return the alphabetically first
+            prefixes.sort(key=operator.itemgetter(0))
+            #logging.debug("FIRSTMATCH: '%s'", prefixes[0][0])
+            return prefixes[0][0]
 
     def getCommandExpression( self, commandName ):
         """
@@ -147,11 +206,33 @@ class CommandManager:
 
         if len(commands) == 0:
             return None
-        else:
-            # If there are several matching commands, return only
-            # the alphabetically first.
-            commands.sort( lambda a,b : cmp( a[0], b[0] ) )
+        elif len(commands) == 1:
+            # There is exactly one match
             return commands[0][1]
+        else:
+            # There are more matches, choose the best one
+            prefixes = [ (e,c) for (e,c) in commands ]
+            prefixes_dict = dict(prefixes)
+            # Try to find longest possible exact match first:
+
+            longest_name = commandName
+            # If there is no space at the end, it is a parameter there
+            if not longest_name.endswith(' '):
+                # Strip parameter off
+                longest_name = longest_name[:longest_name.rfind(" ")]
+            else:
+                longest_name = longest_name.rstrip(" ")
+            for _ in xrange(longest_name.count(" ") + 1):
+                match = prefixes_dict.get(longest_name+' ')
+                if match:
+                    logging.debug("EXACTMATCH: '%s'", longest_name)
+                    return match
+                longest_name = longest_name[:longest_name.rfind(" ")]
+
+            # Longest match not found so return the alphabetically first
+            prefixes.sort(key=operator.itemgetter(0))
+            #logging.debug("FIRSTMATCH: '%s'", prefixes[0][0])
+            return prefixes[0][1]
 
 
     def getCommand( self, commandName ):
@@ -181,10 +262,8 @@ class CommandManager:
             return commands[0][1]
         else:
             # There are more matches, choose the best one
-            prefixes = dict( (expr.getPrefix(), cmd) for (expr, cmd) in commands )
-            
-            # This is the old approach, returning alphabetically first
-            #return sorted(prefixes.items())[0][1]
+            prefixes = [ (e.getPrefix(),c) for (e,c) in commands ]
+            prefixes_dict = dict(prefixes)
 
             # Try to find longest possible exact match first:
             longest_name = commandName
@@ -194,21 +273,22 @@ class CommandManager:
                 longest_name = longest_name[:longest_name.rfind(" ")]
             else:
                 longest_name = longest_name.rstrip(" ")
-            
-            cmd = None
             for _ in xrange(longest_name.count(" ") + 1):
-                cmd = prefixes.get(longest_name+' ')
+                cmd = prefixes_dict.get(longest_name+' ')
                 if cmd:
-                    print "Returning longest match: %s" % longest_name
-                    logging.debug("Longest match: '%s'", longest_name)
-                    break
+                    assert logging.debug("Longest match: '%s'", longest_name) or True
+                    return cmd
                 longest_name = longest_name[:longest_name.rfind(" ")]
 
-            return cmd
+            # Longest match not found so return the alphabetically first
+            prefixes.sort(key=operator.itemgetter(0))
+            #logging.debug("FIRSTMATCH: '%s'", prefixes[0][0])
+            return prefixes[0][1]
 
 
     def autoComplete( self, userText ):
         """
+        TODO:Implement optional sorting by name and usage-frequency
         Returns the best match it can find to userText, or None.
         """
 
@@ -219,14 +299,33 @@ class CommandManager:
             if expr.matches( userText ):
                 cmdFact = self.__cmdFactoryDict[expr]
                 completion = cmdFact.autoComplete( userText )
-                if completion != None:
+                if completion is not None:
                     completions.append( completion )
 
         if len( completions ) == 0:
             return None
-        else:
-            completions.sort( lambda a,b : cmp( a.toText(), b.toText() ) )
+        elif len( completions ) == 1:
             return completions[0]
+        else:
+            #Original:
+            #completions.sort( lambda a,b : cmp( a.toText(), b.toText() ) )
+            # Sort by nearness
+            completions.sort()
+            return completions[0]
+
+
+    def hasSuggestions( self, userText ):
+        """
+        Returns an unsorted list of suggestions.
+        """
+
+        for expr in self.__cmdFactoryDict.iterkeys():
+            if expr.matches( userText ):
+                factory = self.__cmdFactoryDict[expr]
+                if len(factory.retrieveSuggestions( userText )) > 0:
+                    return True
+
+        return False
 
 
     def retrieveSuggestions( self, userText ):
@@ -263,8 +362,8 @@ class CommandManager:
                 cmdDict[ str(expr) ] = self.__cmdFactoryDict[expr]
 
         return cmdDict
-        
-        
+
+
 # ----------------------------------------------------------------------------
 # A CommandObject Registry
 # ----------------------------------------------------------------------------
@@ -332,8 +431,8 @@ class CommandObjectRegistry( GenericPrefixFactory ):
             self._removePostfix( cmdExpr )
         else:
             raise RuntimeError( "Command object '%s' not found." % cmdExpr )
-            
-            
+
+
 
     def getCommandObj( self, cmdNameString ):
         """

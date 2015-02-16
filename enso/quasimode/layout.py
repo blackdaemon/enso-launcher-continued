@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -40,9 +40,14 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import re
+import logging
+
+from enso import config
 from enso import graphics
 from enso.graphics import xmltextlayout
 from enso.utils.xml_tools import escape_xml
+from enso.graphics.textlayout import MaxLinesExceededError
 
 
 # ----------------------------------------------------------------------------
@@ -72,14 +77,17 @@ BOTTOM_MARGIN_FACTOR = .20
 HEIGHT_FACTOR = 1 + TOP_MARGIN_FACTOR + BOTTOM_MARGIN_FACTOR
 
 # Colors
-WHITE = "#ffffff"
-DESIGNER_GREEN = "#9fbe57"
-DARK_GREEN = "#7f9845"
-BLACK = "#000000"
+COLOR_WHITE = "#ffffff"
+COLOR_DESIGNER_GREEN = "#9fbe57"
+COLOR_DARK_GREEN = "#7f9845"
+COLOR_BLACK = "#000000"
+COLOR_GRAY = "#607060"
+COLOR_BEIGE = "#BEBB9C"
+COLOR_YELLOW = "#FFFF00"
 
 # Add alpha values to get transparent backgrounds.
-DESCRIPTION_BACKGROUND_COLOR = DESIGNER_GREEN + "cc"
-MAIN_BACKGROUND_COLOR = BLACK + "d8"
+DESCRIPTION_BACKGROUND_COLOR = COLOR_DESIGNER_GREEN + "cc"
+MAIN_BACKGROUND_COLOR = COLOR_BLACK + "d8"
 
 SMALL_SCALE = [ 12, 18, 24 ]
 LARGE_SCALE = [ 24, 28, 32, 36, 40, 44, 48 ]
@@ -87,6 +95,13 @@ DESCRIPTION_SCALE = SMALL_SCALE
 AUTOCOMPLETE_SCALE = LARGE_SCALE
 SUGGESTION_SCALE = SMALL_SCALE
 
+if config.QUASIMODE_TRAILING_SPACE_STRING:
+    TRAILING_SPACE_STRING = config.QUASIMODE_TRAILING_SPACE_STRING
+    # Normal space would not get through, replace it with &nbsp;
+    TRAILING_SPACE_STRING = TRAILING_SPACE_STRING.replace(
+        " ", xmltextlayout.NON_BREAKING_SPACE)
+else:
+    TRAILING_SPACE_STRING = None
 
 # ----------------------------------------------------------------------------
 # Style Registries
@@ -97,9 +112,9 @@ def _newLineStyleRegistry():
     Creates a new style registry for laying out one of the quasimode's
     text lines.
     """
-    
+
     styles = xmltextlayout.StyleRegistry()
-    styles.add( 
+    styles.add(
         "document",
         font_family = "Gentium",
         font_style = "normal",
@@ -108,7 +123,7 @@ def _newLineStyleRegistry():
     styles.add(
         "line",
         text_align = "left",
-        color = WHITE,
+        color = COLOR_WHITE,
         margin_top = "0pt",
         margin_bottom = "0pt",
         )
@@ -119,20 +134,36 @@ def _newLineStyleRegistry():
         )
     styles.add( "ins" )
     styles.add( "alt" )
+    styles.add( "endspace", color=COLOR_GRAY )
+    styles.add( "prefix", color=COLOR_YELLOW )
     return styles
 
-    
+
 _AUTOCOMPLETE_STYLES = _newLineStyleRegistry()
+
 _SUGGESTION_STYLES   = _newLineStyleRegistry()
+
 _DESCRIPTION_STYLES  = _newLineStyleRegistry()
-_DESCRIPTION_STYLES.update( "ins", color = DESIGNER_GREEN )
-_DESCRIPTION_STYLES.update( "alt", color = BLACK )
+_DESCRIPTION_STYLES.update( "ins", color = COLOR_DESIGNER_GREEN )
+_DESCRIPTION_STYLES.update( "alt", color = COLOR_BLACK )
+_DESCRIPTION_STYLES.update( "endspace", color = COLOR_GRAY )
+
+_DIDYOUMEANHINT_STYLES  = _newLineStyleRegistry()
+_DIDYOUMEANHINT_STYLES.update( "ins", color = COLOR_DARK_GREEN )
+_DIDYOUMEANHINT_STYLES.update( "alt", color = COLOR_BEIGE, font_style = "italic" )
+
+_PARAMETERSUGGESTION_STYLES  = _newLineStyleRegistry()
+_PARAMETERSUGGESTION_STYLES.update( "ins", color = COLOR_GRAY )
+_PARAMETERSUGGESTION_STYLES.update( "alt", color = COLOR_DESIGNER_GREEN )
 
 XML_ALIASES = xmltextlayout.XmlMarkupTagAliases()
 XML_ALIASES.add( "line", baseElement = "block" )
 XML_ALIASES.add( "ins", baseElement = "inline" )
 XML_ALIASES.add( "alt", baseElement = "inline" )
+XML_ALIASES.add( "endspace", baseElement = "inline" )
+XML_ALIASES.add( "prefix", baseElement = "inline" )
 XML_ALIASES.add( "help", baseElement = "inline" )
+
 
 def _updateStyleSizes( styles, size ):
     """
@@ -161,13 +192,13 @@ def _updateSuggestionColors( styles, active ):
     """
 
     if active:
-        styles.update( "line", color = WHITE )
-        styles.update( "ins", color = DARK_GREEN )
-        styles.update( "alt", color = WHITE )
+        styles.update( "line", color = COLOR_WHITE )
+        styles.update( "ins", color = COLOR_DARK_GREEN )
+        styles.update( "alt", color = COLOR_WHITE )
     else:
-        styles.update( "line", color = DESIGNER_GREEN )
-        styles.update( "ins", color = DARK_GREEN )
-        styles.update( "alt", color = DESIGNER_GREEN )
+        styles.update( "line", color = COLOR_DESIGNER_GREEN )
+        styles.update( "ins", color = COLOR_DARK_GREEN )
+        styles.update( "alt", color = COLOR_DESIGNER_GREEN )
 
 
 def _updateStyles( styles, scale, size ):
@@ -176,7 +207,7 @@ def _updateStyles( styles, scale, size ):
     the style registry 'styles', based on 'size' (a font size
     in points) and 'scale' (a list of usable font sizes in points).
     """
-    
+
     _updateStyleSizes( styles, size )
     if size == scale[0]:
         # We're at the smallest possible size.  Ellispify if needed.
@@ -189,7 +220,7 @@ def retrieveDescriptionStyles( size = DESCRIPTION_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
     """
-    
+
     return _updateStyles( _DESCRIPTION_STYLES, DESCRIPTION_SCALE, size )
 
 
@@ -197,7 +228,7 @@ def retrieveAutocompleteStyles( active = True, size = LARGE_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
     """
-    
+
     styles =  _updateStyles( _AUTOCOMPLETE_STYLES, AUTOCOMPLETE_SCALE, size )
     _updateSuggestionColors( styles, active )
     return styles
@@ -207,11 +238,13 @@ def retrieveSuggestionStyles( active = True, size = SMALL_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
     """
-    
+
     styles = _updateStyles( _SUGGESTION_STYLES, SUGGESTION_SCALE, size )
     _updateSuggestionColors( styles, active )
     return styles
 
+
+_size_scale_map = {}
 
 def layoutXmlLine( xml_data, styles, scale ):
     """
@@ -221,7 +254,31 @@ def layoutXmlLine( xml_data, styles, scale ):
     not fit even at the smallest size of scale, then ellipsifies
     the text at that size.
     """
-    
+
+    # OPTIMIZATION BEGIN:
+    # Caching of largest working size for given scale and xml_data
+    xml_hash = hash("|".join(
+        ",".join(map(str,scale))
+        + re.sub("<.*?>", "", xml_data)
+        ))
+    usedSize = _size_scale_map.get(xml_hash, None)
+    if usedSize:
+        try:
+            _updateStyles( styles, scale, usedSize )
+            document = xmltextlayout.xmlMarkupToDocument(
+                xml_data,
+                styles,
+                XML_ALIASES,
+            )
+            document.shrinkOffset = scale[-1] - usedSize
+        except MaxLinesExceededError, e:
+            raise
+        else:
+            return document
+
+    hasFailed = False
+    # OPTIMIZATION END
+
     document = None
     for size in reversed( scale ):
         try:
@@ -233,15 +290,15 @@ def layoutXmlLine( xml_data, styles, scale ):
                 )
             usedSize = size
             break
-        except Exception:
+        except MaxLinesExceededError, e:
+            hasFailed = True
             # NOTE: If the error is fundamental (not size-related),
             # then it will be raised again below
 
             # TODO: Figure out what exact types of exceptions are
             # "non-fundamental" and catch those instead of using
             # a blanket catch like this.
-
-            pass
+            logging.error(e)
 
     if document == None:
         # no size above worked; use the smallest size
@@ -252,7 +309,15 @@ def layoutXmlLine( xml_data, styles, scale ):
             XML_ALIASES,
             )
         usedSize = scale[0]
+
     document.shrinkOffset = scale[-1] - usedSize
+
+    # OPTIMIZATION BEGIN:
+    # Caching of largest working size for given scale and xml_data
+    if hasFailed:
+        _size_scale_map[xml_hash] = usedSize
+    # OPTIMIZATION END
+
     return document
 
 
@@ -267,7 +332,7 @@ class QuasimodeLayout:
     """
 
     LINE_XML = "<document><line>%s</line></document>"
-    
+
     def __init__( self, quasimode ):
         """
         Computes and stores the layout metrics for the quasimode.
@@ -277,12 +342,12 @@ class QuasimodeLayout:
         self.__newSmoothRags()
         self.__newRoundCorners()
         self.__setBackgroundColors()
-        
+
     def __newCreateLines( self, quasimode ):
         """
         LONGTERM TODO: Document this.
         """
-    
+
         lines = []
 
         suggestionList = quasimode.getSuggestionList()
@@ -292,16 +357,18 @@ class QuasimodeLayout:
         activeIndex = suggestionList.getActiveIndex()
 
         lines.append( layoutXmlLine(
-            xml_data = self.LINE_XML % description, 
+            xml_data = self.LINE_XML % description,
             styles = retrieveDescriptionStyles(),
             scale = DESCRIPTION_SCALE,
             ) )
 
-        if len(suggestions[0].toXml()) == 0:
-            text = suggestions[0].getSource()
-            text = escape_xml( text )
-        else:
-            text = suggestions[0].toXml()
+        text = suggestions[0].toXml()
+        if len(text) == 0:
+            text = escape_xml( suggestions[0].getSource() )
+
+        # Highlight traling space in the input area if needed
+        if text.endswith(" ") and TRAILING_SPACE_STRING:
+            text = text[:-1] + u"<endspace>%s</endspace>" % TRAILING_SPACE_STRING
 
         lines.append( layoutXmlLine(
             xml_data = self.LINE_XML % text,
@@ -316,22 +383,22 @@ class QuasimodeLayout:
                 styles = retrieveSuggestionStyles( active = isActive ),
                 scale = SUGGESTION_SCALE,
                 ) )
-            
+
         return lines
-            
+
 
     def __setBackgroundColors( self ):
         """
         LONGTERM TODO: Document this.
         """
-    
+
         self.newLines[0].background = \
              xmltextlayout.colorHashToRgba( DESCRIPTION_BACKGROUND_COLOR )
         for i in range( 1, len(self.newLines) ):
             self.newLines[i].background = \
                 xmltextlayout.colorHashToRgba( MAIN_BACKGROUND_COLOR )
-                
-    
+
+
     def __newSmoothRags( self ):
         """
         Uses the computed size metrics to smooth the rags of the
@@ -364,7 +431,7 @@ class QuasimodeLayout:
 
         for l in self.newLines:
             l.ragWidth = _computeWidth( l )
-            
+
         for i in range( MAX_CYCLES ):
             widths = [ l.ragWidth for l in self.newLines ]
             for i in range( len(widths) - 1 ):
@@ -383,10 +450,12 @@ class QuasimodeLayout:
         """
 
         for l in self.newLines:
+            l.roundLowerLeft = False
             l.roundLowerRight = False
             l.roundUpperRight = False
 
         lines = self.newLines
+
         for i in range( len(lines)-1 ):
             if lines[i+1].ragWidth < lines[i].ragWidth:
                 lines[i].roundLowerRight = True
@@ -395,5 +464,23 @@ class QuasimodeLayout:
             if lines[i].ragWidth < lines[i+1].ragWidth:
                 lines[i+1].roundUpperRight = True
 
+        # last line has always lower-right corner rounded
         lines[-1].roundLowerRight = True
-        self.newLines = lines
+        #self.newLines = lines
+
+
+    def getCurrentCommandWidth(self, quasimode):
+        command = quasimode.getSuggestionList().getActiveCommand()
+        if not command:
+            return None
+        if not (hasattr(command, "name") and command.name):
+            return None
+        layout = layoutXmlLine(
+            xml_data = self.LINE_XML % (command.name + " "),
+            styles = retrieveAutocompleteStyles( True ),
+            scale = AUTOCOMPLETE_SCALE,
+            )
+        try:
+            return layout.blocks[0].lines[0].xMax
+        except:
+            return None

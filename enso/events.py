@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -57,6 +57,7 @@
 # ----------------------------------------------------------------------------
 
 import logging
+import time
 from enso import input
 
 
@@ -82,7 +83,56 @@ EVENT_TYPES = [
 # Enso will consider the system idle after the following number of seconds.
 IDLE_TIMEOUT = 60*5
 
+"""
+Event responder function wrapper
+It serves only one purpose: to provide is_running() function to the responder functions
+so that the function execution can be tracked and synchronized.
+"""
+class EventResponderFuncWrapper:
+    def __init__(self, func):
+        self.__func = func
+        self.__is_running = False
 
+    def is_running(self):
+        return self.__is_running
+
+    def __call__(self, *args, **kwargs):
+        self.__is_running = True
+        try:
+            return self.__func(*args, **kwargs)
+        finally:
+            self.__is_running = False
+
+    """ Mandatory functions for a wrapper """            
+    def __getattr__(self, attr):
+        return getattr(self.__func, attr)
+    
+    """ Mandatory functions for a wrapper """            
+    def __cmp__(self, other):
+        if self.__func > other:
+            return 1
+        elif self.__func < other:
+            return -1
+        elif self.__func == other:
+            return 0
+            
+    """ Mandatory functions for a wrapper """            
+    def __eq__(self, other):
+        return self.__func == other
+
+    """ Mandatory functions for a wrapper """            
+    @property
+    def __lt__(self, other): raise AttributeError()
+    @property
+    def __le__(self, other): raise AttributeError()
+    @property
+    def __ne__(self, other): raise AttributeError()
+    @property
+    def __gt__(self, other): raise AttributeError()
+    @property
+    def __ge__(self, other): raise AttributeError()
+    
+            
 # ----------------------------------------------------------------------------
 # EventManager class
 # ----------------------------------------------------------------------------
@@ -98,8 +148,11 @@ class EventManager( input.InputManager ):
     __instance = None
 
     @classmethod
-    def get( cls ):
+    def get( cls, reload=False ):
         if not cls.__instance:
+            cls.__instance = cls()
+        elif reload:
+            del cls.__instance
             cls.__instance = cls()
         return cls.__instance
 
@@ -109,7 +162,7 @@ class EventManager( input.InputManager ):
         of responders.
         """
 
-        input.InputManager.__init__( self )
+        input.InputManager.__init__( self ) #@UndefinedVariable
 
         # Copy the core event types to the dynamic event types list,
         # which can be extended with the createEventType() method.
@@ -131,7 +184,8 @@ class EventManager( input.InputManager ):
         for all event types to be dealt with.
         """
 
-        assert typeName not in self._dynamicEventTypes        
+        assert typeName not in self._dynamicEventTypes,\
+            "dynamic-event-type '%s' has been already created." % typeName
         self.__responders[typeName] = []
         self._dynamicEventTypes.append( typeName )
 
@@ -139,18 +193,25 @@ class EventManager( input.InputManager ):
         """
         Used to (artificially or really) trigger an event type.
         """
-
-        assert eventType in self._dynamicEventTypes
+        assert eventType in self._dynamicEventTypes,\
+            "dynamic-event-type '%s' is uknown" % eventType
+        perf = []
         for func in self.__responders[ eventType ]:
-            func( *args, **kwargs )
-        
+            started = time.time()
+            sub_perf = func( *args, **kwargs )
+            if isinstance(sub_perf, list):
+                perf.extend(sub_perf)
+            elapsed = time.time() - started
+            perf.append((func, args, kwargs, elapsed))
+        return perf
 
     def getResponders( self, eventType ):
         """
         Returns a list of all responders of the given type.
         """
 
-        assert eventType in self._dynamicEventTypes
+        assert eventType in self._dynamicEventTypes,\
+            "dynamic-event-type '%s' is uknown" % eventType
         return self.__responders[eventType]
 
 
@@ -159,33 +220,48 @@ class EventManager( input.InputManager ):
         Registers a responder for event type eventType.
         """
 
-        assert eventType in self._dynamicEventTypes
-        assert responderFunc not in self.getResponders( eventType )
+        assert eventType in self._dynamicEventTypes,\
+            "dynamic-event-type '%s' is uknown" % eventType
+        assert responderFunc not in self.getResponders( eventType ),\
+            "responder-function '%s' for event-type '%s' is already registered in the responder"\
+            % (responderFunc.__name__, eventType)
 
         responderList = self.__responders[ eventType ]
-        logging.debug( "Added a responder function!" )
+        assert logging.debug( "Added a responder function!" ) or True
 
         # If this is a dismissal responder and we don't currently have
         # any registered, enable mouse events so we're actually
         # notified of dismissals via mouse input.
-        if eventType in ["dismissal","mousemove"]:
-            self.enableMouseEvents( True )
+        if eventType in ["dismissal", "mousemove"]:
+            self.enableMouseEvents( True ) #IGNORE:E1101
 
-        responderList.append( responderFunc )
+        # Wrap the responder-function to provide is_running() function
+        responderList.append( EventResponderFuncWrapper( responderFunc ) )
 
 
-    def removeResponder( self, responderFunc ):
+    def removeResponder( self, responderFunc, sync=False ):
         """
         Removes responderFunc from the internal responder dictionary.
 
         NOTE: Removes responderFunc from responding to ALL types of events.
         """
-        
+
         for eventType in self.__responders.keys():
             responderList = self.__responders[ eventType ]
-            if responderFunc in responderList:
-                logging.debug( "Removed a responder function!" )
-                responderList.remove( responderFunc )
+            # Unregister responder-function
+            for responderWrapper in responderList: 
+                if responderWrapper == responderFunc:
+                    responderList.remove( responderWrapper )
+                    assert logging.debug( "Removed a responder function %s!", responderWrapper.__name__ ) or True
+                    if sync:
+                        try:
+                            assert logging.debug( "Syncing %s responder wrapper", responderWrapper ) or True
+                            while responderWrapper.is_running():
+                                # This is mandatory, otherwise the performance goes down
+                                time.sleep(0.01)
+                        except Exception, e:
+                            logging.error("Error calling is_running() function for responder-wrapper %s", responderWrapper)
+                    break
 
         if eventType in ["dismissal","mousemove"]:
             # If we're removing our only dismissal responder,
@@ -194,7 +270,7 @@ class EventManager( input.InputManager ):
             numMouseResponders = len( self.__responders[ "mousemove" ] )
             numDismissResponders = len( self.__responders[ "dismissal" ] )
             if (numMouseResponders+numDismissResponders) == 0:
-                self.enableMouseEvents( False )
+                self.enableMouseEvents( False ) #IGNORE:E1101
 
 
     def run( self ):
@@ -202,8 +278,8 @@ class EventManager( input.InputManager ):
         Runs the main event loop.
         """
 
-        input.InputManager.run( self )
-    
+        input.InputManager.run( self ) #@UndefinedVariable
+
 
     # ----------------------------------------------------------------------
     # Functions for transferring the existing event handlers to the more
@@ -215,7 +291,7 @@ class EventManager( input.InputManager ):
         High-level event handler called whenever we haven't received
         any useful input events for IDLE_TIMEOUT seconds.
         """
-        
+
         self.__currIdleTime = 0
         for func in self.__responders[ "idle" ]:
             func()
@@ -225,7 +301,7 @@ class EventManager( input.InputManager ):
         Low-level event handler called as soon as the event manager
         starts running.
         """
-        
+
         for func in self.__responders[ "init" ]:
             func()
 
@@ -235,7 +311,7 @@ class EventManager( input.InputManager ):
         """
 
         logging.info( "Exit request received." )
-        self.stop()
+        self.stop() #IGNORE:E1101
 
     def onTick( self, msPassed ):
         """
@@ -243,7 +319,7 @@ class EventManager( input.InputManager ):
         number of milliseconds passed since the last onTick() call is
         passed in, although this value may not be 100% accurate.
         """
-        
+
         self.__currIdleTime += msPassed
 
         if self.__currIdleTime >= 1000*IDLE_TIMEOUT:
@@ -256,7 +332,7 @@ class EventManager( input.InputManager ):
         Low-level event handler called whenever the user selects a
         menu item on the popup menu of the Tray Icon.
         """
-        
+
         self._onDismissalEvent()
         for func in self.__responders[ "traymenu" ]:
             func( menuId )
@@ -266,7 +342,7 @@ class EventManager( input.InputManager ):
         High-level event handler called whenever a keypress, mouse
         movement, or mouse button click is made.
         """
-        
+
         self.__currIdleTime = 0
         for func in self.__responders[ "dismissal" ]:
             func()
@@ -283,7 +359,7 @@ class EventManager( input.InputManager ):
             func( eventType, keyCode )
 
         # The following message may be used by system tests.
-        logging.debug( "onKeypress: %s, %s" % (eventType, keyCode) )
+        #logging.debug( "onKeypress: %s, %s" % (eventType, keyCode) )
 
     def onMouseMove( self, x, y ):
         """
@@ -291,7 +367,7 @@ class EventManager( input.InputManager ):
         event.  The absolute position of the mouse cursor on-screen is
         passed in.
         """
-        
+
         self._onDismissalEvent()
         for func in self.__responders[ "mousemove" ]:
             func( x, y )
@@ -301,7 +377,7 @@ class EventManager( input.InputManager ):
         Low-level event handler called whenever any mouse button is
         pressed.
         """
-        
+
         self._onDismissalEvent()
 
     def onSomeKey( self ):
