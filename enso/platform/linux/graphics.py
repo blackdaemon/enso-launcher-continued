@@ -38,7 +38,7 @@ import cairo
 
 from enso.events import EventManager
 
-# Max opacity as used in Enso core (opacities will be converted to fit in 
+# Max opacity as used in Enso core (opacities will be converted to fit in
 # [0;1] in this backend)
 MAX_OPACITY = 0xff
 # Enable Fake transparency when no the screen isn't composited?
@@ -51,7 +51,7 @@ class TransparentWindow (object):
 
     class _impl (gtk.Window):
         '''Actual implementation of the TransparentWindow ; this mechanism is
-due to the way Enso handles TransparentWindows deletion, which requires the 
+due to the way Enso handles TransparentWindows deletion, which requires the
 main TransparentWindow object to not be referenced by other modules, which
 gtk would do, for instance.'''
 
@@ -62,6 +62,9 @@ gtk would do, for instance.'''
 
         __wallpaper_surface = None
         __wallpaper_screen = None
+
+        __isVisible = False
+
 
         def __init__ (self, x, y, maxWidth, maxHeight):
             '''Initialize object'''
@@ -77,6 +80,7 @@ gtk would do, for instance.'''
             self.__screen_composited = False
             self.__eventMgr = EventManager.get ()
 
+            self.set_title("ENSOTransparentWindow")
             self.set_app_paintable (True)
             self.do_screen_changed ()
             self.connect ("motion-notify-event", self.on_motion_notify_event)
@@ -89,7 +93,7 @@ gtk would do, for instance.'''
             '''Grab pointer to be able to catch all motion events'''
             if not gtk.gdk.pointer_is_grabbed ():
                 mask = gtk.gdk.POINTER_MOTION_MASK
-                while gtk.gdk.pointer_grab (self.window, True, mask) \
+                while gtk.gdk.pointer_grab (self.window, False, mask) \
                         != gtk.gdk.GRAB_SUCCESS:
                     sleep (0.1)
 
@@ -101,6 +105,7 @@ gtk would do, for instance.'''
         def on_motion_notify_event (self, window, event):
             '''Forward mouse motion events to Enso core'''
             self.__eventMgr.onMouseMove (event.x, event.y)
+            return False
 
         def do_expose_event (self, event):
             '''Handle expose events'''
@@ -190,6 +195,9 @@ please use a compositing manager to get proper blending.''')
                 self.input_shape_combine_mask (pixmap, 0, 0)
             if not self.__screen_composited:
                 self.shape_combine_mask (pixmap, 0, 0)
+            if not self.__isVisible:
+                self.show ()
+                self.__isVisible = True
 
         def update (self):
             '''Queue drawing when Enso core requests it'''
@@ -204,7 +212,7 @@ please use a compositing manager to get proper blending.''')
                                                      self.__maxWidth,
                                                      self.__maxHeight)
                 self.update_shape ()
-                self.show ()
+#                self.show ()
             return self.__surface
 
         def setOpacity (self, opacity):
@@ -213,10 +221,10 @@ the opacity level ; this is probably a FIXME cause it looks really ugly and
 might cause bad conflicts or race conditions in the future.'''
             self.__opacity = opacity
             # FIXME: I'm not clean
-            if self.__opacity == MAX_OPACITY:
-                self.grab_pointer ()
-            else:
-                self.ensure_pointer_ungrabbed ()
+            #if self.__opacity == MAX_OPACITY:
+            #    self.grab_pointer ()
+            #else:
+            #    self.ensure_pointer_ungrabbed ()
             self.update ()
 
         def getOpacity (self):
@@ -260,6 +268,11 @@ might cause bad conflicts or race conditions in the future.'''
             '''Get window maximum height'''
             return self.__maxHeight
 
+        def hideWindow (self):
+            if self.__isVisible:
+                self.hide()
+                self.__isVisible = False
+
         def finish (self):
             '''Finish this window: delete the Cairo surface, ungrab pointer
 and destroy it.'''
@@ -298,25 +311,41 @@ def getCurrentMonitor ():
         if (width == display.screen().width_in_pixels):
             '''Either a full screen window or desktop.
             We will use mouse coordinates for this'''
-            _, x, y, _ = gtk.gdk.display_get_default().get_pointer() 
+            _, x, y, _ = gtk.gdk.display_get_default().get_pointer()
         else:
             '''A floating window.  We will see which monitor
             the majority of the window is on'''
             root = window.query_tree().root
             trans = root.translate_coords(window, 0, 0)
             x = trans.x + (width / 2)
-            y = trans.y        
+            y = trans.y
     else:
         x, y = 0, 0
         print "no focus"
-    
+
     return gtk.gdk.screen_get_default ().get_monitor_at_point(x, y)
-    
+
 def getDesktopOffset ():
     '''Helper fetching the offset so that Enso can draw on multiple desktops'''
     left, top, _, _ = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
-    return left, top    
-    
+    return left, top
+
 def getDesktopSize ():
     _, _, width, height = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
-    return width, height 
+    return width, height
+
+def getWorkareaOffset ():
+    """
+    TODO: This should return offset of the area on the desktop
+    not covered with taskbar, appbars.
+    """
+    left, top, _, _ = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
+    return left, top
+
+def getWorkareaSize ():
+    """
+    TODO: This should return size of the area on the desktop
+    not covered with taskbar, appbars.
+    """
+    _, _, width, height = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
+    return width, height

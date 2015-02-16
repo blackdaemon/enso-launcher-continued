@@ -59,7 +59,7 @@ class install (_install):
         except:
             self.warn ("Could not write installed files list %s" % \
                        INSTALLED_FILES)
-            return 
+            return
         file.write (data)
         file.close ()
 
@@ -82,7 +82,7 @@ class uninstall (_install):
         except:
             self.warn ("Could not read installed files list %s" % \
                        INSTALLED_FILES)
-            return 
+            return
         files = file.readlines ()
         file.close ()
         prepend = ""

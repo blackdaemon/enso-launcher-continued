@@ -1,10 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import logging
 import os
 import sys
 import threading
+import logging
 
 import enso.config
 from enso.messages import displayMessage
@@ -55,6 +55,22 @@ def process_options(argv):
     return opts, args
 
 
+class LoggingDebugFilter(logging.Filter):
+    def filter(self, record):
+        """
+        Determine if the specified record is to be logged.
+
+        Is the specified record to be logged? Returns 0 for no, nonzero for
+        yes. If deemed appropriate, the record may be modified in-place.
+        """
+        res = logging.Filter.filter(self, record)
+        if res == 0:
+            return res
+        if record.module == "inotify_buffer" and record.funcName == "run":
+            return 0
+        return res
+
+
 def main(argv = None):
     global options
 
@@ -86,8 +102,9 @@ def main(argv = None):
             format=logformat)
 
     if loglevel == logging.DEBUG:
-        logging.debug("default options set:" + repr(opts))
-        logging.debug("command-line args:" + repr(args))
+        pass
+        assert logging.debug("default options set:" + repr(opts)) or True
+        assert logging.debug("command-line args:" + repr(args)) or True
 
     if not opts.ignore_ensorc:
         ensorc_path = os.path.expanduser(os.path.join("~",".ensorc"))
@@ -128,10 +145,9 @@ def main(argv = None):
     else:
         logging.error("Invalid hotkey spec: %s" % opts.hotkey)
 
-
     if not opts.quiet and opts.show_splash:
         displayMessage("<p><command>Enso</command> is starting...</p>")
-
+    
     if sys.platform.startswith("win"):
         # Add tray-icon support for win32 platform
         if opts.show_tray_icon:
@@ -151,33 +167,6 @@ def main(argv = None):
         logging.info("Changing color scheme to %s" % opts.color_scheme)
         change_color_scheme(opts.color_scheme)
 
-    """
-    import pysage
-    
-    class EnsoRemoteMessage(pysage.Message):
-        properties = ['amount']
-        types = ['i']
-        packet_type = 101
-    
-    class EnsoRemoteConsumer(pysage.Actor):
-        subscriptions = ['EnsoRemoteMessage']
-        def handle_EnsoRemoteMessage(self, msg):
-            print 'Yummy! I had %d pancakes!' % (msg.get_property('amount'))
-
-    class Chef(pysage.Actor):
-        def __init__(self):
-            self.last_sent = time.time()
-        
-        def update(self):
-            '''every 2 seconds, this chef makes a random amount of pancakes'''
-            if time.time() - self.last_sent > 2.0:
-                mgr.queue_message_to_group(mgr.PYSAGE_MAIN_GROUP, FoodAvailableMessage(amount=random.randint(0,10)))
-                self.last_sent = time.time()
-
-    mgr = pysage.ActorManager.get_singleton()
-    mgr.register_actor(EnsoRemoteConsumer())
-    """
-    
     try:
         # Use optimization if available
         import psyco
@@ -185,8 +174,15 @@ def main(argv = None):
         psyco.profile()
         #psyco.log()
     except:
-       pass
+        pass
 
+    l = logging.getLogger()
+    if l.isEnabledFor(logging.DEBUG):
+        try:
+            l.addFilter(LoggingDebugFilter())
+        except:
+            pass
+        
     # Execute main Enso loop
     enso.run()
 

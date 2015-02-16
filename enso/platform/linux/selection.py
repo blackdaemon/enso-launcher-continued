@@ -5,6 +5,10 @@ Email  : guillaume@segu.in
 Copyright (C) 2008, Guillaume Seguin <guillaume@segu.in>.
 All rights reserved.
 
+Author : Pavel Vitis "blackdaemon"
+Email  : pavelvitis@gmail.com
+
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
@@ -35,6 +39,35 @@ from time import sleep, time, clock
 import Xlib
 import Xlib.ext.xtest
 from enso.platform.linux.utils import *
+
+import dbus
+import dbus.mainloop.glib
+from gio import File
+from enso.platform.linux.weaklib import DbusWeakCallback
+
+"""
+Class to handle Nautilus file-selection notifications in Linux Gnome desktop
+"""
+class NautilusFileSelection(object):
+    def __init__(self):
+        self.paths = []
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)    
+        callback = DbusWeakCallback(self._on_selection_change)
+        # Register signal receiver for SelectionChanged event in Nautilus windows
+        callback.token = dbus.Bus().add_signal_receiver(
+            callback,
+            "SelectionChanged",
+            dbus_interface="se.kaizer.FileSelection",
+            byte_arrays=True)
+        
+    def _on_selection_change(self, selection, window_id):
+        # File selection changed (user clicked on file/directory or selected
+        # a group of files/directories.
+        # Update internal variable
+        self.paths = filter(None, [File(uri).get_path() for uri in selection])
+
+nautilus_file_selection = NautilusFileSelection()
+
 
 GET_TIMEOUT = 1.5
 PASTE_STATE = Xlib.X.ShiftMask
@@ -97,13 +130,14 @@ def fake_paste (display = None):
     k = PASTE_KEY
     ctrl = False
     if k.startswith("^"):
-      k = k[1:]
-      ctrl = True
+        k = k[1:]
+        ctrl = True
     keycode = get_keycode (key = k, display = display)
     key = make_key (keycode, state, window, display)
     ctrl_keycode = get_keycode (key = "Control_L", display = display)
     ctrl_key = make_key (ctrl_keycode, state, window, display)
-    if ctrl: Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
+    if ctrl: 
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
@@ -111,7 +145,7 @@ def fake_paste (display = None):
 
 def get ():
     '''Fetch text from X PRIMARY selection'''
-    global selection_text
+    global selection_text, nautilus_file_selection
     selection_text = None
     clipboard = gtk.clipboard_get (selection = "PRIMARY")
     clipboard.request_text (get_clipboard_text_cb)
@@ -121,8 +155,14 @@ def get ():
         gtk.main_iteration (False)
     if not selection_text:
         selection_text = ""
+    files = []
+    # Get file list from Nautilus window (if available)
+    if nautilus_file_selection and nautilus_file_selection.paths:
+        files = nautilus_file_selection.paths
+    #TODO: Implement file selection from other Linux file managers
     selection = {
                     "text": selection_text,
+                    "files": files,
                 }
     return selection
 

@@ -60,5 +60,8 @@ def provideInterface (name):
     elif name == "scripts_folder":
         from enso.platform.linux.scriptfolder import get_script_folder_name
         return get_script_folder_name
+    elif name == "system":
+        import enso.platform.linux.system
+        return enso.platform.linux.system    
     else:
         return None

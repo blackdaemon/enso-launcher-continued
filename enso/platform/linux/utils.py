@@ -5,6 +5,10 @@ Email  : guillaume@segu.in
 Copyright (C) 2008, Guillaume Seguin <guillaume@segu.in>.
 All rights reserved.
 
+Author : Pavel Vitis "blackdaemon"
+Email  : pavelvitis@gmail.com
+
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
@@ -34,8 +38,21 @@ from Xlib.display import Display
 import gtk
 import os
 
+from enso.utils.memoize import memoized
+
+
+DE_GNOME = "GNOME"
+DE_KDE = "KDE"
+DE_UNITY = "Unity"
+DE_XFCE = "XFCE"
+DE_CINNAMON = "Cinnamon"
+DE_MATE = "MATE"
+DE_LXDE = "LXDE"
+DE_UNKNOWN = None
+
+
 def get_display ():
-    return Display (os.environ["DISPLAY"])
+    return Display(os.environ["DISPLAY"])
 
 def get_keycode (key, display = None):
     '''Helper function to get a keycode from raw key name'''
@@ -49,5 +66,40 @@ def sanitize_char (keyval):
     '''Sanitize a single character keyval by attempting to convert it'''
     char = unichr (int (keyval))
     if len (char) > 0 and ord (char) > 0 and ord (char) < 65000:
+        #print keyval, char
         return char
     return None
+
+@memoized
+def detect_desktop_environment():
+    """ 
+    Detect desktop environment
+    Logic taken from https://github.com/alexeevdv/dename
+    """
+    # Detect GNOME
+    rc = os.system("ps -e | grep -E '^.* gnome-session$' > /dev/null")
+    if rc == 0:
+        return DE_GNOME
+    rc = os.system("ps -e | grep -E '^.* kded4$' > /dev/null")
+    if rc == 0:
+        return DE_KDE
+    rc = os.system("ps -e | grep -E '^.* unity-panel$' > /dev/null")
+    if rc == 0:
+        return DE_UNITY
+    rc = os.system("ps -e | grep -E '^.* xfce4-session$' > /dev/null")
+    if rc == 0:
+        return DE_XFCE
+    rc = os.system("ps -e | grep -E '^.* cinnamon$' > /dev/null")
+    if rc == 0:
+        return DE_CINNAMON
+    rc = os.system("ps -e | grep -E '^.* mate-panel$' > /dev/null")
+    if rc == 0:
+        return DE_MATE
+    rc = os.system("ps -e | grep -E '^.* lxsession$' > /dev/null")
+    if rc == 0:
+        return DE_LXDE
+    
+    return DE_UNKNOWN
+
+
+  
