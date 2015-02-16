@@ -2,6 +2,7 @@ import sys
 import os
 import time
 import pythoncom
+import logging
 from win32com.shell import shell, shellcon
 
 import enso.config
@@ -92,12 +93,12 @@ def systray(enso_config):
     in separate thread
     """
 
-    icon_filename = "enso.ico"
+    icon_filename = "Enso.ico"
     startup_dir = os.path.dirname(sys.argv[0])
     enso_icon = os.path.realpath(os.path.join(startup_dir, icon_filename))
     if not os.path.isfile(enso_icon):
         enso_icon = os.path.realpath(os.path.join(startup_dir, "..", icon_filename))
-    print "Icon path: %s" % enso_icon
+    assert logging.debug("Icon path: %s", enso_icon) or True
 
     trayicon = SysTrayIcon(
             enso_icon,

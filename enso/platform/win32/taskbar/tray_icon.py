@@ -166,7 +166,7 @@ class SysTrayIcon(object):
                     logging.error("Error executing menu item func: %s" % self.custom_menu_items[id]['text'])
                     logging.error(e)
         else:
-            print "Unknown command -", id
+            logging.info("Unknown command %d", id)
 
 
     def on_quit(self, systray):
