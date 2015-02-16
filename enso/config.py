@@ -71,6 +71,12 @@ MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
     " and <command>put</command> commands control" \
     " these mini-messages.</p>"
 
+# Message XML for the About message.
+ABOUT_MSG_XML = u"<p><command>Enso</command> Community Edition</p>" \
+    "<caption> </caption>" \
+    "<p>Copyright &#169; 2008 <b>Humanized, Inc.</b></p>" \
+    "<p>Copyright &#169; 2008-2010 <b>Enso community</b></p>"
+
 # List of default platforms supported by Enso; platforms are specific
 # types of providers that provide a suite of platform-specific
 # functionality.

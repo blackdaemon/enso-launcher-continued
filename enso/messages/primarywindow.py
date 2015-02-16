@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -48,6 +48,7 @@ from enso.graphics.measurement import inchesToPoints
 from enso.graphics import rounded_rect
 from enso.utils.xml_tools import escape_xml
 from enso.messages.windows import MessageWindow, computeWidth
+from enso.graphics.textlayout import MaxLinesExceededError
 
 
 # ----------------------------------------------------------------------------
@@ -58,8 +59,9 @@ from enso.messages.windows import MessageWindow, computeWidth
 ANIMATION_TIME = 250
 
 # Amount of time (in ms) to wait after primary message creation before
-# allowing dismissal events to trigger the animation
-WAIT_TIME = 80
+# allowing dismissal events to trigger the animation.
+# This can be changed per message in setMessage()
+DEFAULT_WAIT_TIME = 80
 
 
 # ----------------------------------------------------------------------------
@@ -79,7 +81,7 @@ SCALE = [
     ( 24, 14 ),
     ( 30, 18 ),
     ]
-    
+
 PRIM_TEXT_SIZE = 24
 CAPTION_TEXT_SIZE = 16
 LINE_SPACING = 1
@@ -108,7 +110,7 @@ class PrimaryMsgWind( MessageWindow ):
     Also, the singleton notifies the message manager that the primary
     message has been dismissed.
     """
-    
+
     def __init__( self, msgMan, eventManager ):
         """
         Initializes the PrimaryMessage singleton
@@ -130,28 +132,56 @@ class PrimaryMsgWind( MessageWindow ):
         self.__msg = None
         self.__waiting = False
         self.__animating = False
+        self.__wait_time = DEFAULT_WAIT_TIME
+        self.__timeSinceCreated = None
 
 
     def setMessage( self, message ):
         """
         Sets the current primary message to "message".
+        Change default waiting time (80ms) with minimal_wait_time parameter (in ms).
         """
-        
-        if self.__msg != None:
+        if self.__msg is not None:
             # If there already is a primary message, then "interrupt" it:
             self.__interrupt()
 
         # Set the current primary message, and draw it.
         self.__msg = message
-        self.__drawMessage()
 
-        # Now, set a time-responder to wait for a bit, so that the
-        # user doesn't accidentally clear the message before it registers
-        # as existing.
-        self.__timeSinceCreated = 0
-        self.__evtManager.registerResponder( self.waitTick, "timer" )
-        self.__waiting = True
-        
+        try:
+            self.__drawMessage()
+        finally:
+            # Now, set a time-responder to wait for a bit, so that the
+            # user doesn't accidentally clear the message before it registers
+            # as existing.
+            self.__timeSinceCreated = 0
+            self.__wait_time = max(self.__msg.getWaitTime(), DEFAULT_WAIT_TIME)
+            self.__evtManager.registerResponder( self.waitTick, "timer" )
+            self.__waiting = True
+
+
+    def dismiss( self, no_fadeout = False ):
+        """
+        Dismiss the primary message immediately.
+        If no_fadeout==True, the primary-message disappears at once without
+        fadeout animation.
+        """
+        if self.__msg is None:
+            return
+
+        if no_fadeout:
+            # No fadeout animation, interrupt all stages and hide window
+            self.__interrupt()
+            self.hide()
+            self.__msg = None
+
+            self.__msgManager.onPrimaryMessageFinished()
+        else:
+            if self.__waiting:
+                self.__evtManager.removeResponder( self.waitTick )
+                self.__waiting = False
+            self.onDismissal()
+
 
     def onDismissal( self ):
         """
@@ -159,20 +189,19 @@ class PrimaryMsgWind( MessageWindow ):
         and make sure the underlying message does what it needs to
         when it ceases being a primary message.
         """
-
         self.__msgManager.onDismissal()
-        
+
         self.__evtManager.removeResponder( self.onDismissal )
         self.__timeSinceDismissal = 0
         self.__evtManager.registerResponder( self.animationTick, "timer" )
         self.__animating = True
-        
+
 
     def animationTick( self, msPassed ):
         """
         Called on a timer event to animate the window's fadeout.
         """
-        
+
         self.__timeSinceDismissal += msPassed
         if self.__timeSinceDismissal > ANIMATION_TIME:
             self.__onAnimationFinished()
@@ -190,9 +219,8 @@ class PrimaryMsgWind( MessageWindow ):
         Called on a timer event, to give some time between the message
         appearing and when it can disappear.
         """
-        
         self.__timeSinceCreated += msPassed
-        if self.__timeSinceCreated > WAIT_TIME:
+        if self.__timeSinceCreated > self.__wait_time:
             self.__evtManager.registerResponder( self.onDismissal,
                                                  "dismissal" )
             self.__evtManager.removeResponder( self.waitTick )
@@ -206,7 +234,7 @@ class PrimaryMsgWind( MessageWindow ):
         """
         Centers the message window horizontally using the current size.
         """
-        
+
         desksize = graphics.getDesktopSize()
         left, top = graphics.getDesktopOffset()
 
@@ -239,11 +267,14 @@ class PrimaryMsgWind( MessageWindow ):
         if self.__waiting:
             self.__evtManager.removeResponder( self.waitTick )
 
+        #self.__msgManager.onPrimaryMessageFinished()
+
+
     def __drawMessage( self ):
         """
-        Draws the current message to the underlying Cario context.
+        Draws the current message to the underlying Cairo context.
         """
-        
+
         # This function is the master drawing function; all layout and
         # rendering methods are called from here.
 
@@ -278,7 +309,7 @@ class PrimaryMsgWind( MessageWindow ):
         """
         Determines whether msgDoc and capDoc are both one line.
         """
-        
+
         numMsgLines = 0
         for block in ( msgDoc.blocks ):
             numMsgLines += len( block.lines )
@@ -320,7 +351,7 @@ class PrimaryMsgWind( MessageWindow ):
             except Exception:
                 # TODO: Lookup exact error.
                 pass
-            
+
         # This time, ellipsify.
         msgSize, capSize = SCALE[0]
         msgDoc = layoutMessageXml(
@@ -359,7 +390,7 @@ class PrimaryMsgWind( MessageWindow ):
                % (width, self.getMaxSize()[0])
         self.setSize( width, height )
         self.__position()
-        
+
         cr = self._context
         rounded_rect.drawRoundedRect(
             context = cr,
@@ -390,20 +421,20 @@ class PrimaryMsgWind( MessageWindow ):
             capWidth = computeWidth( capDoc )
             width = max( msgWidth, capWidth )
             height = msgDoc.height + capDoc.height
-            msgPos = ( PRIM_MSG_MARGIN + ( ( width - msgWidth ) / 2 ), 
+            msgPos = ( PRIM_MSG_MARGIN + ( ( width - msgWidth ) / 2 ),
                        PRIM_MSG_MARGIN )
             capPos = ( PRIM_MSG_MARGIN + ( ( width - capWidth ) / 2 ),
                        msgPos[1] + msgDoc.height )
         else:
             msgWidth = computeWidth( msgDoc )
-            capWidth = computeWidth( capDoc ) 
+            capWidth = computeWidth( capDoc )
             width = max( msgWidth, capWidth )
             height = msgDoc.height + capDoc.height
             msgPos = ( PRIM_MSG_MARGIN, PRIM_MSG_MARGIN )
             capPos = ( width - capWidth + PRIM_MSG_MARGIN,
                        msgPos[1] + msgDoc.height )
         return width, height, msgPos, capPos
-        
+
 
     def __onAnimationFinished( self ):
         """
@@ -446,7 +477,7 @@ _styles.add(
 
 _styles.add(
     "caption",
-    color = "#669900",
+    color = "#889900",
     margin_top = "%spt" % CAPTION_OFFSET,
     margin_bottom = "0pt",
     )
@@ -456,11 +487,23 @@ _styles.add(
     color = "#669900",
     )
 
+_styles.add(
+    "b",
+    color = "#BEBB9C",
+    )
+
+_styles.add(
+    "error",
+    color = "#DD2222",
+    )
+
 # The tag aliases for primary message XML.
 _tagAliases = xmltextlayout.XmlMarkupTagAliases()
 _tagAliases.add( "p", baseElement = "block" )
 _tagAliases.add( "caption", baseElement = "block" )
 _tagAliases.add( "command", baseElement = "inline" )
+_tagAliases.add( "b", baseElement = "inline" )
+_tagAliases.add( "error", baseElement = "inline" )
 
 
 def layoutMessageXml( xmlMarkup, width, size, height, ellipsify="false",
@@ -477,7 +520,7 @@ def layoutMessageXml( xmlMarkup, width, size, height, ellipsify="false",
     """
 
     maxLines = int( height / (size*LINE_SPACING) )
-    
+
     _styles.update( "document",
                     width = "%fpt" % width,
                     line_height = "%spt" % int(size*LINE_SPACING),
@@ -492,6 +535,8 @@ def layoutMessageXml( xmlMarkup, width, size, height, ellipsify="false",
             _styles,
             _tagAliases
             )
+    except MaxLinesExceededError:
+        pass
     except Exception, e:
         if raiseLayoutExceptions:
             raise
@@ -508,13 +553,21 @@ def layoutMessageXml( xmlMarkup, width, size, height, ellipsify="false",
     return document
 
 
-def splitContent(  messageXml ):
+def splitContent( messageXml ):
     """
     Splits messageXml into two parts: main, and caption.
+    The caption will be used as the window title.
+    Caption must be at the end of the string.
+
+    It is possible to use multiple captions in the string to logically partition
+    the text into blocks. In such case only the caption defined at the end
+    of the string will become the window title.
     """
-    
+
     capLocation = messageXml.find( "<caption>" )
     if capLocation == -1:
         return ( messageXml, None )
     else:
         return ( messageXml[:capLocation], messageXml[capLocation:] )
+
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

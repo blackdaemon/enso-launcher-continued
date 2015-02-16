@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -61,8 +61,7 @@ MINI_WIND_SIZE = 256, 70
 MINI_WIND_SIZE = [ pixelsToPoints( pixSize ) for pixSize in MINI_WIND_SIZE ]
 MINI_MARGIN = pixelsToPoints( 10 )
 MINI_SCALE = [ 10, 12, 14 ]
-MINI_BG_COLOR = [ .62, .75, .34, .85 ]
-
+MINI_BG_COLOR = [ .12, .20, .00, .60 ] # Last one is opacity (in %)
 
 # ----------------------------------------------------------------------------
 # Mini Message Queue
@@ -132,7 +131,7 @@ class MiniMessageQueue:
             return
 
         self.__mouseChanged = False
-        x, y = self.__mousePos
+        ptx, pty = [pixelsToPoints(c) for c in self.__mousePos]
 
         oldIndex = self.__mouseoverIndex
         newIndex = None
@@ -140,8 +139,8 @@ class MiniMessageQueue:
             miniWind = self.__visibleMessages[index]
             size = miniWind.getSize()
             pos = miniWind.getPos()
-            if ( x > pos[0] and x < (pos[0] + size[0]) ) \
-                   and ( y > pos[1] and y < (pos[1] + size[1]) ):
+            if ( ptx > pos[0] and ptx < (pos[0] + size[0]) ) \
+                   and ( pty > pos[1] and pty < (pos[1] + size[1]) ):
                 # The mouse is inside this miniWindow
                 if index == oldIndex:
                     # Don't change the appearance; it's already
@@ -152,13 +151,13 @@ class MiniMessageQueue:
                     newIndex = index
                     break
 
-        if newIndex != oldIndex and oldIndex != None:
+        if oldIndex != None and newIndex != oldIndex:
             # The mouse has changed.
             miniWind = self.__visibleMessages[oldIndex]
             miniWind._wind.setOpacity( 255 )
             miniWind._wind.update()
             self.__hideHelpMessage()
-        if newIndex != None:
+        if newIndex != None and newIndex != oldIndex:
             miniWind = self.__visibleMessages[newIndex]
             xPos, yPos = miniWind.getPos()
             if newIndex == len( self.__visibleMessages ):
@@ -166,17 +165,16 @@ class MiniMessageQueue:
             else:
                 rounded = False
             self.__showHelpMessage( xPos, yPos, rounded )
-
             miniWind._wind.setOpacity( 0 )
             miniWind._wind.update()
-            
+
         self.__mouseoverIndex = newIndex
 
 
     def onTick( self, msPassed ):
         if self.__status == self.POLLING:
             self.__onMouseMove()
-            
+
             if len( self.__visibleMessages ) == 0 \
                    and len( self.__newMessages ) == 0:
                 # There are no messages to poll for!
@@ -217,16 +215,17 @@ class MiniMessageQueue:
             self.__helpWindow.roundTopLeftCorner()
         else:
             self.__helpWindow.unroundTopLeftCorner()
-        #self.__helpWindow._wind.update()
+        self.__helpWindow._wind.update()
 
 
     def __hideHelpMessage( self ):
         self.__helpWindow.hide()
-        
+
 
     def __roundTopWindow( self ):
-        for msg in self.__visibleMessages[:-1]:
-            msg.unroundTopLeftCorner()
+        #for msg in self.__visibleMessages[:-1]:
+        if len( self.__visibleMessages ) > 1:
+            self.__visibleMessages[-2].unroundTopLeftCorner()
         if len( self.__visibleMessages ) > 0:
             topMsg = self.__visibleMessages[-1]
             topMsg.roundTopLeftCorner()
@@ -244,8 +243,8 @@ class MiniMessageQueue:
                                                  "mousemove" )
 
     def __stopPolling( self ):
-        assert self.__status == self.POLLING
-        assert self.__isPolling
+        assert self.__status == self.POLLING, "status != POLLING"
+        assert self.__isPolling, "isPolling is False"
 
         self.__isPolling = False
         self.__hidingAll = False
@@ -254,14 +253,17 @@ class MiniMessageQueue:
         self.__status = self.EMPTY
 
     def __startAppearing( self, msg ):
-        xPos = graphics.getDesktopSize()[0]
+        wa_left, wa_top = graphics.getWorkareaOffset()
+        wa_width, wa_height = graphics.getWorkareaSize()
+
+        xPos = wa_left + wa_width
         xPos -= MINI_WIND_SIZE[0]
 
-        yPos = graphics.getDesktopSize()[1]
+        yPos = wa_top + wa_height
         # Move up for each visible message, including this one.
         numVisible = len( self.__visibleMessages ) + 1
         yPos -= ( MINI_WIND_SIZE[1] * numVisible )
-        
+
         # TODO: Add this code back in at some point, when
         # the getStartBarRect() function (or some equivalent)
         # has been added.
@@ -291,7 +293,7 @@ class MiniMessageQueue:
             miniWind._wind.setOpacity( 255 )
             miniWind._wind.update()
             self.__hideHelpMessage()
-            
+
         self.__status = self.VANISHING
 
     def __stopVanishing( self ):
@@ -324,17 +326,22 @@ class MiniMessageQueue:
         # So pychecker doesn't complain
         dummy = msPassed
 
-        distancePer = 1
+        if self.__hidingAll:
+            slidingDistancePer = len(self.__visibleMessages) * 1
+            fadingFracPer = len(self.__visibleMessages) * 0.04
+        else:
+            slidingDistancePer = 2
+            fadingFracPer = 0.06
+
         msg = self.__visibleMessages[ self.__changingIndex ]
         if msg.isFinishedVanishing:
             self.__stopVanishing()
             return
         else:
-            msg.slideOut( distancePer )
+            msg.slideAndFadeOut( slidingDistancePer, fadingFracPer )
             if self.__changingIndex != len( self.__visibleMessages ) - 1:
-                for i in range( self.__changingIndex + 1,
-                                len( self.__visibleMessages) ):
-                    self.__visibleMessages[i].slideDown( distancePer )
+                for i in reversed(xrange(self.__changingIndex + 1, len(self.__visibleMessages))):
+                    self.__visibleMessages[i].slideDown( slidingDistancePer )
 
 
 # ----------------------------------------------------------------------------
@@ -345,7 +352,7 @@ class MiniMessageWindow( MessageWindow ):
     """
     LONGTERM TODO: More documentation for this class and its methods.
     """
-        
+
     def __init__( self, msg, xPos, yPos ):
         MessageWindow.__init__( self, MINI_WIND_SIZE )
         self.__isRounded = False
@@ -367,13 +374,13 @@ class MiniMessageWindow( MessageWindow ):
         self.__draw( self.message, *self.getPos() )
         self._wind.update()
 
-    def slideDown( self, distance ):
+    def slideDown( self, distance = 1 ):
         xPos, yPos = self.getPos()
         yPos += distance
         self.setPos( xPos, yPos )
         self._wind.update()
 
-    def slideOut( self, distance ):
+    def slideOut( self, distance = 1 ):
         if self.isFinishedVanishing:
             return
         width, height = self.getSize()
@@ -389,12 +396,42 @@ class MiniMessageWindow( MessageWindow ):
         self.setSize( width, height )
         self._wind.update()
 
-    def fadeIn( self, fraction ):
-        currFrac = self._wind.getOpacity() / 255.
-        currFrac = min( fraction + currFrac, 1 )
+    def fadeIn( self, fraction = 0.1 ):
+        currFrac = self._wind.getOpacity() / 255.0
+        currFrac = min( currFrac + fraction, 1 )
         if currFrac == 1:
             self.isFinishedAppearing = True
             return
+        self._wind.setOpacity( int(currFrac*255) )
+        self._wind.update()
+
+    def fadeOut( self, fraction = 0.1 ):
+        if self.isFinishedVanishing:
+            return
+        currFrac = self._wind.getOpacity() / 255.0
+        currFrac = max( currFrac - fraction, 0 )
+        if currFrac == 0:
+            self.isFinishedVanishing = True
+            return
+        self._wind.setOpacity( int(currFrac*255) )
+        self._wind.update()
+
+    def slideAndFadeOut( self, distance = 1, fraction = 0.1 ):
+        if self.isFinishedVanishing:
+            return
+        width, height = self.getSize()
+        xPos, yPos = self.getPos()
+        if height-distance < 0:
+            yPos += height
+            height = 0
+            self.isFinishedVanishing = True
+        else:
+            yPos += distance
+            height -= distance
+        self.setPos( xPos, yPos )
+        self.setSize( width, height )
+        currFrac = self._wind.getOpacity() / 255.0
+        currFrac = max( currFrac - fraction, 0 )
         self._wind.setOpacity( int(currFrac*255) )
         self._wind.update()
 
@@ -412,13 +449,13 @@ class MiniMessageWindow( MessageWindow ):
 
         xPos = ( width - afterWidth ) / 2
         yPos = ( height - afterHeight ) / 2
-        
+
         cr = self._context
         if self.__isRounded:
             corners = [rounded_rect.UPPER_LEFT]
         else:
             corners = []
-            
+
         cr.set_source_rgba( *MINI_BG_COLOR )
         rounded_rect.drawRoundedRect(
             context = cr,
@@ -428,8 +465,8 @@ class MiniMessageWindow( MessageWindow ):
         cr.fill_preserve()
 
         doc.draw( xPos, yPos, cr )
-        
-            
+
+
     def __layout( self, msg, width, height ):
         text = msg.getMiniXml()
         text = "<document>%s</document>" % text
