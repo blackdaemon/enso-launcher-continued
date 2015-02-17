@@ -1,4 +1,6 @@
 import types
+import re
+from inspect import getargspec
 
 from enso.commands import CommandObject
 from enso.commands.factories import GenericPrefixFactory
@@ -20,8 +22,37 @@ class FuncCommand( CommandObject ):
         self.generatorManager = generatorManager
 
         self.setName( cmdName )
-        self.setHelp( help )
-        self.setDescription( desc )
+        if hasattr(func, "help"):
+            self.setHelp( func.help )
+        else:
+            self.setHelp( help )
+
+        func.setDescription = self.setDescription
+        func.setHelp = self.setHelp
+
+        if hasattr(func, "description"):
+            self.setDescription(func.description)
+        else:
+            if hasattr(func, "set_description") and callable(func.set_description):
+                new_desc = None
+                try:
+                    new_desc = func.set_description(argValue)
+                except:
+                    pass
+                if new_desc:
+                    self.setDescription( new_desc )
+                else:
+                    self.setDescription( desc )
+            else:
+                if "%s" in desc:
+                    if argValue:
+                        new_desc = desc % u"\u201c%s\u201d" % argValue
+                    else:
+                        arg_name = getargspec(func)[0][1]
+                        new_desc = desc % "{%s}" % arg_name
+                    self.setDescription( new_desc )
+                else:
+                    self.setDescription( desc )
 
     @safetyNetted
     def run( self ):

@@ -172,7 +172,7 @@ class CommandManager:
             for _ in xrange(longest_name.count(" ") + 1):
                 match = prefixes_dict.get(longest_name+' ')
                 if match:
-                    logging.debug("EXACTMATCH: '%s'", longest_name)
+                    assert logging.debug("EXACTMATCH: '%s'", longest_name) or True
                     return longest_name+' '
                 longest_name = longest_name[:longest_name.rfind(" ")]
 
@@ -225,7 +225,7 @@ class CommandManager:
             for _ in xrange(longest_name.count(" ") + 1):
                 match = prefixes_dict.get(longest_name+' ')
                 if match:
-                    logging.debug("EXACTMATCH: '%s'", longest_name)
+                    assert logging.debug("EXACTMATCH: '%s'", longest_name) or True
                     return match
                 longest_name = longest_name[:longest_name.rfind(" ")]
 

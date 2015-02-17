@@ -1,3 +1,4 @@
+import logging
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.contrib.scriptotron.events import EventResponderList
 
@@ -19,9 +20,12 @@ class GeneratorManager( object ):
     def __callGenerator( self, generator, keepAlives ):
         try:
             generator.next()
-            keepAlives.append( generator )
         except StopIteration:
             pass
+        except Exception, e:
+            logging.error("Exception in generator: %s", e)
+        else:
+            keepAlives.append( generator )
 
     def __onTimer( self, msPassed ):
         keepAlives = []

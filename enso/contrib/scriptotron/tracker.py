@@ -34,6 +34,7 @@
 
 import logging
 import os
+import time
 import types
 
 from enso.commands.manager import CommandAlreadyRegisteredError
@@ -44,6 +45,8 @@ from enso.contrib.scriptotron import adapters
 from enso.contrib.scriptotron import cmdretriever
 from enso.contrib.scriptotron import ensoapi
 from enso.contrib.scriptotron import concurrency
+from enso.messages import displayMessage as display_xml_message
+from enso.messages import MessageManager
 
 import enso.config
 import enso.system
@@ -58,28 +61,45 @@ class ScriptCommandTracker:
         self._cmdExprs = []
         self._cmdMgr = commandManager
         self._genMgr = concurrency.GeneratorManager( eventManager )
-        self._qmStartEvents = EventResponderList(
+        self._quasimodeStartEvents = EventResponderList(
             eventManager,
             "startQuasimode",
             self._onQuasimodeStart
             )
+        self._textModifiedEvents = EventResponderList(
+            eventManager,
+            "textModified",
+            self._onTextModified
+            )
 
     @safetyNetted
-    def _callHandler( self, handler ):
-        result = handler()
+    def _callHandler( self, handler, *args, **kwargs ):
+        assert logging.debug("calling handler %s", handler.__name__) or True
+        result = handler(*args, **kwargs)
         if isinstance( result, types.GeneratorType ):
             self._genMgr.add( result )
 
     def _onQuasimodeStart( self ):
-        for handler in self._qmStartEvents:
+        perf = []
+        for cmdName, handler in self._quasimodeStartEvents:
+            started = time.time()
             self._callHandler( handler )
+            elapsed = time.time() - started
+            perf.append((handler, [], [], elapsed))
+        return perf
 
-    def clearCommands( self ):
-        for cmdExpr in self._cmdExprs:
-            self._cmdMgr.unregisterCommand( cmdExpr )
-        self._cmdExprs = []
-        self._qmStartEvents[:] = []
-        self._genMgr.reset()
+    def _onTextModified( self, keyCode, oldText, newText ):
+        perf = []
+        for cmdName, handler in self._textModifiedEvents:
+            if not newText.startswith(cmdName+" "):
+                continue
+            oldText = oldText[len(cmdName)+1:]
+            newText = newText[len(cmdName)+1:]
+            started = time.time()
+            self._callHandler( handler, keyCode, oldText, newText )
+            elapsed = time.time() - started
+            perf.append((handler, [], [], elapsed))
+        return perf
 
     def _registerCommand( self, cmdObj, cmdExpr ):
         try:
@@ -91,7 +111,9 @@ class ScriptCommandTracker:
     def registerNewCommands( self, commandInfoList ):
         for info in commandInfoList:
             if hasattr( info["func"], "on_quasimode_start" ):
-                self._qmStartEvents.append( info["func"].on_quasimode_start )
+                self._quasimodeStartEvents.append( (info["cmdName"], info["func"].on_quasimode_start) )
+            if hasattr( info["func"], "on_text_modified" ):
+                self._textModifiedEvents.append( (info["cmdName"], info["func"].on_text_modified) )
             cmd = adapters.makeCommandFromInfo(
                 info,
                 ensoapi.EnsoApi(),
@@ -99,14 +121,34 @@ class ScriptCommandTracker:
                 )
             self._registerCommand( cmd, info["cmdExpr"] )
 
+    def clearCommands( self, commandInfoList = None ):
+        if commandInfoList:
+            for info in commandInfoList:
+                cmdExpr = info["cmdExpr"]
+                self._cmdMgr.unregisterCommand(cmdExpr)
+                del self._cmdExprs[self._cmdExprs.index(cmdExpr)]
+                #TODO: remove responder from _quasimodeStartEvents
+                #TODO: remove generator from _genMgr
+        else:
+            for cmdExpr in self._cmdExprs:
+                self._cmdMgr.unregisterCommand( cmdExpr )
+            self._cmdExprs = []
+            self._quasimodeStartEvents[:] = []
+            self._genMgr.reset()
+            
+
 class ScriptTracker:
     def __init__( self, eventManager, commandManager ):
+        self._firstRun = True
         self._scriptCmdTracker = ScriptCommandTracker( commandManager,
                                                        eventManager )
         self._scriptFilename = SCRIPTS_FILE_NAME
         self._scriptFolder = getScriptsFolderName()
         self._lastMods = {}
         self._registerDependencies()
+        self._commandsInFile = {}
+        # Call it now, otherwise there is a delay on first quasimode invocation
+        self._updateScripts()
 
         eventManager.registerResponder(
             self._updateScripts,
@@ -123,7 +165,7 @@ class ScriptTracker:
     @safetyNetted
     def _getGlobalsFromSourceCode( self, text, filename ):
         allGlobals = {}
-        code = compile( text, filename, "exec" )
+        code = compile( text + "\n", filename, "exec" )
         exec code in allGlobals
         return allGlobals
     
@@ -138,14 +180,28 @@ class ScriptTracker:
             commandFiles = []
         return commandFiles
 
-    def _reloadPyScripts( self ):
-        self._scriptCmdTracker.clearCommands()
-        commandFiles = [self._scriptFilename] + self._getCommandFiles()
-        print commandFiles
+    def _reloadPyScripts( self, files = None ):
+        if files:
+            for file in files:
+                cmd_infos = self._commandsInFile.get(file, None)
+                if cmd_infos:
+                    self._scriptCmdTracker.clearCommands( cmd_infos )
+        else:
+            self._scriptCmdTracker.clearCommands( )
+        commandFiles = [self._scriptFilename]
+        if files:
+            commandFiles = commandFiles + files
+            print "Files to reload: ", commandFiles
+        else:
+            commandFiles = commandFiles + self._getCommandFiles()
+
+        assert logging.debug(commandFiles) or True
+
         for f in commandFiles:
             try:
-                text = open( f, "r" ).read()
-            except:
+                text = open( f, "r" ).read().replace('\r\n', '\n')
+            except Exception, e:
+                logging.error(e)
                 continue
 
             allGlobals = self._getGlobalsFromSourceCode(
@@ -157,6 +213,7 @@ class ScriptTracker:
                 infos = cmdretriever.getCommandsFromObjects( allGlobals )
                 self._scriptCmdTracker.registerNewCommands( infos )
                 self._registerDependencies( allGlobals )
+                self._commandsInFile[f] = infos
 
     def _registerDependencies( self, allGlobals = None ):
         baseDeps = [ self._scriptFilename ] + self._getCommandFiles()
@@ -177,22 +234,35 @@ class ScriptTracker:
         self._fileDependencies = list( set(baseDeps + extraDeps) )
 
     def _updateScripts( self ):
-        shouldReload = False
+        filesToReload = {}
         for fileName in self._fileDependencies:
-            if os.path.exists( fileName ):
-                lastMod = os.stat( fileName ).st_mtime
-                if lastMod != self._lastMods.get(fileName):
+            if os.path.isfile(fileName):
+                lastMod = os.path.getmtime(fileName)
+                if lastMod != self._lastMods.get(fileName, 0):
                     self._lastMods[fileName] = lastMod
-                    shouldReload = True
+                    filesToReload[fileName] = lastMod
 
         for fileName in self._getCommandFiles():
             if fileName not in self._fileDependencies:
                 self._fileDependencies.append(fileName)
-                self._lastMods[fileName] = os.stat( fileName ).st_mtime
-                shouldReload = True
+                self._lastMods[fileName] = os.path.getmtime(fileName)
+                filesToReload[fileName] = lastMod
 
-        if shouldReload:
+        if filesToReload:
+            if not self._firstRun:
+                display_xml_message(u"<p>Reloading commands, please wait...</p><caption>enso</caption>")
+            #TODO: This can be enabled after issues in clearCommands are solved...
+            #self._reloadPyScripts(filesToReload.keys())
             self._reloadPyScripts()
+            if not self._firstRun:
+                # Force primary-message to disappear
+                MessageManager.get().finishPrimaryMessage()
+                # Display mini message with result
+                display_xml_message(
+                    u"<p>Commands have been reloaded.</p><caption>enso</caption>",
+                    primaryMsg=False, miniMsg=True, miniWaitTime=10)
+            if self._firstRun:
+                self._firstRun = False
 
 
 def getScriptsFolderName():

@@ -77,6 +77,9 @@ ABOUT_MSG_XML = u"<p><command>Enso</command> Community Edition</p>" \
     "<p>Copyright &#169; 2008 <b>Humanized, Inc.</b></p>" \
     "<p>Copyright &#169; 2008-2010 <b>Enso community</b></p>"
 
+# Optional custom font. If not used, Arial is used on Windows and Helvetica on Linux
+# FONT_NAME = {"normal" : "Square 721 Condensed BT CZ", "italic" : "Square 721 Condensed BT CZ"}
+
 # List of default platforms supported by Enso; platforms are specific
 # types of providers that provide a suite of platform-specific
 # functionality.
@@ -103,4 +106,5 @@ PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
 
 # Uncomment and change following to override default Enso commands
 # folder placement.
-#SCRIPTS_FOLDER_NAME = "c:\\documents\\ensocommands")
+# SCRIPTS_FOLDER_NAME = "c:\\documents\\ensocommands")
+# import os; SCRIPTS_FOLDER_NAME = os.path.expanduser("~/.enso_commands")

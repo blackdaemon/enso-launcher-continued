@@ -44,9 +44,17 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-from enso import cairo
+import sys
+import logging
 
+import enso
+from enso import config
+from enso import cairo
 from enso.utils.memoize import memoized
+
+_graphics = enso.providers.getInterface( "graphics" )
+
+_used_font_logged = False
 
 
 # ----------------------------------------------------------------------------
@@ -69,6 +77,7 @@ class Font:
         self.name = name
         self.size = size
         self.isItalic = isItalic
+        self.font_name = None
 
         if self.isItalic:
             self.slant = cairo.FONT_SLANT_ITALIC
@@ -131,25 +140,103 @@ class Font:
         Sets the cairo context's current font to this font.
         """
 
+        def get_font_name(font_id):
+            global _used_font_logged
+            
+            font_detail = _graphics.FontRegistry.get().get_font_detail(font_id)
+            if font_detail:
+                font_name = font_detail['filepath']
+                if not _used_font_logged:
+                    logging.info("Font used: " + repr(font_detail))
+                    _used_font_logged = True
+            else:
+                font_name = None
+                if not _used_font_logged:
+                    logging.error(u"Specified font was not found in the system: \"%s\"."
+                                  % font_id)
+                    _used_font_logged = True
+            return font_name
 
-        # TODO THE WINDOWS SPECIAL CASE WITH THE HARD-CODED PATH TO ARIAL
-        # IS A HORRIBLE HACK AND MUST BE FIXED ASAP (besides, Arial is
-        # ugly).
-        import sys
+        # TODO: Used Cairo version does not have any usable font registry
+        # implementation on Windows. This handling should go away as soon as
+        # Cairo is updated to newer version with better font support for Windows.
         if sys.platform.startswith( "win" ):
+            # Set it once
+            if not self.font_name:
+                font_name = None
+
+                if not hasattr(config, "FONT_NAME"):
+                    logging.error("There is no FONT_NAME setting in enso.config.")
+
+                # Search for suitable font in config
+                if self.isItalic:
+                    # italic font
+                    if hasattr(config, "FONT_NAME"):
+                        if config.FONT_NAME.has_key("italic"):
+                            font_name = get_font_name(config.FONT_NAME["italic"])
+                        if not font_name:
+                            # fallback if italic font is not available
+                            font_name = get_font_name(config.FONT_NAME["normal"])
+                else:
+                    # normal font
+                    if hasattr(config, "FONT_NAME") and config.FONT_NAME.has_key("normal"):
+                        font_name = get_font_name(config.FONT_NAME["normal"])
+
+                if not font_name:
+                    logging.warning("Using default 'Arial.ttf' font.")
+
+                    import os
+                    from win32com.shell import shell, shellcon
+
+                    fonts_dir = shell.SHGetPathFromIDList(
+                        shell.SHGetFolderLocation (0, shellcon.CSIDL_FONTS))
+
+                    # Default is Arial
+                    font_name = os.path.join(fonts_dir, "arial.ttf")
+
+                self.font_name = font_name
+
             cairoContext.select_font_face(
-                "c:/WINDOWS/Fonts/arial.ttf",
+                self.font_name,
                 self.slant,
                 cairo.FONT_WEIGHT_NORMAL
                 )
         else:
+            # Other than win32 platform
+            # This works on Linux, not tested on OSX
+            # TODO: Provide OSX specific version
+            if not self.font_name:
+                font_name = None
+                if not hasattr(config, "FONT_NAME"):
+                    logging.error("There is no FONT_NAME setting in enso.config.")
+    
+                # Search for suitable font in config
+                if self.isItalic:
+                    # italic font
+                    if hasattr(config, "FONT_NAME"):
+                        if config.FONT_NAME.has_key("italic"):
+                            font_name = config.FONT_NAME["italic"] #get_font_name(config.FONT_NAME["italic"])
+                        if not font_name:
+                            # fallback if italic font is not available
+                            font_name = config.FONT_NAME["normal"] #get_font_name(config.FONT_NAME["normal"])
+                else:
+                    # normal font
+                    if hasattr(config, "FONT_NAME") and config.FONT_NAME.has_key("normal"):
+                        font_name = config.FONT_NAME["normal"] #get_font_name(config.FONT_NAME["normal"])
+
+                if not font_name:
+                    font_name = "Helvetica"
+
+                self.font_name = font_name
+
             cairoContext.select_font_face(
-                self.name,
+                self.font_name,
                 self.slant,
                 cairo.FONT_WEIGHT_NORMAL
                 )
 
         cairoContext.set_font_size( self.size )
+
 
 
 # ----------------------------------------------------------------------------

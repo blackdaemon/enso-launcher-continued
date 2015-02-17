@@ -52,7 +52,7 @@ import winerror
 import pywintypes
 
 from TransparentWindow import TransparentWindow
-from FontRegistry import FontRegistry
+from font_registry import FontRegistry
 import enso.config
 
 
@@ -148,7 +148,7 @@ def get_primary_monitor():
             return info
 
 
-#@log_once("Primary-desktop offset: %i/%ipx")
+@log_once("Primary-desktop offset: %i/%ipx")
 def getDesktopOffset():
     """ Return primary monitor desktop offset in pixels. """
     if enso.config.SHOW_ON_ACTIVE_MONITOR:
@@ -159,7 +159,7 @@ def getDesktopOffset():
     return left, top
 
 
-#@log_once("Primary-desktop size: %i/%ipx")
+@log_once("Primary-desktop size: %i/%ipx")
 def getDesktopSize():
     """ Return primary monitor desktop size in pixels. """
     if enso.config.SHOW_ON_ACTIVE_MONITOR:
