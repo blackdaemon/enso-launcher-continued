@@ -1,3 +1,5 @@
+# vim:set tabstop=4 shiftwidth=4 expandtab:
+
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
 # 
@@ -47,6 +49,7 @@ import tempfile
 import urllib
 import atexit
 import logging
+import operator
 
 from enso.commands import CommandManager, CommandObject
 from enso.contrib.scriptotron.tracebacks import safetyNetted
@@ -84,7 +87,7 @@ class DefaultHtmlHelp( object ):
             fileobj.write( "<body>" )
             fileobj.write( "<h1>Enso Help</h1>" )
             fileobj.write( "<h2>Your Commands</h2>" )
-            for name, command in self._cmdMan.getCommands().items():
+            for name, command in sorted(self._cmdMan.getCommands().items(), key=operator.itemgetter(0)):
                 helpText = command.getHelp()
                 if not helpText:
                     helpText = "This command has no help content."
@@ -100,7 +103,7 @@ class DefaultHtmlHelp( object ):
         # without any reason
         try:
             webbrowser.open( fileUrl )
-        except WindowsError, e:
+        except Exception, e:
             logging.warning(e)
 
     def _finalize( self ):
