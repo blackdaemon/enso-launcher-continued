@@ -36,7 +36,7 @@ import xml.sax.saxutils
 import os
 import tracker
 
-from enso.messages import displayMessage
+from enso.messages import displayMessage as display_xml_message, hideMessage
 from enso import selection
 
 
@@ -46,29 +46,99 @@ class EnsoApi(object):
     A simple facade to Enso's functionality for use by commands.
     """
 
-    def display_message(self, msg, caption=None):
+    def display_message(self, msg, caption=None,
+                        show_mini_msg=False, mini_msg=None,
+                        primary_wait=None, mini_wait=None):
         """
         Displays the given message, with an optional caption.  Both
         parameters should be unicode strings.
+
+        If mini_msg argument is not empty, mini-message is shown after
+        primary-message disappears.
+
+        If show_mini_msg argument is True, and mini_msg argument is not set,
+        mini-message is shown after primary-message disappears, with
+        text specified in the msg argument.
+
+        Optional to_wait argument specifies how many seconds mini-message
+        will stay on screen. It is set to None by default (wait until
+        user dismiss the mini messages using 'hide mini messages' command).
         """
 
         if not isinstance(msg, basestring):
             msg = unicode(msg)
 
-        msg = xml.sax.saxutils.escape(msg)
-        xmltext = "<p>%s</p>" % msg
+        if caption and not isinstance(caption, basestring):
+            caption = unicode(caption)
+
+        if mini_msg and not isinstance(mini_msg, basestring):
+            mini_msg = unicode(mini_msg)
+
+        xmltext = "<p>%s</p>" % xml.sax.saxutils.escape(msg)
         if caption:
-            caption = xml.sax.saxutils.escape(caption)
-            xmltext += "<caption>%s</caption>" % caption
-        return displayMessage(xmltext)
+            caption_escaped = xml.sax.saxutils.escape(caption)
+            xmltext += "<caption>%s</caption>" % caption_escaped
+        xmltext_mini = None
+        if show_mini_msg or mini_msg is not None:
+            if mini_msg is None:
+                xmltext_mini = xmltext
+            else:
+                xmltext_mini = "<p>%s</p>" % xml.sax.saxutils.escape(mini_msg)
+                if caption:
+                    xmltext_mini += "<caption>%s</caption>" % caption_escaped
+        return display_xml_message(
+            xmltext, miniMsgXml=xmltext_mini,
+            primaryWaitTime=primary_wait, miniWaitTime = mini_wait)
+
+
+    def display_xml_message(self, msg_xml, show_mini_msg=False,
+        mini_msg_xml=None, primary_wait=None, mini_wait=None):
+        """
+        Displays the given message, with an optional caption.  Both
+        parameters should be unicode strings.
+
+        If mini_msg argument is not empty, mini-message is shown after
+        primary-message disappears.
+
+        If show_mini_msg argument is True, and mini_msg argument is not set,
+        mini-message is shown after primary-message disappears, with
+        text specified in the msg argument.
+
+        Optional to_wait argument specifies how many seconds mini-message
+        will stay on screen. It is set to None by default (wait until
+        user dismiss the mini messages using 'hide mini messages' command).
+        """
+
+        if not isinstance(msg_xml, basestring):
+            msg_xml = unicode(msg_xml)
+
+        if mini_msg_xml and not isinstance(mini_msg_xml, basestring):
+            mini_msg_xml = unicode(mini_msg_xml)
+
+        return display_xml_message(
+            msg_xml, miniMsgXml=mini_msg_xml,
+            primaryWaitTime=primary_wait, miniWaitTime = mini_wait)
+
+
+    def hide_message(self, skip_animation = False):
+        hideMessage(skip_animation)
+
 
     def get_selection(self):
         """
         Retrieves the current selection and returns it as a
         selection dictionary.
         """
-
         return selection.get()
+
+
+    def get_text_selection(self, default = None):
+        """
+        Retrieves the current text selection as string.
+        Returns default if nothing is selected.
+        """
+        return selection.get().get("text", default)
+
 
     def set_selection(self, seldict):
         """

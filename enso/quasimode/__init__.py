@@ -395,8 +395,6 @@ class Quasimode(object):
         """
 
         self.__eventMgr.removeResponder( self.__onTick, sync=True )
-
-        self._inQuasimode = False
         
         # The quasimode has terminated; remove the timer responder
         # function as an event responder.
@@ -421,6 +419,8 @@ class Quasimode(object):
         self.__suggestionList.clearState()
 
         self.__quasimodeID = 0
+
+        self._inQuasimode = False
 
 
     def __get_fallback_command(self, cmdName ):
