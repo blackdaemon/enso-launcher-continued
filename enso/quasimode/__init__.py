@@ -60,6 +60,7 @@ from enso import input
 from enso.utils.strings import stringRatioBestMatch
 from enso.utils.xml_tools import escape_xml
 from enso.quasimode.suggestionlist import SuggestionList
+from enso.quasimode.parametersuggestionlist import ParameterSuggestionList
 from enso.quasimode.window import QuasimodeWindow
 from enso.quasimode import layout
 from enso.messages.windows import computeWidth
@@ -124,6 +125,11 @@ class Quasimode(object):
         # by the user.
         self.__suggestionList = SuggestionList( self.__cmdManager )
 
+        # The parameter-suggestion list object, which is responsible for
+        # maintaining all the information about the parameter suggestions.
+        # Used for suggesting history entries or web-query suggestions.
+        self.__parameterSuggestionList = ParameterSuggestionList( self.__cmdManager )
+
         # Boolean variable that should be set to True whenever an event
         # occurs that requires the quasimode to be redrawn, and which
         # should be set to False when the quasimode is drawn.
@@ -169,6 +175,9 @@ class Quasimode(object):
 
         self._lastRunCommand = None
 
+        self.__lastParameterSuggestionsCheck = 0
+        self.__lastParameterSuggestions = None
+
         # Unique numeric ID of the Quasimode "session"
         self.__quasimodeID = 0
 
@@ -203,6 +212,9 @@ class Quasimode(object):
     def getLastRunCommand(self):
         return self._lastRunCommand
 
+    def setParameterSuggestions( self, suggestions ):
+        self.__parameterSuggestionList.setSuggestions(suggestions)
+
     def onKeyEvent( self, eventType, keyCode ):
         """
         Handles a key event of particular type.
@@ -232,14 +244,29 @@ class Quasimode(object):
             oldText = self.__suggestionList.getUserText()
 
             if keyCode in (input.KEYCODE_TAB, input.KEYCODE_RIGHT): #IGNORE:E1101
-                # Allow handlers to act upon Tab key even if the text
-                # has not been modified
-                self.__eventMgr.triggerEvent("textModified", keyCode, oldText, oldText)
-                self.__suggestionList.autoType()
+                if self.__parameterSuggestionList.isActive():
+                    self.__parameterSuggestionList.cycleActiveSuggestion( 1 )
+                    suggestion = self.__parameterSuggestionList.getActiveSuggestion()
+                    #print suggestion
+                    activeCmd = self.__suggestionList.getActiveCommand()
+                    try:
+                        userText = "%s%s" % (
+                            activeCmd.PREFIX,
+                            suggestion)
+                        self.__suggestionList.setUserText(userText)
+                    except:
+                        pass
+                    #self.__parameterSuggestionList.setSuggestions([])
+                else:
+                    # Allow handlers to act upon Tab key even if the text
+                    # has not been modified
+                    self.__eventMgr.triggerEvent("textModified", keyCode, oldText, oldText)
+                    self.__suggestionList.autoType()
             elif keyCode == input.KEYCODE_RETURN: #IGNORE:E1101
                 self.__suggestionList.autoType()
             elif keyCode == input.KEYCODE_ESCAPE: #IGNORE:E1101
                 self.__suggestionList.clearState()
+                self.__parameterSuggestionList.setSuggestions([])
             elif keyCode == input.KEYCODE_DELETE: #IGNORE:E1101
                 self.__onDelete()
                 self.__onParameterModified(keyCode, oldText, self.__suggestionList.getUserText())
@@ -252,11 +279,27 @@ class Quasimode(object):
                 # suggestions is "active" (i.e., will be executed upon
                 # termination of the quasimode)
                 self.__suggestionList.cycleActiveSuggestion( 1 )
+                if self.__parameterSuggestionList.isActive() and self.__suggestionList.getActiveIndex() > 0:
+                    self.__parameterSuggestionList.setSuggestions([])
+                    #self.__parameterSuggestionList.cycleActiveSuggestion( 1 )
                 self.__nextRedrawIsFull = True
             elif keyCode == input.KEYCODE_UP: #IGNORE:E1101
                 # Up arrow; change which suggestion is active.
                 self.__suggestionList.cycleActiveSuggestion( -1 )
+                if self.__parameterSuggestionList.isActive() and self.__suggestionList.getActiveIndex() > 0:
+                    self.__parameterSuggestionList.setSuggestions([])
+                    #self.__parameterSuggestionList.cycleActiveSuggestion( -1 )
                 self.__nextRedrawIsFull = True
+            elif keyCode == input.KEYCODE_HOME: #IGNORE:E1101
+                # The user has pressed the down arrow; change which of the
+                # suggestions is "active" (i.e., will be executed upon
+                # termination of the quasimode)
+                if self.__parameterSuggestionList.isActive():
+                    self.__parameterSuggestionList.setActiveSuggestion(0)
+            elif keyCode == input.KEYCODE_END: #IGNORE:E1101
+                # Up arrow; change which suggestion is active.
+                if self.__parameterSuggestionList.isActive():
+                    self.__parameterSuggestionList.setActiveSuggestion(-1)
             elif ALLOWED_KEYCODES.has_key( keyCode ): #IGNORE:E1101
                 # The user has typed a valid key to add to the userText.
                 self.__addUserChar( keyCode )
@@ -333,6 +376,8 @@ class Quasimode(object):
             else:
                 self.__suggestionList.clearState()
 
+            self.__parameterSuggestionList.setSuggestions([])
+
 
     def __quasimodeBegin( self ):
         """
@@ -353,6 +398,7 @@ class Quasimode(object):
 
         self._inQuasimode = True
         self.__needsRedraw = True
+        self.__lastParameterSuggestionsCheck = 0
 
         self.__eventMgr.registerResponder( self.__onTick, "timer" )
 
@@ -377,6 +423,8 @@ class Quasimode(object):
 
         assert self._inQuasimode == True
 
+        self.__refreshParameterSuggestionsList(timePassed)
+        
         if self._inQuasimode:
             if self.__needsRedraw:
                 self.__needsRedraw = False
@@ -402,6 +450,8 @@ class Quasimode(object):
 
         # Hide the Quasimode window.
         self.__quasimodeWindow.hide()
+        self.__parameterSuggestionList.hide()
+        self.__parameterSuggestionList.clearState()
 
         activeCommand = self.__suggestionList.getActiveCommand()
         cmdName = self.__suggestionList.getActiveCommandName()
@@ -489,6 +539,50 @@ class Quasimode(object):
             caption = ""
 
         return caption
+
+
+    def __refreshParameterSuggestionsList( self, timePassed ):
+        self.__lastParameterSuggestionsCheck += timePassed
+
+        # Check only each 10 milliseconds
+        if self.__lastParameterSuggestionsCheck < 10:
+            return
+
+        self.__lastParameterSuggestionsCheck = 0
+
+        # Check active command
+        cmd = self.__suggestionList.getActiveCommand()
+        if not cmd:
+            return
+
+        # Check if it is arbitrary-postfix command that supports suggestions
+        if not hasattr(cmd, "getParameterSuggestions"):
+            return
+
+        try:
+            suggestions = cmd.getParameterSuggestions()
+        except Exception, e:
+            logging.error("Error calling command.getParameterSuggestions(): %s", e)
+            return
+
+        # No suggestions returned or the list has not changed since last time
+        if suggestions is None or suggestions == self.__lastParameterSuggestions:
+            return
+
+        if not self.__parameterSuggestionList.getSuggestions():
+            # The window has not been displayed yet, compute it's horizontal position
+            line = layout.layoutXmlLine(
+                xml_data = "<document><line>%s</line></document>" % cmd.PREFIX,
+                styles = layout.retrieveAutocompleteStyles(),
+                scale = layout.AUTOCOMPLETE_SCALE
+            )
+            xPos = computeWidth(line)
+        else:
+            xPos = None
+
+        # Display and refresh the suggestion window
+        self.__parameterSuggestionList.setSuggestions(suggestions, xPos)
+        self.__lastParameterSuggestions = suggestions
 
 
     def quasimodeBegin(self):

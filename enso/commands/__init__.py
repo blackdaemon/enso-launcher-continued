@@ -61,3 +61,14 @@
 from enso.commands.manager import CommandManager
 from enso.commands.interfaces import CommandObject, AbstractCommandFactory
 from enso.commands.suggestions import Suggestion, AutoCompletion
+
+
+def abstractmethod(func):
+    """ Decorator to mark abstract functions ant throw NotImplementedError
+    exception whenever the method is not overriden in a subclass.
+    """
+    def func_wrap(*args): #IGNORE:W0613
+        raise NotImplementedError(
+            "Abstract method '%s' must be overriden in subclass."
+            % func.__name__)
+    return func_wrap

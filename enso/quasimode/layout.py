@@ -42,7 +42,6 @@
 
 import re
 import logging
-
 from enso import config
 from enso import graphics
 from enso.graphics import xmltextlayout
@@ -94,6 +93,7 @@ LARGE_SCALE = [ 24, 28, 32, 36, 40, 44, 48 ]
 DESCRIPTION_SCALE = SMALL_SCALE
 AUTOCOMPLETE_SCALE = LARGE_SCALE
 SUGGESTION_SCALE = SMALL_SCALE
+PARAMETERSUGGESTION_SCALE = [ 10, 15, 20 ]
 
 if config.QUASIMODE_TRAILING_SPACE_STRING:
     TRAILING_SPACE_STRING = config.QUASIMODE_TRAILING_SPACE_STRING
@@ -232,6 +232,14 @@ def retrieveAutocompleteStyles( active = True, size = LARGE_SCALE[-1] ):
     styles =  _updateStyles( _AUTOCOMPLETE_STYLES, AUTOCOMPLETE_SCALE, size )
     _updateSuggestionColors( styles, active )
     return styles
+
+
+def retrieveParameterSuggestionStyles( size = PARAMETERSUGGESTION_SCALE[-1] ):
+    """
+    LONGTERM TODO: Document this.
+    """
+
+    return _updateStyles( _PARAMETERSUGGESTION_STYLES, PARAMETERSUGGESTION_SCALE, size )
 
 
 def retrieveSuggestionStyles( active = True, size = SMALL_SCALE[-1] ):

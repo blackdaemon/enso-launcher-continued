@@ -33,7 +33,7 @@
 # ----------------------------------------------------------------------------
 
 """
-    An Enso plugin that makes the 'google' and 'images' commands available.
+    An Enso plugin that makes the 'google' command available.
 """
 
 # ----------------------------------------------------------------------------
@@ -47,14 +47,17 @@ import locale
 import webbrowser
 import logging
 import threading
+import json as jsonlib
 import urllib2
 
 from contextlib import closing
 from htmlentitydefs import name2codepoint
 
 import enso.config
+from enso.commands import abstractmethod
 from enso.commands import CommandManager
 from enso.commands.factories import ArbitraryPostfixFactory
+from enso.commands.mixins import CommandParameterWebSuggestionsMixin
 from enso import selection
 from enso.messages import displayMessage
 from enso.contrib.scriptotron.tracebacks import safetyNetted
@@ -65,6 +68,7 @@ from enso.contrib.scriptotron.tracebacks import safetyNetted
 # ---------------------------------------------------------------------------
 
 # Here we detect national TLD imposed by Google based on user's location.
+# This is used in suggestion-search.
 # It offers local suggestions and also speeds up the search.
 GOOGLE_DOMAIN = "com"
 
@@ -100,7 +104,7 @@ def unescape_html_tags(html):
     return r
 
 
-class GoogleCommandFactory( ArbitraryPostfixFactory ):
+class GoogleCommandFactory( ArbitraryPostfixFactory, CommandParameterWebSuggestionsMixin ):
     """
     Implementation of the 'google' command.
     """
@@ -117,6 +121,18 @@ class GoogleCommandFactory( ArbitraryPostfixFactory ):
 
         self.setDescription(
             u"Performs a Google web search on the selected or typed text.")
+
+        try:
+            self.do_suggestions = enso.config.PLUGIN_GOOGLE_OFFER_SUGGESTIONS
+        except:
+            self.do_suggestions = False
+
+        if not self.do_suggestions:
+            logging.info(
+                "Google search-suggestions are turned off in config. "
+                "Enable 'PLUGIN_GOOGLE_OFFER_SUGGESTIONS' "
+                "in your .ensorc to turn it on.")
+
 
     @safetyNetted
     def run( self ):
@@ -167,7 +183,7 @@ class GoogleCommandFactory( ArbitraryPostfixFactory ):
             # Determine the user's default language setting.  Google
             # appears to use the two-letter ISO 639-1 code for setting
             # languages via the 'hl' query argument.
-            languageCode, encoding = locale.getdefaultlocale()
+            languageCode, _ = locale.getdefaultlocale()
             if languageCode:
                 language = languageCode.split( "_" )[0]
             else:
@@ -185,6 +201,39 @@ class GoogleCommandFactory( ArbitraryPostfixFactory ):
         except Exception, e:
             logging.warning(e)
 
+    def decodeSuggestions( self, data, headers=None ):
+        suggestions = []
+
+        try:
+            # By default Google sends data in ISO-8859-1 encoding.
+            # To force another encoding, use URL parameter oe=<encoding>
+            decoded = data.decode("ISO-8859-1")
+        except Exception, e:
+            logging.error("Google-suggest query unicode decoding failed: %s", e)
+        else:
+            if decoded.startswith("window.google.ac.h"):
+                decoded = decoded.split("window.google.ac.h(")[1][:-1]
+                try:
+                    json = jsonlib.loads(decoded)
+                except Exception, e:
+                    logging.error(u"Error parsing JSON data: %s; data: '%s'", e, decoded)
+                else:
+                    if json and len(json) > 1 and json[1]:
+                        suggestions = [unescape_html_tags(re.sub(r"<.*?>", "", i[0])) for i in json[1]]
+            else:
+                try:
+                    json = jsonlib.loads(decoded)
+                except Exception, e:
+                    logging.error(u"Error parsing JSON data: %s; data: '%s'", e, decoded)
+                else:
+                    if json and len(json) > 1 and json[1]:
+                        suggestions = json[1]
+        return suggestions
+
+
+    @abstractmethod
+    def get_url(self):
+        pass
 
     def _generateCommandObj( self, parameter=None ):
         self.parameter = parameter
@@ -204,12 +253,56 @@ class GoogleSearchCommandFactory( GoogleCommandFactory ):
     NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
     BASE_URL = "http://www.google.%(tld)s/search?q=%(query)s"
 
+    def getSuggestionsUrl( self, text ):
+        if not self.do_suggestions:
+            return None
+        
+        if text is None or len(text.strip()) == 0:
+            return None
+
+        input_encoding = "utf-8"
+        query = urllib.quote_plus(text.encode(input_encoding))
+
+        # This URL seems to returns only english matches
+        #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
+
+        # This URL returns also national matches
+        return "http://clients1.google.%(tld)s/complete/search?" \
+            "hl=en&gl=en&client=firefox&ie=%(ie)s&q=%(query)s" \
+            % {
+                "tld":GOOGLE_DOMAIN,
+                "ie":input_encoding,
+                "query":query
+            }
+
 
 class GoogleImagesCommandFactory( GoogleCommandFactory ):
     HELP_TEXT = "search terms"
     PREFIX = "images "
     NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
     BASE_URL = "http://images.google.%(tld)s/images?um=1&hl=en&rlz=1C1GGLS_en-USCZ294&safeui=off&btnG=Search+Images&q=%(query)s"
+
+    def getSuggestionsUrl( self, text ):
+        if not self.do_suggestions:
+            return None
+
+        if text is None or len(text.strip()) == 0:
+            return None
+
+        input_encoding = "utf-8"
+        query = urllib.quote_plus(text.encode(input_encoding))
+
+        # This URL seems to returns only english matches
+        #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
+
+        # This URL returns also national matches
+        return "http://clients1.google.%(tld)s/complete/search?" \
+            "hl=en&gl=en&client=img&ie=%(ie)s&pq=%(query)s&q=%(query)s" \
+            % {
+                "tld":GOOGLE_DOMAIN,
+                "ie":input_encoding,
+                "query":query
+            }
 
 
 # ----------------------------------------------------------------------------

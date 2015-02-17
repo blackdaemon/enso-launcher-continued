@@ -105,6 +105,17 @@ PLUGINS = ["enso.contrib.scriptotron",
 # Detect default system locale and use it for google search.
 # If set to False, no locale is forced.
 PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
+# Use google search suggestions
+PLUGIN_GOOGLE_OFFER_SUGGESTIONS = False
+
+# Proxy used for HTTP protocol
+# Set to None to use proxy-autodetection (default Python behavior).
+# Set to empty string "" to disable proxy (direct-connection).
+HTTP_PROXY_URL = None
+# Proxy used for HTTPS protocol.
+# Set to None to use proxy-autodetection (default Python behavior).
+# Set to empty string "" to disable proxy (direct-connection).
+HTTPS_PROXY_URL = None
 
 # Uncomment and change following to override default Enso commands
 # folder placement.

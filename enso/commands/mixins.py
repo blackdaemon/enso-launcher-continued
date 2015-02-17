@@ -49,29 +49,21 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import re
 import time
 import threading
-import urllib
 import urllib2
-import json as jsonlib
-import Queue
 import logging
 
 from contextlib import closing
 
-from enso.contrib.open.interfaces import abstractmethod
-from enso.commands.suggestions import AutoCompletion, Suggestion
-from enso.commands.interfaces import AbstractCommandFactory, CommandObject
+from enso.commands import abstractmethod
 from enso import config
-from enso import clipboard
 
 # ----------------------------------------------------------------------------
 # Private Utility Functions
 # ----------------------------------------------------------------------------
 
-# Force no-proxy
-# TODO: Setup proxy in configuration
+# Force no-proxy initially. Can be overriden by config setting HTTP_PROXY_URL
 urllib2.install_opener(
     urllib2.build_opener(
         urllib2.ProxyHandler({})
@@ -249,15 +241,15 @@ class CommandParameterWebSuggestionsMixin( object ):
         data = None
 
         if not hasattr(self, "_http_opener"):
-	        if config.HTTP_PROXY_URL is not None:
-	            if config.HTTP_PROXY_URL == "":
-	                # Force no-proxy
-	                proxy_handler = urllib2.ProxyHandler({})
-	            else:
-	                proxy_handler = urllib2.ProxyHandler({"http":config.HTTP_PROXY_URL})
-	            self._http_opener = urllib2.build_opener(proxy_handler)
-	        else:
-	            self._http_opener = urllib2.build_opener()
+            if hasattr(config, "HTTP_PROXY_URL") and config.HTTP_PROXY_URL is not None:
+                if config.HTTP_PROXY_URL == "":
+                    # Force no-proxy
+                    proxy_handler = urllib2.ProxyHandler({})
+                else:
+                    proxy_handler = urllib2.ProxyHandler({"http":config.HTTP_PROXY_URL})
+                    self._http_opener = urllib2.build_opener(proxy_handler)
+            else:
+                self._http_opener = urllib2.build_opener()
 
         try:
             with closing(self._http_opener.open(url_or_request, timeout=1)) as resp:
