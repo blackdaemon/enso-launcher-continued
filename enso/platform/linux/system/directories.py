@@ -53,15 +53,19 @@ import os
 # Functions
 # ----------------------------------------------------------------------------
 
-def get_system_folder(folder_id):
+def get_user_home_dir():
     return os.path.expanduser("~")
 
+def get_enso_local_conf_dir():
+    return os.path.join(get_user_home_dir(), ".enso")
+
 # Enso special folder - Local data storage
-# c:\Documents and Settings\<user>\Local Settings\Application Data\Enso
-SPECIALFOLDER_ENSOLOCAL = os.path.join(
-    get_system_folder(0), "enso")
+SPECIALFOLDER_ENSOLOCAL = get_enso_local_conf_dir()
 
 # Enso special folder - Enso's Learn As Open Commands
 SPECIALFOLDER_ENSOLEARNAS = os.path.join(
-    get_system_folder(0), "enso_commands")
+    get_enso_local_conf_dir(), "learned_shortcuts")
 
+# Enso special folder - Enso's script commands
+SPECIALFOLDER_ENSOCOMMANDS = os.path.join(
+    get_enso_local_conf_dir(), "commands")

@@ -1,1 +1,1 @@
-from Folders import *
+from directories import *

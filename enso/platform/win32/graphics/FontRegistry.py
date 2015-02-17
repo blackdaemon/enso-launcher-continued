@@ -10,7 +10,6 @@ import threading
 import logging
 
 from enso.utils.memoize import memoized
-from enso.platform.win32.system import Folders
 import enso.system
 
 FONT_DIR = enso.system.get_system_folder(enso.system.SYSTEMFOLDER_FONTS)

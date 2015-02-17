@@ -25,6 +25,7 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from enso.commands.manager import CommandAlreadyRegisteredError
 
 # ----------------------------------------------------------------------------
 #
@@ -96,7 +97,9 @@ def _init():
                 module = getattr( module, component )
 
             module.load()
-        except:
+        except CommandAlreadyRegisteredError, e:
+            logging.warn( "Command is already registered '%s'. " % moduleName)
+        except Exception, e:
             logging.warn( "Error while loading plugin '%s'." % moduleName )
-            raise
+            #raise
         logging.info( "Loaded plugin '%s'." % moduleName )

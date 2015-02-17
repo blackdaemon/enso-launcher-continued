@@ -1,4 +1,4 @@
-from Folders import *
+from directories import *
 
 import subprocess
 

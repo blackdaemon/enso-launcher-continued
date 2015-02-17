@@ -84,4 +84,7 @@ SPECIALFOLDER_ENSOLOCAL = os.path.join(
 SPECIALFOLDER_ENSOLEARNAS = os.path.join(
     get_system_folder(SYSTEMFOLDER_MYDOCUMENTS), u"Enso's Learn As Open Commands")
 
+SPECIALFOLDER_ENSOCOMMANDS = os.path.join(
+    get_system_folder(SYSTEMFOLDER_APPDATALOCAL), u"EnsoCommands")
+    
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

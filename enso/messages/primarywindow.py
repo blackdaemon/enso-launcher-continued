@@ -196,6 +196,8 @@ class PrimaryMsgWind( MessageWindow ):
         self.__evtManager.registerResponder( self.animationTick, "timer" )
         self.__animating = True
 
+        # FIXME: dirty
+        self._wind.ungrabPointer()
 
     def animationTick( self, msPassed ):
         """
@@ -228,6 +230,9 @@ class PrimaryMsgWind( MessageWindow ):
 
             # The following message may be used by system tests.
             logging.info( "newMessage: %s" % self.__msg.getPrimaryXml() )
+        # FIXME: dirty
+        if self._wind.getOpacity() == 255:
+            self._wind.grabPointer()
 
 
     def __position( self ):
@@ -300,6 +305,8 @@ class PrimaryMsgWind( MessageWindow ):
             capDoc.draw( capPos[0], capPos[1], self._context )
 
         # Set the window opacity (which can be left at 0 by the animation)
+        self.__position()
+
         self._wind.setOpacity( 255 )
         # Show and update the window.
         self.show()
@@ -389,7 +396,7 @@ class PrimaryMsgWind( MessageWindow ):
                "width %s, self.getMaxSize()[0] %s" \
                % (width, self.getMaxSize()[0])
         self.setSize( width, height )
-        self.__position()
+        #self.__position()
 
         cr = self._context
         rounded_rect.drawRoundedRect(
@@ -399,6 +406,8 @@ class PrimaryMsgWind( MessageWindow ):
             )
         cr.set_source_rgba( *MSG_BGCOLOR )
         cr.fill_preserve()
+
+        #self.__position()
 
 
     def __layoutBlocks( self, messageDoc, captionDoc ):

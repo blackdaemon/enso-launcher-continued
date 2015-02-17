@@ -66,3 +66,12 @@ class TransparentWindow( object ):
     def getMaxHeight( self ):
         return pixelsToPoints( self._impl.getMaxHeight() )
 
+    def grabPointer( self ):
+        # FIXME: not implemented and not needed on win32
+        if hasattr(self._impl, "grab_pointer"):
+            return self._impl.grab_pointer()
+    
+    def ungrabPointer( self ):
+        # FIXME: not implemented and not needed on win32
+        if hasattr(self._impl, "ensure_pointer_ungrabbed"):
+            return self._impl.ensure_pointer_ungrabbed()

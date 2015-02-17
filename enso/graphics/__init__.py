@@ -15,10 +15,7 @@ def getDesktopSize():
     """ Return primary monitor desktop size in points. """
     width, height = _graphics.getDesktopSize()
     width = pixelsToPoints(width)
-    
-    
     height = pixelsToPoints(height)
-    
     return (width, height)
 
 def getWorkareaOffset():

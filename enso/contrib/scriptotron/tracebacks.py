@@ -10,7 +10,7 @@ MAX_EXCEPTION_TEXT_LENGTH = 80
 
 def _makeExcInfoMsgText( exceptionType, exception, tb ):
     fileName, lineNo, funcName, text = traceback.extract_tb( tb )[-1]
-    exceptionText = str( exception )
+    exceptionText = unicode( exception )
     if len( exceptionText ) > MAX_EXCEPTION_TEXT_LENGTH:
         exceptionText = exceptionText[:MAX_EXCEPTION_TEXT_LENGTH] + "..."
     mainText = "A python %s exception occurred with the text '%s' in the " \
