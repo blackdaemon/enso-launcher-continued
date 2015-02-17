@@ -288,6 +288,16 @@ class Quasimode(object):
 
         newCharacter = ALLOWED_KEYCODES[keyCode]
         oldUserText = self.__suggestionList.getUserText()
+
+        # If known command was typed, examine the command object.
+        # If the command object has OVERRIDE_ALLOWED_KEYCODES dictionary, use it to remap
+        # keys while user is typing the command parameter.
+        # This is useful for instance for 'calculate' command where we can remap some keys
+        # to provide different mathematical symbols ('='->'+', '['->'(', ']'->')', '?'='/') etc.
+        cmd = self.__suggestionList.getActiveCommand()
+        if cmd and hasattr(cmd, "OVERRIDE_ALLOWED_KEYCODES") and oldUserText.startswith(cmd.PREFIX):
+            newCharacter = cmd.OVERRIDE_ALLOWED_KEYCODES.get(keyCode, newCharacter)
+
         self.__suggestionList.setUserText( oldUserText + newCharacter )
 
         # If the user had indicated one of the suggestions, then
