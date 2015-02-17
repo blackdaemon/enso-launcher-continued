@@ -1,5 +1,12 @@
 *.pyc
 *.pyd
-*.bak
-*.*~
+*.pyo
 
+*.swp
+*.*~
+*.py_
+*.bak
+
+/.project
+/.pydevproject
+/.settings
