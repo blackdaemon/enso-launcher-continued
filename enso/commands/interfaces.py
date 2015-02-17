@@ -105,6 +105,16 @@ class _CommandImpl( object ):
     functionality common to both kinds of implementations.
     """
 
+    """
+    Override character map if you want to have specific key mappings
+    for the command parameter area:
+        OVERRIDE_ALLOWED_KEYCODES = {}
+    Example:
+        OVERRIDE_ALLOWED_KEYCODES = {
+            191: "/" # Instead of ? (helps access / without Shift on laptop keyboards)
+        }
+    """
+    
     def __init__( self ):
         """
         Initializes the command implementation object.
