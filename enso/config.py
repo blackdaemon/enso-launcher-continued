@@ -38,7 +38,17 @@ QUASIMODE_TRAILING_SPACE_STRING = u"\u00b7" # MIDDLE DOT
 # Quasimode-key double-tap delay (seconds)
 QUASIMODE_DOUBLETAP_DELAY = 0.5
 # Command to pre-type on quasimode-key double-tap
-QUASIMODE_DOUBLETAP_COMMAND = "google"
+QUASIMODE_DOUBLETAP_COMMAND = "open"
+
+# Append 'open {query}' command suggestions at the end of the suggestions list
+# if the suggestions list is shorther than QUASIMODE_MAX_SUGGESTIONS
+QUASIMODE_APPEND_OPEN_COMMAND = False
+
+# Replace suggestion with 'open {query}' command if there is no command matching
+# the {query}
+QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH = False
+
+PRIORITIZE_OPEN_COMMAND = False
 
 # The message displayed when the user types some text that is not a command.
 BAD_COMMAND_MSG = "<p><command>%s</command> is not a command.</p>"\

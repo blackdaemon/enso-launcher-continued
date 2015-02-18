@@ -293,6 +293,12 @@ class GenericPrefixFactory( AbstractCommandFactory ):
 
         # Take first hit by default...
         match, match_location = matches[0]
+        # ..but prefer 'open' command if it's in the list
+        if (userText.startswith("o") and config.PRIORITIZE_OPEN_COMMAND and
+            any(m[0].startswith("open ") for m in matches)):
+            # Special handling for 'open' command:
+            # Put it before other commands starting with "o".
+            match = "open"
 
         # TODO: This is incorrect. It matches the first one, not the correct one
         #matchLocation = re.search( pattern, match, re.I ).start()

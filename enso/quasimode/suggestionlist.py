@@ -298,6 +298,29 @@ class SuggestionList( object ):
         # Cache current autocompletion
         auto = self.__autoCompletion
 
+        #print auto.toText(), ":", auto.toNextWord()
+
+        # If no command matches the user text, offer "open <usertext>" variant
+        # as the autocompletion
+        if not auto.hasCompletion():
+            if (config.QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH
+                and not userText.startswith("open ")):
+                _a = self.__autoComplete("open %s" % userText)
+                if _a.hasCompletion():
+                    auto = _a
+                    userText = "open %s" % userText
+                    self.setUserText(userText)
+                    self.setSuggestedTextPrefix("open")
+                #else:
+                #    userText = "google %s" % userText
+                #    self.setUserText(userText)
+#            else:
+#                if userText.startswith("open "):
+#                    userText = userText[5:]
+#                userText = "google %s" % userText
+#                self.setUserText(userText)
+#                auto = self.__autoComplete(userText)
+
         suggestions = self.__cmdManager.retrieveSuggestions( userText )
 
         # BEGIN: Performance-improving code.
@@ -311,6 +334,39 @@ class SuggestionList( object ):
         # by nearness, we can simply sort the suggestions in place.
         suggestions.sort()
         suggestions = suggestions[:config.QUASIMODE_MAX_SUGGESTIONS]
+
+        if len(suggestions) < config.QUASIMODE_MAX_SUGGESTIONS:
+            if (config.QUASIMODE_APPEND_OPEN_COMMAND or len(suggestions) == 0) and not userText.startswith("open "):
+                opencmd_suggestions = self.__cmdManager.retrieveSuggestions("open %s" % userText)
+                #print ", ".join((s.toText() for s in opencmd_suggestions))
+                if opencmd_suggestions:
+                    # BEGIN: Performance-improving code.
+                    # Eliminate most of the suggestions before sorting them.
+                    if len(opencmd_suggestions) > 2 * config.QUASIMODE_MAX_SUGGESTIONS:
+                        opencmd_suggestions = self.__restrictSuggestionsByNearness(opencmd_suggestions)
+                    # END: Performance-improving code.
+                    #opencmd_suggestions.extend([self.__autoComplete("open %s" % userText)])
+                    opencmd_suggestions.sort()
+                    #print "len(opencmd_suggestions):", len(opencmd_suggestions)
+                    opencmd_suggestions = opencmd_suggestions[:config.QUASIMODE_MAX_SUGGESTIONS - len(suggestions)]
+                    #print ", ".join((s.toText() for s in opencmd_suggestions))
+
+                    suggestions.extend(opencmd_suggestions)
+                else:
+                    pass
+
+        """
+        # following code will add "google " in front of the user text if no suggestion exists
+        # unfortunately it breaks the free-form text parameter commands like "youtube"
+        # needs to be rewritten
+        if len(suggestions) == 0 and not userText.startswith("google "):
+            if userText.startswith("open "):
+                userText = userText[5:]
+            userText = "google %s" % userText
+            self.setUserText(userText)
+            auto = self.__autoComplete(userText)
+            #suggestions = [Suggestion( "google " + userText, "google " + userText )]
+        """
 
         # Make the auto-completion the 0th suggestion, and not listed
         # more than once.
