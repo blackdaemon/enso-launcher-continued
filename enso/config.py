@@ -100,11 +100,13 @@ PROVIDERS.extend(DEFAULT_PLATFORMS)
 # List of modules/packages that support the plugin interface to
 # extend Enso.  The plugins are loaded in the order that they
 # are specified in this list.
-PLUGINS = ["enso.contrib.scriptotron",
+PLUGINS = [
            "enso.contrib.help",
            "enso.contrib.google",
            "enso.contrib.evaluate",
            "enso.contrib.minimessages",
+           "enso.contrib.open",
+           "enso.contrib.scriptotron",
            ]
 
 # Detect default system locale and use it for google search.
