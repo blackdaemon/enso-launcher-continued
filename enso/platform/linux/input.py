@@ -44,7 +44,8 @@ import gtk
 from Xlib import X
 from utils import *
 
-gtk.gdk.threads_init ()
+
+gtk.gdk.threads_init()
 
 # Timer interval in seconds.
 _TIMER_INTERVAL = 0.010
@@ -292,7 +293,7 @@ class _KeyListener (Thread):
                                                          event.detail))
                 gtk.gdk.threads_leave ()
                 self.__lock = False
-            self.ungrab (grabbedKey)
+            self.ungrab(QUASIMODE_TRIGGER_KEYS)
 
     def unlock (self):
         '''Unlock GDK threading lock'''
@@ -314,7 +315,7 @@ class _KeyListener (Thread):
         self.__parent.stop ()
 
     def grab (self, keys):
-        '''Grab a specific key'''
+        '''Grab specific keys'''
         root_window = self.__display.screen ().root
         keycode = 0
         xset_command = ["which", "xset"]
@@ -371,10 +372,11 @@ key-repeat problems")
         self.__parent.stop ()
         return None, None
 
-    def ungrab (self, keycode):
-        '''Ungrab a specific key'''
-        root_window = self.__display.screen ().root
-        root_window.ungrab_key (keycode, 0)
+    def ungrab (self, keys):
+        '''Ungrab specific keys'''
+        root_window = self.__display.screen().root
+        for keycode in keys:
+            root_window.ungrab_key (keycode, 0)
 
     def disable_caps_lock (self):
         '''Disable Caps Lock'''
@@ -387,6 +389,8 @@ key-repeat problems")
         if self.__caps_lock:
             assert logging.debug ("Using xmodmap to enable Caps Lock") or True
             os.system ('xmodmap -e "add Lock = %s"' % self.__caps_lock)
+
+
 
 class InputManager (object):
     '''Input event manager object'''
@@ -408,7 +412,8 @@ class InputManager (object):
             self.onTick (_TIMER_INTERVAL_IN_MS)
         except KeyboardInterrupt:
             gtk.main_quit ()
-        return True # Return true to keep the timeout running
+        finally:
+            return True # Return true to keep the timeout running
 
     def __keyCallback (self, info):
         '''Handle callbacks from KeyListener'''

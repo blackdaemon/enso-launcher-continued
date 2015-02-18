@@ -33,10 +33,11 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+import os
+import logging
 
 from Xlib.display import Display
-import gtk
-import os
+import gtk.gdk
 
 from enso.utils.memoize import memoized
 
@@ -50,6 +51,17 @@ DE_MATE = "MATE"
 DE_LXDE = "LXDE"
 DE_UNKNOWN = None
 
+
+class gdk_threadsafe_execution:
+    def __enter__(self):
+        gtk.gdk.threads_enter()
+        return True
+    def __exit__(self, extype, exvalue, traceback):
+        gtk.gdk.threads_leave()
+        if exvalue:
+            logging.error(traceback)
+        return True
+            
 
 def get_display ():
     return Display(os.environ["DISPLAY"])

@@ -34,11 +34,13 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import logging
+
 from time import sleep, time, clock
 
 import Xlib
 import Xlib.ext.xtest
-from enso.platform.linux.utils import *
+from utils import *
 
 import dbus
 import dbus.mainloop.glib
@@ -146,13 +148,19 @@ def fake_paste (display = None):
 def get ():
     '''Fetch text from X PRIMARY selection'''
     global selection_text, nautilus_file_selection
+    
     selection_text = None
     clipboard = gtk.clipboard_get (selection = "PRIMARY")
     clipboard.request_text (get_clipboard_text_cb)
     # Iterate until we actually received something, or we timed out waiting
     start = clock ()
-    while not selection_text and (clock () - start) < GET_TIMEOUT:
-        gtk.main_iteration (False)
+    # This is crucial, as without it the onTimer events stop being called
+    with gdk_threadsafe_execution():
+        while not selection_text and (clock () - start) < GET_TIMEOUT:
+            # Following makes the timeout event die and the input.__timerCallback 
+            # will not be called anymore. 
+            # Calling gtk.gdk.threads_enter()/_leave() fixes it.  
+            gtk.main_iteration(False)
     if not selection_text:
         selection_text = ""
     files = []
