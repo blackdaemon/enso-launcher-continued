@@ -388,6 +388,16 @@ class Quasimode(object):
 
         self.__quasimodeID = time.clock()
 
+        if (config.QUASIMODE_DOUBLETAP_DELAY > 0
+            and config.QUASIMODE_DOUBLETAP_COMMAND is not None):
+            if self.__lastQuasimodeStarted is not None:
+                elapsed = time.time() - self.__lastQuasimodeStarted
+                if elapsed < config.QUASIMODE_DOUBLETAP_DELAY:
+                    self.__suggestionList.clearState()
+                    self.__suggestionList.setUserText(
+                        "%s " % config.QUASIMODE_DOUBLETAP_COMMAND)
+                    #self.__nextRedrawIsFull = True
+
         self.__lastQuasimodeStarted = time.time()
 
         if self.__quasimodeWindow is None:

@@ -35,6 +35,11 @@ QUASIMODE_MIN_AUTOCOMPLETE_CHARS = 2
 # To disable the feature set this to None.
 QUASIMODE_TRAILING_SPACE_STRING = u"\u00b7" # MIDDLE DOT
 
+# Quasimode-key double-tap delay (seconds)
+QUASIMODE_DOUBLETAP_DELAY = 0.5
+# Command to pre-type on quasimode-key double-tap
+QUASIMODE_DOUBLETAP_COMMAND = "google"
+
 # The message displayed when the user types some text that is not a command.
 BAD_COMMAND_MSG = "<p><command>%s</command> is not a command.</p>"\
                   "%s"
