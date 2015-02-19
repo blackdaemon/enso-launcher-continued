@@ -34,6 +34,8 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+from __future__ import with_statement
+
 import logging
 
 from time import sleep, time, clock
@@ -154,13 +156,8 @@ def get ():
     clipboard.request_text (get_clipboard_text_cb)
     # Iterate until we actually received something, or we timed out waiting
     start = clock ()
-    # This is crucial, as without it the onTimer events stop being called
-    with gdk_threadsafe_execution():
-        while not selection_text and (clock () - start) < GET_TIMEOUT:
-            # Following makes the timeout event die and the input.__timerCallback 
-            # will not be called anymore. 
-            # Calling gtk.gdk.threads_enter()/_leave() fixes it.  
-            gtk.main_iteration(False)
+    while not selection_text and (clock () - start) < GET_TIMEOUT:
+        gtk.main_iteration(False)
     if not selection_text:
         selection_text = ""
     files = []
