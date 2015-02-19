@@ -409,10 +409,12 @@ class InputManager (object):
     def __timerCallback (self):
         '''Handle gobject timeout'''
         try:
+            gtk.gdk.threads_enter ()
             self.onTick (_TIMER_INTERVAL_IN_MS)
         except KeyboardInterrupt:
             gtk.main_quit ()
         finally:
+            gtk.gdk.threads_leave ()
             return True # Return true to keep the timeout running
 
     def __keyCallback (self, info):
