@@ -9,7 +9,7 @@ from enso.commands import CommandObject
 MAX_EXCEPTION_TEXT_LENGTH = 80
 
 def _makeExcInfoMsgText( exceptionType, exception, tb ):
-    fileName, lineNo, funcName, text = traceback.extract_tb( tb )[-1]
+    fileName, lineNo, funcName, _ = traceback.extract_tb( tb )[-1]
     exceptionText = unicode( exception )
     if len( exceptionText ) > MAX_EXCEPTION_TEXT_LENGTH:
         exceptionText = exceptionText[:MAX_EXCEPTION_TEXT_LENGTH] + "..."
@@ -61,7 +61,8 @@ def safetyNetted( func ):
     def wrapper( *args, **kwargs ):
         try:
             return func( *args, **kwargs )
-        except Exception:
+        except Exception, e:
             TracebackCommand.setTracebackInfo()
+            print traceback.format_exc()
             return None
     return wrapper
