@@ -384,7 +384,7 @@ class QuasimodeLayout:
             scale = AUTOCOMPLETE_SCALE,
             ) )
 
-        for index in range( 1, len(suggestions) ):
+        for index in range( 0, len(suggestions) ):
             isActive = (activeIndex==index)
             lines.append( layoutXmlLine(
                 xml_data = self.LINE_XML % suggestions[index].toXml(),
