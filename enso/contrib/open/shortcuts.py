@@ -78,6 +78,9 @@ class Shortcut( object ):
         if not shortcut_filename or type in SHORTCUT_TYPE_CONTROL_PANEL:
             self.flags |= SHORTCUT_FLAG_CANTUNLEARN
 
+    def __str__(self):
+        return "Shortcut '%s' of type %s and category '%s' saved at '%s' having target '%s'" % (
+            self.name, self.type, self.category, self.shortcut_filename, self.target)
 
 class ShortcutsDict( dict ):
     """

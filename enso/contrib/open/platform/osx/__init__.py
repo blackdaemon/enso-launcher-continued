@@ -10,7 +10,7 @@ import glob
 from enso.contrib.open import interfaces
 from enso.contrib.open import shortcuts
 from enso.contrib.open.interfaces import AbstractOpenCommand, ShortcutAlreadyExistsError
-from enso.contrib.open.shortcuts_dict import ShortcutsDict
+from enso.contrib.open.shortcuts import ShortcutsDict
 
 
 my_documents_dir = os.path.expanduser('~/Documents')

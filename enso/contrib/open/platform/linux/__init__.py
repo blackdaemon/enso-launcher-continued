@@ -120,7 +120,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
     def _run_shortcut(self, shortcut):
         if shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE:
             try:
-                app = applications.applications_dict.get(shortcut.target, None)
+                app = applications.applications_dict.get(shortcut.name, None)
                 if app:
                     app.launch(None)
             except Exception, e:

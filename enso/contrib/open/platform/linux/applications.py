@@ -127,10 +127,11 @@ def get_applications():
             filepath = item.get_executable()
             #print filepath,";",item.get_commandline(),";",item.get_description()
             if filepath and filepath.strip() != "":
-                applications_dict[filepath] = item
-                type = shortcuts.SHORTCUT_TYPE_EXECUTABLE #get_shortcut_type(filepath)
-                shortcut = shortcuts.Shortcut(name, type, filepath.strip(), filepath.strip(), SHORTCUT_CATEGORY)
+                applications_dict[name] = item
+                s_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE #get_shortcut_type(filepath)
+                shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), filepath.strip(), SHORTCUT_CATEGORY)
                 result.append(shortcut)
+    print "\n".join(sorted(str(s) for s in result))
     return result
 
 

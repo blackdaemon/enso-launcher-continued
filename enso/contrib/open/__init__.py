@@ -39,8 +39,8 @@
 # ----------------------------------------------------------------------------
 
 """
-An Enso plugin that makes the 'open', 'open with', 'learn as open',
-'unlearn open', 'undo unlearn open' commands available.
+An Enso plugin providing the 'open', 'open with', 'learn as open',
+'unlearn open', 'undo unlearn open' commands.
 
 This is main class implementing all basic command functionality, without
 platform specific code.
@@ -68,6 +68,7 @@ class in open-command platform directories:
   enso.contrib.open.platform.linux
 
 TODO:
+    * Implement OSX variant
     * Open multiple files. Special text file .enrosun should be created
       in the LEARN_AS_DIR with the list of files to open(?)
       Or maybe create subdirectory in LEARN_AS_DIR and put multiple links there.
