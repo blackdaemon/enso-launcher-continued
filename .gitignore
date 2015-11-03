@@ -10,3 +10,5 @@
 /.project
 /.pydevproject
 /.settings
+/dependencies/
+/derby.log
