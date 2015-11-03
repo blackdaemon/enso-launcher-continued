@@ -52,17 +52,6 @@ DE_LXDE = "LXDE"
 DE_UNKNOWN = None
 
 
-class gdk_threadsafe_execution:
-    def __enter__(self):
-        gtk.gdk.threads_enter()
-        return True
-    def __exit__(self, extype, exvalue, traceback):
-        gtk.gdk.threads_leave()
-        if exvalue:
-            logging.error(traceback)
-        return True
-            
-
 def get_display ():
     return Display(os.environ["DISPLAY"])
 
@@ -113,5 +102,16 @@ def detect_desktop_environment():
     
     return DE_UNKNOWN
 
-
+                    
+def get_status_output(cmd):
+    """Return (status, output) of executing cmd in a shell."""
+    pipe = os.popen('{ ' + cmd + '; } 2>&1', 'r')
+    text = pipe.read()
+    sts = pipe.close()
+    if sts is None: 
+        sts = 0
+    if text and text[-1:] == '\n': 
+        text = text[:-1]
+    return sts, text
+    
   

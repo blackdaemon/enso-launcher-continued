@@ -40,6 +40,8 @@ import os
 
 from gio import app_info_get_all
 from gio.unix import desktop_app_info_set_desktop_env
+from gtk.gdk import lock as gtk_lock
+from distutils.spawn import find_executable
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -120,17 +122,29 @@ def get_applications():
     result = []
     if DESKTOP_ENVIRONMENT:
         desktop_app_info_set_desktop_env(DESKTOP_ENVIRONMENT)
-    for item in app_info_get_all():
-        id_ = item.get_id()
-        if id_ in whitelist or (item.should_show() and not id_ in blacklist):
-            name = item.get_name().lower()
-            filepath = item.get_executable()
-            #print filepath,";",item.get_commandline(),";",item.get_description()
-            if filepath and filepath.strip() != "":
-                applications_dict[name] = item
-                s_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE #get_shortcut_type(filepath)
-                shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), filepath.strip(), SHORTCUT_CATEGORY)
-                result.append(shortcut)
+    isabs = os.path.isabs
+    isfile = os.path.isfile
+    islink = os.path.islink
+    with gtk_lock:
+        for item in app_info_get_all():
+            id_ = item.get_id()
+            if id_ in whitelist or (item.should_show() and not id_ in blacklist):
+                name = item.get_name().lower()
+                filepath = item.get_executable()
+                #print filepath,";",item.get_commandline(),";",item.get_description()
+                # Need to check for existence of the file, as sometimes the app does not disappear from the list if not ptoperly uninstalled
+                if filepath and filepath.strip() != "":
+                    if isabs(filepath):
+                        if not (isfile(filepath) or islink(filepath)):
+                            continue
+                    else:
+                        if not find_executable(filepath):
+                            continue
+                    applications_dict[name] = item
+                    s_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE #get_shortcut_type(filepath)
+                    shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), filepath.strip(), SHORTCUT_CATEGORY)
+                    result.append(shortcut)
+                    
     print "\n".join(sorted(str(s) for s in result))
     return result
 

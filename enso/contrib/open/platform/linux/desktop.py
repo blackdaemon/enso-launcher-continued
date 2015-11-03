@@ -29,11 +29,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-TODO:
-    - Resolve duplicate names in gtk_bookmarks (use part of directory on duplicated entries)
-"""
-
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
@@ -42,7 +37,6 @@ TODO:
 from __future__ import with_statement
 
 import os
-
 import gio
 from gtk.gdk import lock as gtk_lock
 
@@ -50,12 +44,11 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from enso.contrib.open import shortcuts
-from enso.platform.linux import utils 
-from enso.platform.linux.weaklib import gobject_connect_weakly
 
-SHORTCUT_CATEGORY = "gtk-bookmark"
-BOOKMARKS_DIR = "~"
-BOOKMARKS_FILE = ".gtk-bookmarks"
+SHORTCUT_CATEGORY_DESKTOP = "desktop"
+SHORTCUT_CATEGORY_LAUNCHPANEL = "launch-panel"
+DESKTOP_DIR = os.path.expanduser("~/Desktop")
+LAUNCH_PANEL_DIR = os.path.expanduser("~/.gnome2/panel2.d/default/launchers")
 
 
 class FileChangedEventHandler( FileSystemEventHandler ):
@@ -67,31 +60,30 @@ class FileChangedEventHandler( FileSystemEventHandler ):
 
     def on_moved(self, event):
         super(FileChangedEventHandler, self).on_moved(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        bookmarks_filename = os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE)) 
-        if not event.is_directory and event.dest_path == bookmarks_filename:
-            self.call_callback(event)
+        what = 'directory' if event.is_directory else 'file'
+        print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
+        self.call_callback(event)
     
     def on_created(self, event):
         super(FileChangedEventHandler, self).on_created(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Created %s: %s" % (what, event.src_path)
-        #self.call_callback(event)
+        what = 'directory' if event.is_directory else 'file'
+        print "Created %s: %s" % (what, event.src_path)
+        self.call_callback(event)
     
     def on_deleted(self, event):
         super(FileChangedEventHandler, self).on_deleted(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Deleted %s: %s" % (what, event.src_path)
-        #self.call_callback(event)
+        what = 'directory' if event.is_directory else 'file'
+        print "Deleted %s: %s" % (what, event.src_path)
+        self.call_callback(event)
     
     def on_modified(self, event):
         super(FileChangedEventHandler, self).on_modified(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Modified %s: %s" % (what, event.src_path)
+        what = 'directory' if event.is_directory else 'file'
+        print "Modified %s: %s" % (what, event.src_path)
+        self.call_callback(event)
 
     def call_callback(self, event):
-        print "Recently changed applications list was updated"
+        print "Recently changed learned-shortcuts list was updated"
         if self.update_callback_func:
             try:
                 print "Calling update callback func..."
@@ -105,34 +97,48 @@ class FileChangedEventHandler( FileSystemEventHandler ):
 file_changed_event_handler = FileChangedEventHandler()
 
 
-def get_bookmarks():
-    print "Loading gtk-bookmarks"
-    basename = os.path.basename
-    places = []
-    with open(os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))) as f:
-        for line in f:
-            if not line.strip():
+def get_shortcut_type(filepath):
+    return shortcuts.SHORTCUT_TYPE_EXECUTABLE
+
+
+def lookup_exec_path(exename):
+    "Return path for @exename in $PATH or None"
+    PATH = os.environ.get("PATH") or os.defpath
+    for execdir in PATH.split(os.pathsep):
+        exepath = os.path.join(execdir, exename)
+        if os.access(exepath, os.R_OK|os.X_OK) and os.path.isfile(exepath):
+            return exepath
+
+
+def _get_runnable_shortcuts_from_dir(directory, category):
+    result = []
+    splitext = os.path.splitext
+    pathjoin = os.path.join
+    get_app_info = gio.unix.desktop_app_info_new_from_filename
+    for f in os.listdir(directory):
+        if splitext(f)[1] != ".desktop":
+            continue
+        f = pathjoin(directory, f)
+        with gtk_lock:
+            try:
+                #print f
+                ds = get_app_info(f)
+            except RuntimeError as e:
+                print f, e
                 continue
-            items = line.strip().split(" ", 1)
-            uri = items[0]
-            with gtk_lock:
-                gfile = gio.File(uri)
-                if len(items) > 1:
-                    title = items[1].rstrip()
-                else:
-                    disp = gfile.get_parse_name()
-                    title = basename(disp)
-                locpath = gfile.get_path()
-                new_uri = gfile.get_uri()
-            if locpath:
-                shortcut = shortcuts.Shortcut(
-                    "%s [places]" % title, shortcuts.SHORTCUT_TYPE_FOLDER, locpath, category=SHORTCUT_CATEGORY)
-            else:
-                shortcut = shortcuts.Shortcut(
-                    "%s [places]" % title, shortcuts.SHORTCUT_TYPE_URL, new_uri, category=SHORTCUT_CATEGORY)
-            print shortcut
-            places.append(shortcut)
-    return places
+            #cmdline = ds.get_commandline()
+            name = ds.get_name().lower()
+            t = get_shortcut_type(ds.get_executable())
+        shortcut = shortcuts.Shortcut(name, t, f, f, category)
+        result.append(shortcut)
+    return result
+
+
+def get_desktop_shortcuts():
+    return _get_runnable_shortcuts_from_dir(DESKTOP_DIR, SHORTCUT_CATEGORY_DESKTOP)
+
+def get_launch_panel_shortcuts():
+    return _get_runnable_shortcuts_from_dir(LAUNCH_PANEL_DIR, SHORTCUT_CATEGORY_LAUNCHPANEL)
 
 
 def register_update_callback(callback_func):
@@ -142,5 +148,6 @@ def register_update_callback(callback_func):
 
 # Set up the directory watcher for shortcuts directory 
 dir_monitor = Observer()
-dir_monitor.schedule(file_changed_event_handler, os.path.expanduser(BOOKMARKS_DIR))
+dir_monitor.schedule(file_changed_event_handler, DESKTOP_DIR, recursive=False)
+dir_monitor.schedule(file_changed_event_handler, LAUNCH_PANEL_DIR, recursive=False)
 dir_monitor.start()
