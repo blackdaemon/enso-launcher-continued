@@ -82,7 +82,7 @@ def get_clipboard_text_cb (clipboard, text, userdata):
     global selection_text
     selection_text = text
 
-def get_focussed_window (display):
+def get_focused_window (display):
     '''Get the currently focussed window'''
     input_focus = display.get_input_focus ()
     window = Xlib.X.NONE
@@ -129,7 +129,7 @@ def fake_paste (display = None):
     '''Fake a "paste" keyboard event'''
     if not display:
         display = get_display ()
-    window = get_focussed_window (display)
+    window = get_focused_window (display)
     state = PASTE_STATE
     k = PASTE_KEY
     ctrl = False

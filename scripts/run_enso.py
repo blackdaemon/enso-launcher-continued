@@ -168,7 +168,9 @@ def main(argv = None):
         change_color_scheme(opts.color_scheme)
 
     try:
-        # Use optimization if available
+        # Use Psyco optimization if available
+        # Last Psyco available is for Python 2.6 (Win32) and Python 2.7 (Linux, unofficial build from github)
+        # There is no Psyco support for Python > 2.7
         import psyco
         logging.info("Using Psyco optimization")
         psyco.profile()
