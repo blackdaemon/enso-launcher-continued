@@ -27,6 +27,7 @@ def _makeExcInfoMsgText( exceptionType, exception, tb ):
               "details.</caption>" % mainText
     return msgText
 
+
 class TracebackCommand( CommandObject ):
     NAME = "traceback"
     DESCRIPTION = "Returns the latest traceback from a command."
@@ -47,6 +48,7 @@ class TracebackCommand( CommandObject ):
             traceback.format_exc()
         cls.tracebackText = tbText
         displayMessage( _makeExcInfoMsgText(*sys.exc_info()) )
+
 
 def safetyNetted( func ):
     """

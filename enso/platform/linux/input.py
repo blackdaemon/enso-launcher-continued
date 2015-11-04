@@ -249,49 +249,50 @@ class _KeyListener (Thread):
             while not self.__restart:
                 event = self.__display.next_event ()
                 self.__lock = True
-                gtk.gdk.threads_enter ()
-                if hasattr (event,"detail") \
-                   and event.detail == trigger_keycode \
-                   and event.type in events:
-                    if self.__parent.getModality ():
-                        continue
-                    elif event.type == X.KeyPress:
-                        self.__callback (make_event ("quasimodeStart"))
-                        self.__capture = True
-                    elif event.type == X.KeyRelease:
-                        self.__callback (make_event ("quasimodeEnd"))
-                        self.__capture = False
-                elif not self.__parent.getModality () and self.__capture \
-                     and event.type in events:
-                    modifiers_mask = gtk.gdk.MODIFIER_MASK
-                    if self.__key_mod:
-                        mod_str = self.__key_mod.upper ()
-                        mod = eval ("gtk.gdk.%s_MASK" % mod_str)
-                        modifiers_mask &= ~mod
-                    state = event.state & modifiers_mask
-                    keyval = self.__display.keycode_to_keysym (event.detail,
-                                                               state)
-                    if not keyval and self.__num_lock_mod:
-                        mod_str = self.__num_lock_mod.upper ()
-                        mod = eval ("gtk.gdk.%s_MASK" % mod_str)
-                        modifiers_mask &= ~mod
+                with gtk.gdk.lock:
+                    if hasattr (event,"detail") \
+                       and event.detail == trigger_keycode \
+                       and event.type in events:
+                        if self.__parent.getModality ():
+                            continue
+                        elif event.type == X.KeyPress:
+                            self.__callback (make_event ("quasimodeStart"))
+                            self.__capture = True
+                        elif event.type == X.KeyRelease:
+                            self.__callback (make_event ("quasimodeEnd"))
+                            self.__capture = False
+                    elif not self.__parent.getModality () and self.__capture \
+                         and event.type in events:
+                        modifiers_mask = gtk.gdk.MODIFIER_MASK
+                        if self.__key_mod:
+                            mod_str = self.__key_mod.upper ()
+                            mod = eval ("gtk.gdk.%s_MASK" % mod_str)
+                            modifiers_mask &= ~mod
                         state = event.state & modifiers_mask
-                        keyval = \
-                            self.__display.keycode_to_keysym (event.detail,
-                                                              state)
-                    #print keyval, event.detail
-                    #FIXME: Handling of numpad "5" key, converting it to normal "5" key
-                    if keyval == 65437:
-                        keyval, event.detail = 53, 14
-                    if event.detail in EXTRA_KEYCODES \
-                       or sanitize_char (keyval):
-                        if event.type == X.KeyPress:
-                            self.__callback (make_event ("keyDown",
-                                                         event.detail))
-                        else:
-                            self.__callback (make_event ("keyUp",
-                                                         event.detail))
-                gtk.gdk.threads_leave ()
+                        keyval = self.__display.keycode_to_keysym (event.detail,
+                                                                   state)
+                        if not keyval and self.__num_lock_mod:
+                            #print "numlock mod"
+                            mod_str = self.__num_lock_mod.upper ()
+                            mod = eval ("gtk.gdk.%s_MASK" % mod_str)
+                            modifiers_mask &= ~mod
+                            state = event.state & modifiers_mask
+                            keyval = \
+                                self.__display.keycode_to_keysym (event.detail,
+                                                                  state)
+                        #print keyval, event.detail
+                        #FIXME: Handling of numpad "5" key, converting it to normal "5" key
+                        if keyval == 65437:
+                            keyval, event.detail = 53, 14
+                        if event.detail in EXTRA_KEYCODES \
+                           or sanitize_char (keyval):
+                            if event.type == X.KeyPress:
+                                self.__callback (make_event ("keyDown",
+                                                             event.detail))
+                            else:
+                                self.__callback (make_event ("keyUp",
+                                                             event.detail))
+
                 self.__lock = False
             self.ungrab(QUASIMODE_TRIGGER_KEYS)
 
@@ -318,19 +319,26 @@ class _KeyListener (Thread):
         '''Grab specific keys'''
         root_window = self.__display.screen ().root
         keycode = 0
+        # Below replaced use of subprocess.Popen with enso.platform.linux.utils.get_status_output() which is faster on Linux
+        """
         xset_command = ["which", "xset"]
         which_process = subprocess.Popen (xset_command,
                                           stdout = subprocess.PIPE)
         which_stdout = which_process.stdout
-        has_xset = (len (which_stdout.readlines ()) > 0)
+        """
+        cmd_status, cmd_stdout = get_status_output("which xset")
+        has_xset = (cmd_status == 0 and (os.path.islink(cmd_stdout) or os.path.isfile(cmd_stdout)))
+        # Below replaced use of subprocess.Popen with enso.platform.linux.utils.get_status_output() which is faster on Linux
+        """
         xmodmap_command = ["which", "xmodmap"]
         which_process = subprocess.Popen (xmodmap_command,
                                           stdout = subprocess.PIPE)
         which_stdout = which_process.stdout
-        has_xmodmap = (len (which_stdout.readlines ()) > 0)
+        """
+        cmd_status, cmd_stdout = get_status_output("which xmodmap")
+        has_xmodmap = (cmd_status == 0 and (os.path.islink(cmd_stdout) or os.path.isfile(cmd_stdout)))
         if not has_xset:
-            logging.warn ("xset not found, you might experience some bad \
-key-repeat problems")
+            logging.warn ("xset not found, you might experience some bad key-repeat problems")
         for key in keys:
             keycode = get_keycode (key)
             if not keycode:
@@ -338,11 +346,19 @@ key-repeat problems")
             if has_xset:
                 os.system ("xset -r %d" % keycode) # FIXME: revert on exit
             if has_xmodmap:
+                # Below replaced use of subprocess.Popen with enso.platform.linux.utils.get_status_output() which is faster on Linux
+                """
                 xmodmap_command = ["xmodmap","-pm"]
                 xmodmap_process = subprocess.Popen (xmodmap_command,
                                                     stdout = subprocess.PIPE)
                 xmodmap_stdout = xmodmap_process.stdout
                 lines = xmodmap_stdout.readlines ()
+                """
+                cmd_status, cmd_stdout = get_status_output("xmodmap -pm")
+                if cmd_status == 0 and cmd_stdout:
+                    lines = cmd_stdout.splitlines()
+                else:
+                    lines = []
                 lock_line = filter (lambda l: l.startswith ("lock"), lines)
                 num_line = filter (lambda l: "Num_Lock" in l, lines)
                 key_line = filter (lambda l: key in l, lines)
@@ -408,14 +424,13 @@ class InputManager (object):
 
     def __timerCallback (self):
         '''Handle gobject timeout'''
-        try:
-            gtk.gdk.threads_enter ()
-            self.onTick (_TIMER_INTERVAL_IN_MS)
-        except KeyboardInterrupt:
-            gtk.main_quit ()
-        finally:
-            gtk.gdk.threads_leave ()
-            return True # Return true to keep the timeout running
+        with gtk.gdk.lock:
+            try:
+                self.onTick (_TIMER_INTERVAL_IN_MS)
+            except KeyboardInterrupt:
+                gtk.main_quit ()
+            finally:
+                return True # Return true to keep the timeout running
 
     def __keyCallback (self, info):
         '''Handle callbacks from KeyListener'''

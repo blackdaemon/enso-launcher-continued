@@ -307,6 +307,11 @@ class CommandManager:
         elif len( completions ) == 1:
             return completions[0]
         else:
+            if userText.startswith("o") and config.PRIORITIZE_OPEN_COMMAND:
+                # Special handling for 'open' command.
+                for c in completions:
+                    if c.toText() == "open ":
+                        return c
             #Original:
             #completions.sort( lambda a,b : cmp( a.toText(), b.toText() ) )
             # Sort by nearness

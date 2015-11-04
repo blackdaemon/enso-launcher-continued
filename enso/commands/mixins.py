@@ -78,7 +78,7 @@ urllib2.install_opener(
 class CommandParameterWebSuggestionsMixin( object ):
     """
     CommandParameterWebSuggestionsMixin provides web-query based suggestions
-    ability for command.
+    ability for an Enso command object.
     It can be used in commands that implement ArbitraryPostfixFactory.
 
     Two abstract methods must be overriden:
@@ -86,11 +86,15 @@ class CommandParameterWebSuggestionsMixin( object ):
     getSuggestionsUrl()
     decodeSuggestions()
 
-    This mixin monitors the typed parameters text and queries specified
-    web URL (returned by getSuggestionsUrl() method) for suggestions.
+    This mixin monitors typed parameters text and queries specified web URL 
+    (returned by getSuggestionsUrl() method) for suggestions.
     If any suggestions are returned and parsed (by decodeSuggestions() method),
     it will show the command suggestions (calls setParameterSuggestions() of
     ArbitraryPostfixFactory).
+    
+    TODO:
+        * Start suggestion thread everytime suggestions should be active and exit
+        it as soon as quasimode is off
     """
 
     #__queries_queue = Queue.Queue()

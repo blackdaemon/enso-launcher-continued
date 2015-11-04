@@ -131,6 +131,8 @@ def stringRatio( a, b ):
     If the strings are equal, returns 1.0.  If they have no similarity
     whatsoever, returns 0.0.  Otherwise, returns a number in-between.
     """
+    if not a:
+        return 0.0
 
     if a == b:
         return 1.0

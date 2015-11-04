@@ -298,6 +298,18 @@ class SuggestionList( object ):
         # Cache current autocompletion
         auto = self.__autoCompletion
 
+        # If no command matches the user text, offer "open <usertext>" variant
+        # as the autocompletion
+        if not auto.hasCompletion():
+            if (config.QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH
+                and not userText.startswith("open ")):
+                _a = self.__autoComplete("open %s" % userText)
+                if _a.hasCompletion():
+                    auto = _a
+                    userText = "open %s" % userText
+                    self.setUserText(userText)
+                    self.setSuggestedTextPrefix("open")
+
         suggestions = self.__cmdManager.retrieveSuggestions( userText )
 
         # BEGIN: Performance-improving code.
@@ -311,6 +323,21 @@ class SuggestionList( object ):
         # by nearness, we can simply sort the suggestions in place.
         suggestions.sort()
         suggestions = suggestions[:config.QUASIMODE_MAX_SUGGESTIONS]
+
+        if len(suggestions) < config.QUASIMODE_MAX_SUGGESTIONS:
+            if (config.QUASIMODE_APPEND_OPEN_COMMAND or len(suggestions) == 0) and not userText.startswith("open "):
+                opencmd_suggestions = self.__cmdManager.retrieveSuggestions("open %s" % userText)
+                if opencmd_suggestions:
+                    # BEGIN: Performance-improving code.
+                    # Eliminate most of the suggestions before sorting them.
+                    if len(opencmd_suggestions) > 2 * config.QUASIMODE_MAX_SUGGESTIONS:
+                        opencmd_suggestions = self.__restrictSuggestionsByNearness(opencmd_suggestions)
+                    # END: Performance-improving code.
+                    opencmd_suggestions.sort()
+                    opencmd_suggestions = opencmd_suggestions[:config.QUASIMODE_MAX_SUGGESTIONS - len(suggestions)]
+                    suggestions.extend(opencmd_suggestions)
+                else:
+                    pass
 
         # Make the auto-completion the 0th suggestion, and not listed
         # more than once.
