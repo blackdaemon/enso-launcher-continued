@@ -523,7 +523,7 @@ def evaluate(expression):
             ,val.seconds // 3600
             ,val.seconds % 3600 // 60)
 
-    return val, expression
+    return val, expr
 
 
 if __name__ == "__main__":

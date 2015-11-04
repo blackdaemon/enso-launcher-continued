@@ -115,6 +115,8 @@ PLUGINS = [
            "enso.contrib.google",
            "enso.contrib.evaluate",
            "enso.contrib.minimessages",
+           "enso.contrib.recentresults",
+           "enso.contrib.calc",
            "enso.contrib.open",
            "enso.contrib.scriptotron",
            ]

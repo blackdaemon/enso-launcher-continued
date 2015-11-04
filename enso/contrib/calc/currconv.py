@@ -52,6 +52,7 @@ import urllib2
 import logging
 
 import geoip
+from enso.net import inetcache
 
 from urllib2 import URLError
 from httplib import HTTPException
@@ -322,7 +323,7 @@ class ExchangeRates( object ):
         csv = None
         try:
             request = urllib2.Request(url, None, HTTP_HEADERS)
-            with closing(urllib2.urlopen(request, None, 4)) as resp:
+            with closing(urllib2.urlopen(request, None, 10)) as resp:
                 csv = resp.read()
         except (URLError, HTTPException, SocketError), e:
             logging.error(e)
@@ -486,6 +487,7 @@ def guess_home_currency():
     logging.info("Guessing user's local currency")
 
     conn = None
+    ext_ip = None
     try:
         logging.info("Getting external IP address...")
         ext_ip = enso.net.get_external_ip()
@@ -505,6 +507,7 @@ def guess_home_currency():
                 logging.warning("Python-package 'pygeoip' is not installed. Currency lookup-by-country will not be available.")
             else:
                 try:
+                    # TODO: Reasonably cache this
                     c = geoip.lookup_country(ext_ip)
                     if c:
                         logging.info("Country by IP: %s", c)
@@ -521,6 +524,20 @@ def guess_home_currency():
             except:
                 pass
 
+    # If all above failed, try t query geobytes directly for curency code
+    # TODO: Reasonably cache this
+    if ext_ip and inetcache.isonline:
+        try:
+            with closing(urllib2.urlopen(
+                "http://getcitydetails.geobytes.com/GetCityDetails?fqcn=%s"
+                % ext_ip, None, 5)) as resp:
+                meta = resp.read()
+            r = re.search(r"\"geobytescurrencycode\"\s*:\s*\"([A-Z]{3})\"", meta)
+            if r:
+                return r.group(1)
+        except Exception, e:
+            logging.error(e)
+            
     #import ip2country
     #print ip2country.IP2Country(verbose=True).lookup(ext_ip)
 

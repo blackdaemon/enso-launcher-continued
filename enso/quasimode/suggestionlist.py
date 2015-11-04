@@ -301,7 +301,15 @@ class SuggestionList( object ):
         # If no command matches the user text, offer "open <usertext>" variant
         # as the autocompletion
         if not auto.hasCompletion():
-            if (config.QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH
+            if ((userText[0].isdigit() or userText[0] in ("+", "-", ".", "=", "("))
+                and not userText.startswith("calculate ")):
+                _a = self.__autoComplete("calculate %s" % userText)
+                if _a.hasCompletion():
+                    auto = _a
+                    userText = "calculate %s" % userText
+                    self.setUserText(userText)
+                    self.setSuggestedTextPrefix("calculate")
+            elif (config.QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH
                 and not userText.startswith("open ")):
                 _a = self.__autoComplete("open %s" % userText)
                 if _a.hasCompletion():

@@ -51,7 +51,7 @@ from enso.commands import CommandManager, CommandObject
 from enso.commands.factories import ArbitraryPostfixFactory
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.contrib.scriptotron.ensoapi import EnsoApi
-#from enso.contrib.recentresults import RecentResult
+from enso.contrib.recentresults import RecentResult
 
 from text2num import text2num, format_number_local
 
@@ -260,8 +260,8 @@ def cmd_calculate(ensoapi, expression = None):
 
     _ = pasted # keep pylint happy
 
-    #msg = u"%s = %s" % (xml_escape(expression), xml_escape(unicode(result)))
-    #RecentResult.get().push_result(result, msg)
+    msg = u"%s = %s" % (xml_escape(expression), xml_escape(unicode(result)))
+    RecentResult.get().push_result(result, msg)
 
     """
     #TODO: Testing for return value of selection.set() is not working,
@@ -291,7 +291,13 @@ class CalculateCommand( CommandObject ):
     DESCRIPTION_ERROR = u"Calculate %s = ?"
 
     OVERRIDE_ALLOWED_KEYCODES = {
-        191: "/" # Instead of ? (helps access / without shift on laptop keyboards)
+        191: "/", # Instead of ? (helps access / without shift on laptop keyboards)
+        # replace [ with (
+        34: "(",
+        # replace ] with )
+        35: ")",
+        # replace = with +
+        21: "+",
     }
 
     def __init__( self, expression = None ):

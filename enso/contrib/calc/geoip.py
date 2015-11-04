@@ -45,6 +45,10 @@ from contextlib import closing
 
 from enso.net import inetcache
 
+import socket
+socket.setdefaulttimeout(5.0)
+
+
 HTTP_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.7) Gecko/20100720 Firefox/3.6.7',
     'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
@@ -86,8 +90,8 @@ def compute_file_crc32(filename):
         return 0
 
 class Globals(object):
-    geoip_file = os.path.normpath(os.path.expanduser(u"~/GeoIP.dat"))
-    geoipcity_file = os.path.normpath(os.path.expanduser(u"~/GeoIPCity.dat"))
+    geoip_file = os.path.normpath(os.path.expanduser(u"~/GeoLite-Country.dat"))
+    geoipcity_file = os.path.normpath(os.path.expanduser(u"~/GeoLite-City.dat"))
     geoip_url = "http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz"
     geoipcity_url = "http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz"
     _download_geoip_thread = None
@@ -101,9 +105,25 @@ class Globals(object):
 
     @classmethod
     def _download_geoip_file(cls):
+        assert logging.debug("GeoIP download thread started") or True
+        """
+        def signal_alarm_handler(signum, frame):
+            raise IOError("The page is taking too long to read")
+            # Set the signal handler and a 5-second alarm
+        print 1
         try:
-            print "GeoIP download thread started"
+            import signal
+            signal.signal(signal.SIGALRM, signal_alarm_handler)
+            signal.alarm(5)
+        except Exception, e:
+            print "1 - error",e
+            pass
+        print 2
+        """
+        try:
             req = urllib2.Request(cls.geoip_url, None, HTTP_HEADERS)
+
+            assert logging.debug("Checking if GeoIP file has been updated online...") or True
             with closing(urllib2.urlopen(req, None, 5)) as resp:
                 content_length = resp.info().get("Content-Length", "0")
                 last_modified = resp.info().get("Last-Modified", "0")
@@ -113,12 +133,21 @@ class Globals(object):
                         try:
                             old_last_modified, old_content_length = map(string.strip, open(info_file, "r"))
                             if old_content_length == content_length and old_last_modified == last_modified:
+                                assert logging.debug("Content is not newer, skipping") or True
                                 return
                         except:
                             pass
+                #print resp.info()
+                """
                 if resp.info().get('Content-Encoding') in ('gzip', 'x-gzip'):
                     data = gzip.GzipFile(fileobj=StringIO.StringIO(resp.read())).read()
                 else:
+                    data = resp.read()
+                """
+                try:
+                    assert logging.debug("Downloading the contents...") or True
+                    data = gzip.GzipFile(fileobj=StringIO.StringIO(resp.read())).read()
+                except:
                     data = resp.read()
             with open(cls.geoip_file, "wb") as fp:
                 fp.write(data)
@@ -126,12 +155,20 @@ class Globals(object):
                 fp.writelines((last_modified, "\n", content_length))
         except Exception, e:
             logging.error("Error opening connection to %s: %s", cls.geoip_url, e)
-        print "GeoIP download thread finished"
+        finally:
+            """
+            try:
+                signal.alarm(0)
+            except:
+                pass
+            """
+            assert logging.debug("GeoIP download thread finished") or True
 
     @classmethod
     def _download_geoipcity_file(cls):
-        print "GeoIPCity download thread started"
+        assert logging.debug("Checking if GeoIPCity file has been updated online...") or True
         try:
+            assert logging.debug("Checking if GeoIPCity file has been updated online...") or True
             try:
                 req = urllib2.Request(cls.geoipcity_url, None, HTTP_HEADERS)
                 resp = urllib2.urlopen(req, None, 5)
@@ -146,6 +183,8 @@ class Globals(object):
                     try:
                         old_last_modified, old_content_length = map(string.strip, open(info_file, "r"))
                         if old_content_length == content_length and old_last_modified == last_modified:
+                            if logging.getLogger().isEnabledFor(logging.DEBUG): 
+                                assert logging.debug("Content is not newer, skipping") or True
                             return
                     except:
                         pass
@@ -186,16 +225,19 @@ class Globals(object):
                 resp.close()
             except Exception, e:
                 pass
-            print "GeoIPCity download thread finished"
+            if logging.getLogger().isEnabledFor(logging.DEBUG): 
+                assert logging.debug("GeoIPCity download thread finished") or True
 
 
     @classmethod
     def get_geoip_file(cls, wait=True):
         if cls._download_geoip_thread and cls._download_geoip_thread.isAlive():
             if wait:
-                cls._download_geoip_thread.join()
+                cls._download_geoip_thread.join(5)
+                print "ISALIVE?", cls._download_geoip_thread.isAlive()
                 cls._download_geoip_thread = None
         else:
+            print cls.geoip_file
             if ((not os.path.isfile(cls.geoip_file)
                 or time.time() - os.path.getmtime(cls.geoip_file) > 60*60*24)
                 and inetcache.isonline):
@@ -204,10 +246,11 @@ class Globals(object):
                 cls._download_geoip_thread.setDaemon(True)
                 cls._download_geoip_thread.start()
                 if wait:
+                    print "waiting"
                     cls._download_geoip_thread.join()
                     cls._download_geoip_thread = None
                     print "Downloaded GeoIP file"
-        #print "File %s CRC: %08X" % (cls.geoip_file, compute_file_crc32(cls.geoip_file) & 0xffffffff)
+        print "File %s CRC: %08X" % (cls.geoip_file, compute_file_crc32(cls.geoip_file) & 0xffffffff)
         if os.path.isfile(cls.geoip_file):
             return cls.geoip_file
         else:
@@ -243,7 +286,7 @@ Globals.__init__()
 def lookup_country(ip_address):
     try:
         import pygeoip
-        gif = Globals.get_geoip_file(wait=False)
+        gif = Globals.get_geoip_file(wait=True)
         if gif:
             return pygeoip.GeoIP(gif).country_code_by_addr(ip_address)
     except ImportError:
@@ -254,12 +297,12 @@ def lookup_country(ip_address):
     if inetcache.isonline:
         try:
             with closing(urllib2.urlopen(
-                "http://www.geobytes.com/IpLocator.htm?GetLocation&template=php3.txt&IpAddress=%s"
+                "http://getcitydetails.geobytes.com/GetCityDetails?fqcn=%s"
                 % ip_address, None, 5)) as resp:
                 meta = resp.read()
-            r = re.findall(r"<meta name=\"iso2\" content=\"(.*?)\">", meta)
+            r = re.search(r"\"geobytesinternet\"\s*:\s*\"([A-Z]+?)\"", meta)
             if r:
-                return r[0]
+                return r.group(1)
         except Exception, e:
             logging.error(e)
 
