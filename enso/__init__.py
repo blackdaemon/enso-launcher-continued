@@ -36,10 +36,11 @@ def run():
     """
     Initializes and runs Enso.
     """
-
+    
+    import logging
     from enso.events import EventManager
     from enso.quasimode import Quasimode
-    from enso import events, plugins, config, quasimode, webui
+    from enso import events, plugins, config, messages, quasimode, webui
 
     eventManager = EventManager.get()
     Quasimode.install( eventManager )
@@ -48,9 +49,18 @@ def run():
     def showWelcomeMessage():
         msgXml = config.OPENING_MSG_XML
         if msgXml != None:
-            messages.displayMessage( msgXml )
+            messages.displayMessage( msgXml, primaryWaitTime=2000 )
 
-    webui.start(eventManager)
+    webui_server = webui.start(eventManager)
     
     eventManager.registerResponder( showWelcomeMessage, "init" )
-    eventManager.run()
+
+    try:
+        eventManager.run()
+    except KeyboardInterrupt, e:
+        webui_server.stop()
+    except Exception, e:
+        logging.error(e)
+        import traceback
+        traceback.print_exc()
+        webui_server.stop()
