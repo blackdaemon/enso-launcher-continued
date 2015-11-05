@@ -44,6 +44,8 @@ import gtk
 from Xlib import X
 from utils import *
 
+from shutilwhich import which
+
 
 gtk.gdk.threads_init()
 
@@ -319,42 +321,18 @@ class _KeyListener (Thread):
         '''Grab specific keys'''
         root_window = self.__display.screen ().root
         keycode = 0
-        # Below replaced use of subprocess.Popen with enso.platform.linux.utils.get_status_output() which is faster on Linux
-        """
-        xset_command = ["which", "xset"]
-        which_process = subprocess.Popen (xset_command,
-                                          stdout = subprocess.PIPE)
-        which_stdout = which_process.stdout
-        """
-        cmd_status, cmd_stdout = get_status_output("which xset")
-        has_xset = (cmd_status == 0 and (os.path.islink(cmd_stdout) or os.path.isfile(cmd_stdout)))
-        # Below replaced use of subprocess.Popen with enso.platform.linux.utils.get_status_output() which is faster on Linux
-        """
-        xmodmap_command = ["which", "xmodmap"]
-        which_process = subprocess.Popen (xmodmap_command,
-                                          stdout = subprocess.PIPE)
-        which_stdout = which_process.stdout
-        """
-        cmd_status, cmd_stdout = get_status_output("which xmodmap")
-        has_xmodmap = (cmd_status == 0 and (os.path.islink(cmd_stdout) or os.path.isfile(cmd_stdout)))
-        if not has_xset:
+        xset_cmd = which("xset")
+        xmodmap_cmd = which("xmodmap")
+        if not xset_cmd:
             logging.warn ("xset not found, you might experience some bad key-repeat problems")
         for key in keys:
             keycode = get_keycode (key)
             if not keycode:
                 continue
-            if has_xset:
-                os.system ("xset -r %d" % keycode) # FIXME: revert on exit
-            if has_xmodmap:
-                # Below replaced use of subprocess.Popen with enso.platform.linux.utils.get_status_output() which is faster on Linux
-                """
-                xmodmap_command = ["xmodmap","-pm"]
-                xmodmap_process = subprocess.Popen (xmodmap_command,
-                                                    stdout = subprocess.PIPE)
-                xmodmap_stdout = xmodmap_process.stdout
-                lines = xmodmap_stdout.readlines ()
-                """
-                cmd_status, cmd_stdout = get_status_output("xmodmap -pm")
+            if xset_cmd:
+                os.system ("%s -r %d" % (xset_cmd, keycode)) # FIXME: revert on exit
+            if xmodmap_cmd:
+                cmd_status, cmd_stdout = get_status_output("%s -pm" % xmodmap_cmd)
                 if cmd_status == 0 and cmd_stdout:
                     lines = cmd_stdout.splitlines()
                 else:
