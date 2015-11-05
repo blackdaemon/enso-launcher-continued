@@ -50,23 +50,30 @@ import re
 import urllib2
 import logging
 
+import struct
+import socket
+
 from urllib2 import URLError
 from httplib import HTTPException
 from contextlib import closing
 
 if sys.platform.startswith("win"):
+    import ctypes
+    import subprocess
+    from operator import itemgetter
     platform_name = "win32"
 elif any(map(sys.platform.startswith, ("linux","openbsd","freebsd","netbsd"))):
+    from socket import error as SocketError
+    from enso.platform.linux.utils import get_status_output
     platform_name = "linux"
 elif sys.platform == "darwin":
+    from socket import error as SocketError
+    from enso.platform.linux.utils import get_status_output
     platform_name = "osx"
 
         
 def get_default_gateway():
     if platform_name in ["linux", "osx"]:
-        import struct
-        import socket
-        from socket import error as SocketError
         """Read the default gateway directly from /proc."""
         with open("/proc/net/route") as fh:
             for line in fh:
@@ -75,8 +82,6 @@ def get_default_gateway():
                     continue
                 return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
     elif platform_name == "win32":
-        import subprocess
-        from operator import itemgetter
         gateway = None
         p = subprocess.Popen(
             "route PRINT 0.0.0.0",
@@ -95,14 +100,10 @@ def get_default_gateway():
 
 def get_local_ip():
     if platform_name in ["linux", "osx"]:
-        import socket
-        from socket import error as SocketError
         with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as s:
             s.connect(("8.8.8.8", 80))
             return s.getsockname()[0]
     elif platform_name == "win32":
-        import subprocess
-        from operator import itemgetter
         p = subprocess.Popen(
             "route PRINT 0.0.0.0",
             stdout=subprocess.PIPE,
@@ -159,7 +160,6 @@ def get_mac_address(host):
                 return if_mac.upper()
         return None
         """
-        from enso.platform.linux.utils import get_status_output
         rc, out = get_status_output("arp -n %s" % host)
         if rc == 0 and out:
             for entry in out.splitlines():
@@ -171,9 +171,6 @@ def get_mac_address(host):
         
     elif platform_name == "win32":
         """ Returns the MAC address of a network host, requires >= WIN2K. """
-        import ctypes
-        import struct
-        import socket
         # Check for api availability
         try:
             SendARP = ctypes.windll.Iphlpapi.SendARP
