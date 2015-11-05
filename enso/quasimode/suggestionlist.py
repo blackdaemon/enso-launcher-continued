@@ -59,7 +59,7 @@ class SuggestionList( object ):
     A singleton class that encapsulates all of the textual information
     created when a user types in the quasimode, including the user's
     typed text, the auto-completion, any suggestions, the command
-    description/help text.
+    description/help text and optional "did you mean?" hint.
     """
 
     # LONGTERM TODO: The trio of main data elements:
@@ -109,6 +109,9 @@ class SuggestionList( object ):
         # The current list of suggestions. The 0th element is the
         # auto-completion.
         self.__suggestions = [ self.__autoCompletion ]
+
+        # Did-you-mean hint
+        self.__didyoumean_hint = None
 
         self.__activeCommand = None
 
@@ -186,6 +189,20 @@ class SuggestionList( object ):
         # One of the source variables has changed.
         self.resetActiveSuggestion()
         self.__markDirty()
+
+
+    def getDidyoumeanHint( self ):
+        return self.__didyoumean_hint
+
+
+    def setDidyoumeanHint( self, hint ):
+        is_dirty = (hint != self.__didyoumean_hint)
+
+        self.__didyoumean_hint = hint
+
+        if is_dirty:
+            # One of the source variables has changed.
+            self.__markDirty()
 
 
     def __update( self ):

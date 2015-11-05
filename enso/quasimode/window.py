@@ -67,8 +67,7 @@ import logging
 from enso.quasimode.linewindows import TextWindow
 from enso.quasimode.layout import QuasimodeLayout
 from enso.quasimode.layout import HEIGHT_FACTOR
-from enso.quasimode.layout import DESCRIPTION_SCALE
-from enso.quasimode.layout import AUTOCOMPLETE_SCALE, SUGGESTION_SCALE
+from enso.quasimode.layout import DESCRIPTION_SCALE, AUTOCOMPLETE_SCALE, SUGGESTION_SCALE, DIDYOUMEANHINT_SCALE
 from enso import config
 
 
@@ -112,6 +111,12 @@ class QuasimodeWindow:
             )
         top += height
 
+        height = DIDYOUMEANHINT_SCALE[-1]*HEIGHT_FACTOR
+        self.__didyoumeanHintWindow = TextWindow(
+            height = height,
+            position = [ 50, top ],
+            )
+
         self.__suggestionWindows = []
         for i in range( config.QUASIMODE_MAX_SUGGESTIONS ):
             height = SUGGESTION_SCALE[-1]*HEIGHT_FACTOR
@@ -130,6 +135,9 @@ class QuasimodeWindow:
     def hide( self ):
         self.__descriptionWindow.hide()
         self.__userTextWindow.hide()
+        if self.__didyoumeanHintWindow:
+            self.__didyoumeanHintWindow.hide()
+            #self.__didyoumeanHintWindow = None
         for window in self.__suggestionWindows:
             window.hide()
 
@@ -167,8 +175,30 @@ class QuasimodeWindow:
         if len( suggestions[0].toXml() ) == 0 \
            and len( suggestions[0].getSource() ) == 0:
             self.__userTextWindow.hide()
+            self.__didyoumeanHintWindow.hide()
         else:
             self.__userTextWindow.draw( newLines[1] )
+            didyoumean_hint = quasimode.getSuggestionList().getDidyoumeanHint()
+            if didyoumean_hint:
+                if len(newLines)-suggestions_start > 0:
+                    # If there is at least one suggestion, draw it first as we want
+                    # to overlay it with the did-you-mean hint window
+                    self.__suggestionWindows[0].draw(newLines[suggestions_start])
+                    suggestions_start += 1
+                def _computeWidth( doc ):
+                    lines = []
+                    for b in doc.blocks:
+                        lines.extend( b.lines )
+                    if len( lines ) == 0:
+                        return 0
+                    return max( [ l.xMax for l in lines ] )
+                w = layout.getCurrentCommandWidth(quasimode)
+                if w:
+                    _, y = self.__didyoumeanHintWindow.getPosition()
+                    self.__didyoumeanHintWindow.setPosition(w, y)
+                self.__didyoumeanHintWindow.draw( newLines[2] )
+            else:
+                self.__didyoumeanHintWindow.hide()
         suggestionLines = newLines[suggestions_start:]
 
         # We now need to hide all line windows.

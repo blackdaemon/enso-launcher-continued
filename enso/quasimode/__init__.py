@@ -49,6 +49,7 @@
 # ----------------------------------------------------------------------------
 
 import time
+import weakref
 import logging
 import traceback
 import operator
@@ -211,6 +212,17 @@ class Quasimode(object):
 
     def getLastRunCommand(self):
         return self._lastRunCommand
+
+    def setDidyoumeanHint( self, hint ):
+        is_dirty = (self.__suggestionList.getDidyoumeanHint() != hint)
+        if hint == "":
+            hint = None
+        self.__suggestionList.setDidyoumeanHint(hint)
+        if is_dirty:
+            self.__needsRedraw = True
+
+    def getDidyoumeanHint( self ):
+        return self.__suggestionList.getDidyoumeanHint()
 
     def setParameterSuggestions( self, suggestions ):
         self.__parameterSuggestionList.setSuggestions(suggestions)

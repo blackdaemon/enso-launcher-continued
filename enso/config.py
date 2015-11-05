@@ -48,7 +48,7 @@ QUASIMODE_APPEND_OPEN_COMMAND = False
 # the {query}
 QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH = False
 
-PRIORITIZE_OPEN_COMMAND = False
+PRIORITIZE_OPEN_COMMAND = True
 
 # The message displayed when the user types some text that is not a command.
 BAD_COMMAND_MSG = "<p><command>%s</command> is not a command.</p>"\
@@ -81,17 +81,20 @@ QUASIMODE_NO_COMMAND_HELP = "There is no matching command. " \
 OPENING_MSG_XML = "<p>Welcome to <command>Enso</command>!</p>" + \
     "<caption>Copyright &#169; 2008 Humanized, Inc.</caption>"
 
-# Message XML displayed when the mouse hovers over a mini message.
-MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
-    " and <command>put</command> commands control" \
-    " these mini-messages.</p>"
-
 # Message XML for the About message.
 ABOUT_MSG_XML = u"<p><command>Enso</command> Community Edition</p>" \
     "<caption> </caption>" \
     "<p>Copyright &#169; 2008 <b>Humanized, Inc.</b></p>" \
     "<p>Copyright &#169; 2008-2010 <b>Enso community</b></p>"
 
+# Message XML displayed when the mouse hovers over a mini message.
+MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
+    " and <command>put</command> commands control" \
+    " these mini-messages.</p>"
+
+DIDYOUMEAN_HINT_TEXT = u"<ins>Did you mean \u201c</ins><alt>%s</alt><ins>\u201d?</ins>" \
+    "&nbsp;&nbsp;<alt>Press tab to fix</alt>"
+    
 # Optional custom font. If not used, Arial is used on Windows and Helvetica on Linux
 # FONT_NAME = {"normal" : "Square 721 Condensed BT CZ", "italic" : "Square 721 Condensed BT CZ"}
 

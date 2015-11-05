@@ -93,6 +93,7 @@ LARGE_SCALE = [ 24, 28, 32, 36, 40, 44, 48 ]
 DESCRIPTION_SCALE = SMALL_SCALE
 AUTOCOMPLETE_SCALE = LARGE_SCALE
 SUGGESTION_SCALE = SMALL_SCALE
+DIDYOUMEANHINT_SCALE = [ 8, 14, 20 ]
 PARAMETERSUGGESTION_SCALE = [ 10, 15, 20 ]
 
 if config.QUASIMODE_TRAILING_SPACE_STRING:
@@ -234,6 +235,14 @@ def retrieveAutocompleteStyles( active = True, size = LARGE_SCALE[-1] ):
     return styles
 
 
+def retrieveDidyoumeanHintStyles( size = DIDYOUMEANHINT_SCALE[-1] ):
+    """
+    LONGTERM TODO: Document this.
+    """
+
+    return _updateStyles( _DIDYOUMEANHINT_STYLES, DIDYOUMEANHINT_SCALE, size )
+
+
 def retrieveParameterSuggestionStyles( size = PARAMETERSUGGESTION_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
@@ -361,6 +370,9 @@ class QuasimodeLayout:
         suggestionList = quasimode.getSuggestionList()
         description = suggestionList.getDescription()
         description = escape_xml( description )
+        didyoumean_hint = suggestionList.getDidyoumeanHint()
+        if didyoumean_hint:
+            didyoumean_hint = escape_xml( didyoumean_hint )
         suggestions = suggestionList.getSuggestions()
         activeIndex = suggestionList.getActiveIndex()
 
@@ -384,7 +396,17 @@ class QuasimodeLayout:
             scale = AUTOCOMPLETE_SCALE,
             ) )
 
-        for index in range( 0, len(suggestions) ):
+        if didyoumean_hint:
+            hint_text = config.DIDYOUMEAN_HINT_TEXT % didyoumean_hint
+        else:
+            hint_text = ""
+        lines.append( layoutXmlLine(
+            xml_data = self.LINE_XML % hint_text,
+            styles = retrieveDidyoumeanHintStyles(),
+            scale = DIDYOUMEANHINT_SCALE,
+            ) )
+
+        for index in range( 1, len(suggestions) ):
             isActive = (activeIndex==index)
             lines.append( layoutXmlLine(
                 xml_data = self.LINE_XML % suggestions[index].toXml(),
@@ -462,7 +484,13 @@ class QuasimodeLayout:
             l.roundLowerRight = False
             l.roundUpperRight = False
 
-        lines = self.newLines
+        didyoumeanhint_line = self.newLines[2]
+        # Lower-left and lower-right corners are always rounded
+        # for did-you-mean-hint
+        didyoumeanhint_line.roundLowerLeft = True
+        didyoumeanhint_line.roundLowerRight = True
+
+        lines = self.newLines[:2] + self.newLines[3:]
 
         for i in range( len(lines)-1 ):
             if lines[i+1].ragWidth < lines[i].ragWidth:
