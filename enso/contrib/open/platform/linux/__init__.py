@@ -225,7 +225,7 @@ class RecentCommandImpl( OpenCommandImpl ):
         update_recent_documents()
         recent.register_update_callback(update_recent_documents)
         """
-        print "Recent command has been disabled due to performance issues in Linux GTK recent-files manager"
+        logging.warn("The functionality of listing the recent items in 'open' command has been disabled due to performance issues in Linux GTK recent-files manager.")
         
     def _get_shortcut_type(self, file):
         raise NotImplementedError()
