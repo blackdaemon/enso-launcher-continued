@@ -52,7 +52,7 @@ import enso.config
 import enso.system
 
 # This may no longer be required (it was for backward compat)
-SCRIPTS_FILE_NAME = "~/.ensocommands"
+SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
 _SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
 
     
@@ -199,9 +199,12 @@ class ScriptTracker:
 
         for f in commandFiles:
             try:
-                text = open( f, "r" ).read().replace('\r\n', '\n')
+                text = open( f, "r" ).read().replace('\r\n', '\n')+"\n"
             except Exception, e:
-                logging.error(e)
+                if f == SCRIPTS_FILE_NAME:
+                    logging.warn("Legacy script file %s not found" % os.path.basename(SCRIPTS_FILE_NAME))
+                else:
+                    logging.error(e)
                 continue
 
             allGlobals = self._getGlobalsFromSourceCode(
