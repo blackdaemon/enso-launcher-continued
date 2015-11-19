@@ -217,11 +217,11 @@ def get_control_panel_applets(use_categories=True):
     # In Windows7 all *.cpl files in windows/system32 directory are disabled
     # by default due to different means of accessing their functionality
     # (see above code). However, we are going to process them anyway
-    cpl_disabled_panels = []
-    for cplfile, _, _ in registry.walk_values(win32con.HKEY_LOCAL_MACHINE,
+    cpl_disabled_panels = set(
+        cplfile.lower() for cplfile,_,_ in registry.walk_values(win32con.HKEY_LOCAL_MACHINE,
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Control Panel\\don't load",
-        valuetypes = (win32con.REG_SZ,)):
-        cpl_disabled_panels.append(cplfile.lower())
+        valuetypes = (win32con.REG_SZ,))
+    )
 
     # List control-panel applets from system directory
     cpl_files = [cpl for cpl

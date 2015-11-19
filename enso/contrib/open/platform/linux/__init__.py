@@ -47,6 +47,7 @@ import logging
 import glob
 import subprocess
 
+import gtk
 import gio
 from gtk.gdk import lock as gtk_lock
 
@@ -168,8 +169,8 @@ class OpenCommandImpl( AbstractOpenCommand ):
                 # get .desktop shortcut first...
                 app = None
                 if os.path.splitext(shortcut.target)[1] == ".desktop" and os.path.isfile(shortcut.target):
-                    with gtk_lock:
-                        app = gio.unix.desktop_app_info_new_from_filename(shortcut.target)
+                    #with gtk_lock:
+                    app = gio.unix.desktop_app_info_new_from_filename(shortcut.target)
                 # ...and then stored application object if .desktop does not exists
                 if not app:
                     app = applications.applications_dict.get(shortcut.name, None)
@@ -187,7 +188,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
                         print e
                     print shortcut.category
                     """
-                    app.launch(None)
+                    app.launch([], gtk.gdk.AppLaunchContext())
             except Exception, e:
                 logging.error(e)
         else:

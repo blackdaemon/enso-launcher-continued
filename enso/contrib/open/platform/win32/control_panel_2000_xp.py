@@ -63,11 +63,11 @@ def get_control_panel_applets(use_categories=True):
 
     # Cache disabled ("don't load") control-panels from registry for lookup
     # Note: Control-panel applets can be disabled using TweakUI
-    cpl_disabled_panels = []
-    for cplfile, _, _ in registry.walk_values(win32con.HKEY_LOCAL_MACHINE,
+    cpl_disabled_panels = set(
+        cplfile.lower() for cplfile,_,_ in registry.walk_values(win32con.HKEY_LOCAL_MACHINE,
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Control Panel\\don't load",
-        valuetypes = (win32con.REG_SZ,)):
-        cpl_disabled_panels.append(cplfile.lower())
+        valuetypes = (win32con.REG_SZ,))
+    )
 
     # List control-panel applets from system directory, exclude disabled applets
     cpl_files = [cpl for cpl

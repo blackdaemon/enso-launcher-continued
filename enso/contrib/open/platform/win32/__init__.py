@@ -88,7 +88,7 @@ EXECUTABLE_EXTS.extend(
     [ext for ext
         in os.environ['PATHEXT'].lower().split(os.pathsep)
         if ext not in EXECUTABLE_EXTS])
-
+EXECUTABLE_EXTS = set(EXECUTABLE_EXTS)
 
 ensoapi = EnsoApi()
 

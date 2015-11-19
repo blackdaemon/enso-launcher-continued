@@ -147,6 +147,8 @@ def walk_values(hive, key_name, value_filter_regex=None, valuetypes=None, autoex
     >>> list(walk_values(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\DrWatson", valuetypes=(win32con.REG_EXPAND_SZ,)))
     [('WaveFile', '', 2)]
     """
+    if valuetypes:
+        valuetypes = set(valuetypes)
     with reg_connect_registry(None, hive) as reghandle:
         with reg_open_key(reghandle, key_name, sam=sam) as keyhandle:
             index = 0
