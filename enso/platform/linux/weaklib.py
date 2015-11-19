@@ -42,8 +42,12 @@ class DbusWeakCallback (WeakCallback):
     """
     def object_deleted(self, wref):
         if self.token:
-            self.token.remove()
-            self.token = None
+            try:
+                self.token.remove()
+            except:
+                pass
+            finally:
+                self.token = None
 
 def dbus_signal_connect_weakly(bus, signal, mcallback, **kwargs):
     """

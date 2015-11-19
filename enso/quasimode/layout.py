@@ -315,7 +315,8 @@ def layoutXmlLine( xml_data, styles, scale ):
             # TODO: Figure out what exact types of exceptions are
             # "non-fundamental" and catch those instead of using
             # a blanket catch like this.
-            logging.error(e)
+            #print xml_data
+            #logging.error(e)
 
     if document == None:
         # no size above worked; use the smallest size

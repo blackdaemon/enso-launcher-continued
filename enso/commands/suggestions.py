@@ -222,7 +222,10 @@ class Suggestion:
         else:
             # If the nearness is equal, return alphabetical order
             return cmp(self.__suggestion, other.__suggestion) #IGNORE:W0212
-
+    
+    def __str__( self ):
+        return self.toText()
+        
     def toXml( self ):
         """
         Transforms the suggestion into a simple XML string.  There are

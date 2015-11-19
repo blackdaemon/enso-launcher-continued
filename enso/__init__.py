@@ -46,14 +46,14 @@ def run():
     Quasimode.install( eventManager )
     plugins.install( eventManager )
 
-    def showWelcomeMessage():
+    def show_welcome_message():
         msgXml = config.OPENING_MSG_XML
         if msgXml != None:
             messages.displayMessage( msgXml, primaryWaitTime=2000 )
 
     webui_server = webui.start(eventManager)
     
-    eventManager.registerResponder( showWelcomeMessage, "init" )
+    eventManager.registerResponder( show_welcome_message, "init" )
 
     try:
         eventManager.run()
