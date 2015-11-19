@@ -88,7 +88,7 @@ class ScriptCommandTracker:
             perf.append((handler, [], [], elapsed))
         return perf
 
-    def _onTextModified( self, keyCode, oldText, newText ):
+    def _onTextModified( self, keyCode, oldText, newText, quasimodeId=0 ):
         perf = []
         for cmdName, handler in self._textModifiedEvents:
             if not newText.startswith(cmdName+" "):
@@ -96,7 +96,11 @@ class ScriptCommandTracker:
             oldText = oldText[len(cmdName)+1:]
             newText = newText[len(cmdName)+1:]
             started = time.time()
-            self._callHandler( handler, keyCode, oldText, newText )
+            try:
+                self._callHandler( handler, keyCode, oldText, newText, quasimodeId=quasimodeId )
+            except Exception as e:
+                logging.error("onTextModified handler is missing quasimodeId parameter: %s" % cmdName)
+                self._callHandler( handler, keyCode, oldText, newText )
             elapsed = time.time() - started
             perf.append((handler, [], [], elapsed))
         return perf

@@ -176,7 +176,7 @@ class Quasimode(object):
 
         self._lastRunCommand = None
 
-        self.__lastParameterSuggestionsCheck = 0
+        self.__lastParameterSuggestionsCheck = 0.0
         self.__lastParameterSuggestions = None
 
         # Unique numeric ID of the Quasimode "session"
@@ -272,7 +272,7 @@ class Quasimode(object):
                 else:
                     # Allow handlers to act upon Tab key even if the text
                     # has not been modified
-                    self.__eventMgr.triggerEvent("textModified", keyCode, oldText, oldText)
+                    self.__eventMgr.triggerEvent("textModified", keyCode, oldText, oldText, quasimodeId=self.__quasimodeID)
                     self.__suggestionList.autoType()
             elif keyCode == input.KEYCODE_RETURN: #IGNORE:E1101
                 self.__suggestionList.autoType()
@@ -329,11 +329,12 @@ class Quasimode(object):
             prefixLen = len(cmd.PREFIX)
             try:
                 cmd.onParameterModified(keyCode,
-                    oldText[prefixLen:], newText[prefixLen:])
+                    oldText[prefixLen:], newText[prefixLen:],
+                    quasimodeId=self.__quasimodeID)
             except Exception, e:
                 logging.error(e)
 
-        self.__eventMgr.triggerEvent("textModified", keyCode, oldText, newText)
+        self.__eventMgr.triggerEvent("textModified", keyCode, oldText, newText, quasimodeId=self.__quasimodeID)
 
 
     def __addUserChar( self, keyCode ):
@@ -464,10 +465,10 @@ class Quasimode(object):
         Executed when user releases the quasimode key.
         """
 
-        self.__eventMgr.removeResponder( self.__onTick, sync=True )
-        
         # The quasimode has terminated; remove the timer responder
         # function as an event responder.
+        self.__eventMgr.removeResponder( self.__onTick, sync=True )
+        
         self.__eventMgr.triggerEvent( "endQuasimode" )
 
         # Hide the Quasimode window.
