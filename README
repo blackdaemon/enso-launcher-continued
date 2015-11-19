@@ -8,13 +8,26 @@ Building Enso
 -------------
 
 To build Enso, you need:
-  * Python 2.4 or above
+  * Python 2.6 or above
     This can be found at http://www.python.org.
 
-  * SCons
-    This open-source, python-based build tool can be found at
-    http://www.scons.org.
-
+  * Following additional modules should be installed using 'pip' or 'easyinstall':
+    ccy
+    httplib2
+    iniparse
+    json
+    netifaces
+    pygeoip
+    pyparsing
+    python-dateutil
+    shutilwhich
+    urllib3
+    watchdog
+    
+  * Optionally also:
+    psyco (improves performance significantly, but is avaliable only for Python <= 2.6)
+    
+  
 You'll also need the appropriate prerequisites for your particular
 platform.  Please consult one of the following files:
 
@@ -42,3 +55,5 @@ Enso system-wide, but it currently only works on Linux (see issue 19).
 To use it, just run
 
   python setup.py install
+
+  

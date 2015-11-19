@@ -5,6 +5,7 @@ backend for Enso currently depends on:
   * python-gobject
   * python-gtk2
   * python-xlib - 0.13 or above is highly advised
+  * gi
 
 Having the xset program is optional, though it'll prevent bad key-repeat
 problems which could completely break the input handling (by constantly
