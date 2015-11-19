@@ -34,83 +34,65 @@
 #   enso.net.inetcache
 #
 # ----------------------------------------------------------------------------
-import os
-import re
+import sys
 import time
 import threading
 import logging
-import urllib2
-import Queue
 import socket
-from enso.net import ping
 
 from contextlib import closing
 
+if sys.platform.startswith("win"):
+    platform_name = "win32"
+elif any(map(sys.platform.startswith, ("linux","openbsd","freebsd","netbsd"))):
+    from enso.platform.linux.utils import get_status_output
+    platform_name = "linux"
+elif sys.platform == "darwin":
+    from enso.platform.linux.utils import get_status_output
+    platform_name = "osx"
+
 
 def is_online():
-    def _get_addr(url, results):
-        try:
-            res = ping.do_one(url, timeout=2)
-            #print "ping ",url,res
-            #print url, percent_lost, mrtt, artt
-            #with closing(urllib2.urlopen("http://%s/" % url, timeout=4)) as resp:
-            results.put(
-                (
-                    url, 
-                    True
-                    #percent_lost < 100 and mrtt is not None and artt is not None
-                )
-            )
-        except socket.error, e:
-            #print "error",e
-            res = os.system("ping %s -q -c 1 -w 2 | grep '1 received' > /dev/null" % url)
-            #print "ping ",url,res
-            if res == 0:
-                results.put(
-                    (
-                        url, 
-                        True
-                #percent_lost < 100 and mrtt is not None and artt is not None
-                    )
-                )
-            else:
-                results.put(
-                    (
-                        url, 
-                        False 
-                    )
-                )
-        except Exception, e:
-            # e.reason.errno == 11004 (getaddrinfofailed)
-            results.put(
-                (
-                    url, 
-                    False, 
-                    e
-                )
-            )
-
-    results = Queue.Queue()
-    addresses = ("www.google.com", "www.microsoft.com", "www.ibm.com")
-    threads_count = len(addresses)
-    for addr in addresses:
-        t = threading.Thread(target=_get_addr, args=(addr,results,))
-        t.setDaemon(True)
-        t.start()
-
-    while threads_count > 0:
-        try:
-            result = results.get(timeout = 5)
-            if result[1]:
-                return True
-            results.task_done()
-            threads_count -= 1
-        except Queue.Empty:
-            break    
-    
-    return False
-
+    try:
+        DEFAULT_TIMEOUT = 4
+        socket.setdefaulttimeout(DEFAULT_TIMEOUT)
+        # Trying to open the socket seems to be better than pinging as the ICMP
+        # protocol is sometimes blocked either on the OS level (on RHEL you have to be root)
+        # or by various antivirus or firewall software, or also by routers across network.
+        # Whereas DNS lookup should always be available. If it is not, for any reason, 
+        # we additionally try HTTP connect to reliable servers.
         
+        #TODO: Parameterize following hosts/ports
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            """
+            Host: 8.8.8.8 (google-public-dns-a.google.com)
+            OpenPort: 53/tcp
+            Service: domain (DNS/TCP)
+            """
+            s.settimeout(DEFAULT_TIMEOUT)
+            s.connect(("8.8.8.8", 53))
+            s.shutdown(socket.SHUT_RDWR)
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.settimeout(DEFAULT_TIMEOUT)
+            s.connect(("www.microsoft.com", 80))
+            s.shutdown(socket.SHUT_RDWR)
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.settimeout(DEFAULT_TIMEOUT)
+            s.connect(("www.ibm.com", 80))
+            s.shutdown(socket.SHUT_RDWR)
+    except socket.error as e:
+        print e
+        return False
+    except socket.timeout as e:
+        print e
+        return False
+    except Exception as e:
+        print e
+        return False
+    else:
+        return True
+        
+# TODO: Finish the online retrieval function with offline data caching
 def retrieve_online_data(retrieval_func, offline_result_func, retry_count=1, retry_wait=5.0, async=False):
     assert retry_count > 0
     assert retry_wait >= 0.0
@@ -121,7 +103,7 @@ def retrieve_online_data(retrieval_func, offline_result_func, retry_count=1, ret
             try:
                 result = retrieval_func()
                 return result
-            except Exception, e:
+            except Exception as e:
                 retry -= 1
                 time.sleep(retry_wait)
                 

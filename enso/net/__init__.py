@@ -141,6 +141,21 @@ def get_external_ip():
     return ip
 
 
+def get_default_interface():
+    interface = None
+    p = subprocess.Popen(
+        "route PRINT 0.0.0.0",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT
+    )
+    info = p.stdout.read()
+    gateways = re.findall(r"[0-9\.]{7,}\s+[0-9\.]{7,}\s+([0-9\.]{7,})\s+([0-9\.]{7,})\s+([0-9]+)", info)
+    if gateways:
+        # Sort by metric
+        gateway, interface, metric = sorted(gateways, key=itemgetter(2))[0]
+    return interface
+
+
 def get_mac_address(host):
     """
     Returns a list of MACs for interfaces that have given IP, returns None if not found
