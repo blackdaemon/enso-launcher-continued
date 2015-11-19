@@ -196,13 +196,21 @@ class EventManager( input.InputManager ):
         assert eventType in self._dynamicEventTypes,\
             "dynamic-event-type '%s' is uknown" % eventType
         perf = []
-        for func in self.__responders[ eventType ]:
+
+        # Act on copy of the responders list, as the responder function might 
+        # change the original list (by calling registerResponder or removeReponder)
+        # while we are iterating over it
+        for func in self.__responders[ eventType ][:]:
             started = time.time()
-            sub_perf = func( *args, **kwargs )
-            if isinstance(sub_perf, list):
-                perf.extend(sub_perf)
-            elapsed = time.time() - started
-            perf.append((func, args, kwargs, elapsed))
+            try:
+                sub_perf = func( *args, **kwargs )
+            except Exception as e:
+                logging.error(e)
+            else:
+                if isinstance(sub_perf, list):
+                    perf.extend(sub_perf)
+                elapsed = time.time() - started
+                perf.append((func, args, kwargs, elapsed))
         return perf
 
     def getResponders( self, eventType ):
@@ -247,10 +255,13 @@ class EventManager( input.InputManager ):
         """
 
         for eventType in self.__responders.keys():
+            # Save the original list...
             responderList = self.__responders[ eventType ]
-            # Unregister responder-function
-            for responderWrapper in responderList: 
+            # ...and iterate over its copy
+            for responderWrapper in self.__responders[ eventType ][:]: 
+                # Unregister responder-function
                 if responderWrapper == responderFunc:
+                    # Update original list
                     responderList.remove( responderWrapper )
                     assert logging.debug( "Removed a responder function %s!", responderWrapper.__name__ ) or True
                     if sync:
