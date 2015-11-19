@@ -111,9 +111,6 @@ def provideInterface( name ):
     elif name == "scripts_folder":
         from enso.platform.win32.scriptfolder import get_script_folder_name
         return get_script_folder_name
-    elif name == "directory_watcher":
-        import enso.platform.win32.dirwatcher
-        return enso.platform.win32.dirwatcher
     else:
         return None
 
