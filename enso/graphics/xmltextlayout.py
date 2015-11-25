@@ -238,7 +238,7 @@ class StyleRegistry:
         ValueError: Style 'foo' already exists.
         """
 
-        if self._styleDict.has_key( selector ):
+        if selector in self._styleDict:
             raise ValueError( "Style '%s' already exists." % selector )
 
         self.__validateKeys( properties )
@@ -494,7 +494,7 @@ class XmlMarkupTagAliases:
         ValueError: Tag alias 'foo' already exists.
         """
 
-        if self._aliases.has_key( name ):
+        if name in self._aliases:
             raise ValueError( "Tag alias '%s' already exists." % name )
 
         self._aliases[name] = baseElement
@@ -531,7 +531,7 @@ class XmlMarkupTagAliases:
         False
         """
 
-        return self._aliases.has_key( name )
+        return name in self._aliases
 
 
 # ----------------------------------------------------------------------------

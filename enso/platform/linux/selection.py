@@ -173,7 +173,7 @@ def get ():
 
 def set (seldict):
     '''Paste data into X CLIPBOARD selection'''
-    if seldict.has_key ("text"):
+    if "text" in seldict:
         clipboard = gtk.clipboard_get (selection = "CLIPBOARD")
         clipboard.set_text (seldict["text"])
         primary = gtk.clipboard_get (selection = "PRIMARY")

@@ -172,14 +172,14 @@ class Font:
                 if self.isItalic:
                     # italic font
                     if hasattr(config, "FONT_NAME"):
-                        if config.FONT_NAME.has_key("italic"):
+                        if "italic" in config.FONT_NAME:
                             font_name = get_font_name(config.FONT_NAME["italic"])
                         if not font_name:
                             # fallback if italic font is not available
                             font_name = get_font_name(config.FONT_NAME["normal"])
                 else:
                     # normal font
-                    if hasattr(config, "FONT_NAME") and config.FONT_NAME.has_key("normal"):
+                    if hasattr(config, "FONT_NAME") and "normal" in config.FONT_NAME:
                         font_name = get_font_name(config.FONT_NAME["normal"])
 
                 if not font_name:
@@ -214,14 +214,14 @@ class Font:
                 if self.isItalic:
                     # italic font
                     if hasattr(config, "FONT_NAME"):
-                        if config.FONT_NAME.has_key("italic"):
+                        if "italic" in config.FONT_NAME:
                             font_name = config.FONT_NAME["italic"] #get_font_name(config.FONT_NAME["italic"])
                         if not font_name:
                             # fallback if italic font is not available
                             font_name = config.FONT_NAME["normal"] #get_font_name(config.FONT_NAME["normal"])
                 else:
                     # normal font
-                    if hasattr(config, "FONT_NAME") and config.FONT_NAME.has_key("normal"):
+                    if hasattr(config, "FONT_NAME") and "normal" in config.FONT_NAME:
                         font_name = config.FONT_NAME["normal"] #get_font_name(config.FONT_NAME["normal"])
 
                 if not font_name:

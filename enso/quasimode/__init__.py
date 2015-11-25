@@ -312,7 +312,7 @@ class Quasimode(object):
                 # Up arrow; change which suggestion is active.
                 if self.__parameterSuggestionList.isActive():
                     self.__parameterSuggestionList.setActiveSuggestion(-1)
-            elif ALLOWED_KEYCODES.has_key( keyCode ): #IGNORE:E1101
+            elif keyCode in ALLOWED_KEYCODES: #IGNORE:E1101
                 # The user has typed a valid key to add to the userText.
                 self.__addUserChar( keyCode )
                 self.__onParameterModified(keyCode, oldText, self.__suggestionList.getUserText())

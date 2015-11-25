@@ -104,7 +104,7 @@ class CommandManager:
                 "Missing attribute 'PREFIX' in the command object '%s'" % cmdName
             assert hasattr(cmdObj, "HELP_TEXT"), \
                 "Missing attribute 'HELP_TEXT' in the command object '%s'" % cmdName
-            assert not self.__cmdFactoryDict.has_key( cmdExpr ),\
+            assert cmdExpr not in self.__cmdFactoryDict,\
                 "Command is already registered: %s" % cmdExpr
             self.__cmdFactoryDict[ cmdExpr ] = cmdObj
         else:
@@ -417,7 +417,7 @@ class CommandObjectRegistry( GenericPrefixFactory ):
         assert not cmdExpr.hasArgument()
 
         cmdName = str(cmdExpr)
-        if self.__cmdObjDict.has_key( cmdName ):
+        if cmdName in self.__cmdObjDict:
             raise CommandAlreadyRegisteredError()
 
         self.__cmdObjDict[ cmdName ] = command
@@ -428,7 +428,7 @@ class CommandObjectRegistry( GenericPrefixFactory ):
 
     def removeCommandObj( self, cmdExpr ):
         cmdFound = False
-        if self.__cmdObjDict.has_key( cmdExpr ):
+        if cmdExpr in self.__cmdObjDict:
             del self.__cmdObjDict[cmdExpr]
             cmdFound = True
         if cmdFound:
@@ -451,6 +451,16 @@ class CommandObjectRegistry( GenericPrefixFactory ):
             return self.__cmdObjDict[ cmdNameString ]
         except KeyError:
             return None
+
+
+    def _generateCommandObj( self, postfix ):
+        """
+        Virtual method for getting an actual command object.
+        'postfix' is the name of the postfix supplied, if any.
+
+        Must be overriden by subclasses.
+        """
+        return None
 
 
 if __name__ == "__main__":

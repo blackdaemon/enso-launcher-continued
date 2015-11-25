@@ -60,7 +60,7 @@ def set( seldict ):
     # clipboard types, b/c this matters in OS X.
 
     typesToPaste = [ selType for selType in selClipboardMapping
-                     if seldict.has_key( selType ) ]
+                     if selType in seldict ]
 
     if typesToPaste:
         pb = AppKit.NSPasteboard.generalPasteboard()

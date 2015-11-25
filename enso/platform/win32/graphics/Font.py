@@ -39,6 +39,7 @@
 # ----------------------------------------------------------------------------
 
 import cairo
+from enso.utils.memoize import memoized
 
 import Environment
 import Humanized.Platform as Platform
@@ -200,7 +201,7 @@ class FontRegistry:
         
         registryKey = (name, italic)
 
-        if self._registry.has_key( registryKey ):
+        if registryKey in self._registry:
             raise FontAlreadyRegisteredError( registryKey )
         else:
             self._registry[registryKey] = fileName
