@@ -28,38 +28,68 @@
 
 # ----------------------------------------------------------------------------
 #
-#   enso.commands
+#   enso.commands.factories
 #
 # ----------------------------------------------------------------------------
 
-"""
-    The command subsystem.
-
-    Defines interfaces for command objects and factories, interfaces for
-    objects that describe command name expressions, and objects for
-    suggestions (including autocompletions).
-
-    Also implements a command manager class, which is used to maintain the
-    available commands (including dynamically generated commands from
-    command factories).
-
-    This module is reponsible for initializing and maintaining the command
-    manager singleton.  It also exposes several objects from submodules
-    directly.
-"""
+# ----------------------------------------------------------------------------
+#
+#   Imports
+#
+# ----------------------------------------------------------------------------
+import inspect
+import warnings
 
 # ----------------------------------------------------------------------------
-# This file contains trade secrets of Humanized, Inc. No part
-# may be reproduced or transmitted in any form by any means or for any purpose
-# without the express written permission of Humanized, Inc.
+#
+#   Functions
+#
 # ----------------------------------------------------------------------------
 
+
+def getpublicnames(obj):
+    "Return the public names in obj.__dict__"
+    return set(n for n in vars(obj) if not n.startswith('_'))
+
+def find_common_names(classes):
+    "Perform n*(n-1)/2 namespace overlapping checks on a set of n classes"
+    n = len(classes)
+    names = map(getpublicnames, classes)
+    for i in range(0, n):
+        for j in range(i+1, n):
+            ci, cj = classes[i], classes[j]
+            common = names[i] & names[j]
+            if common:
+                yield common, ci, cj
+
+class OverridingWarning(Warning):
+    pass
+
+                        
 # ----------------------------------------------------------------------------
-# Imports
+#
+#   Decorators
+#
 # ----------------------------------------------------------------------------
 
-from enso.commands.manager import CommandManager
-from enso.commands.interfaces import CommandObject, AbstractCommandFactory
-from enso.commands.suggestions import Suggestion, AutoCompletion
-
-
+def warn_overriding(cls):
+    """
+    Print a warning for each public name which is overridden in the class
+    hierarchy, unless if is listed in the "override" class attribute.
+    """
+    override = set(vars(cls).get("override", []))
+    ancestors = inspect.getmro(cls)
+    if ancestors[-1] is object: # remove the trivial ancestor <object>
+        ancestors = ancestors[:-1]
+    for common, c1, c2 in find_common_names(ancestors):
+        override = set(vars(c2).get("override", []))
+        overridden = ', '.join(common - override - set(["override"]))
+        if ',' in overridden: # for better display of the names
+            overridden = '{%s}' % overridden
+        if overridden:
+            msg = '%s.%s overriding %s.%s' % (
+                c1.__name__, overridden, c2.__name__, overridden)
+            warnings.warn(msg, OverridingWarning, stacklevel=2)
+    return cls
+    
+    

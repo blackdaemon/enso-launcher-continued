@@ -37,6 +37,8 @@ import os
 import threading
 from xml.sax.saxutils import escape as xml_escape
 
+from abc import ABCMeta, abstractmethod
+
 try:
     import regex as re
 except Exception, e:
@@ -46,17 +48,6 @@ import enso.messages
 
 from enso.contrib.open import utils
 from enso.contrib.open.shortcuts import ShortcutsDict
-
-
-def abstractmethod(func):
-    """ Decorator to mark abstract functions ant throw NotImplementedError
-    exception whenever the method is not overriden in a subclass.
-    """
-    def func_wrap(*args): #IGNORE:W0613
-        raise NotImplementedError(
-            "Abstract method '%s' must be overriden in subclass."
-            % func.__name__)
-    return func_wrap
 
 
 def display_xml_message(msg):
@@ -102,57 +93,69 @@ def is_url(text):
 
 
 class IOpenCommand( object ):
-    """ Open command interface """
+    """ 
+    Open command interface 
+    """
 
+    __metaclass__ = ABCMeta
+    
     def __init__(self):
         super(IOpenCommand, self).__init__()
 
+    @abstractmethod
     def get_shortcuts(self, force_reload=False):
         """ Return ShortcutDictionary of Shortcut objects """
-        raise NotImplementedError()
+        return None
 
+    @abstractmethod
     def is_runnable(self, shortcut_name):
         """
         Return True if the shortcut represents runnable file that could
         open another files.
         This is used to identify correct shortcuts for 'open with' command.
         """
-        raise NotImplementedError()
+        return None
 
+    @abstractmethod
     def add_shortcut(self, shortcut_name, target):
         """ Register shortcut """
-        raise NotImplementedError()
+        return
 
+    @abstractmethod
     def remove_shortcut(self, shortcut_name):
         """
         Unregister shortcut.
         Undo functionality should be implemented here.
         """
-        raise NotImplementedError()
+        return
 
+    @abstractmethod
     def undo_remove_shortcut(self):
         """ Undo of last unregistering shortcut """
-        raise NotImplementedError()
+        return
 
+    @abstractmethod
     def run_shortcut(self, shortcut_name):
         """ Run the program/document represented by shortcut """
-        raise NotImplementedError()
+        return
 
+    @abstractmethod
     def open_with_shortcut(self, shortcut_name, targets):
         """
         Open target(s) (file(s)) with the application represented
         by runnable shortcut.
         """
-        raise NotImplementedError()
+        return
 
 
 
 class AbstractOpenCommand( IOpenCommand ):
-    """ Implements platform independent Open command functionality.
+    """ 
+    Implements platform independent Open command functionality.
     Platform implementations should subclass this class and override
     all abstract methods.
     """
-    
+
     shortcut_dict = None
     
     def __init__(self):
@@ -266,33 +269,33 @@ class AbstractOpenCommand( IOpenCommand ):
                 shortcuts.SHORTCUT_TYPE_EXECUTABLE,
                 'iexplore.exe')
         """
-        pass
+        return
 
     @abstractmethod
     def _get_learn_as_dir(self):
         """ Return directory for storing of "Enso learn as" shortcuts.
         Implement this in platform specific class.
         """
-        pass
+        return None
 
     @abstractmethod
     def _save_shortcut(self, name, target):
         """ Register shortcut """
-        pass
+        return
 
     @abstractmethod
     def _remove_shortcut(self, shortcut):
         """ Unregister shortcut """
-        pass
+        return
 
     @abstractmethod
     def _run_shortcut(self, shortcut):
         """ Run the program/document represented by shortcut """
-        pass
+        return
 
     @abstractmethod
     def _get_shortcut_type(self, file_name):
-        pass
+        return None
 
     @abstractmethod
     def _is_runnable(self, shortcut):
@@ -300,14 +303,14 @@ class AbstractOpenCommand( IOpenCommand ):
         open another files.
         This is used to identify correct shortcuts for 'open with' command.
         """
-        pass
+        return None
 
     @abstractmethod
     def _open_with_shortcut(self, name, file_names):
         """ Open target(s) (file(s)) with the application represented
         by runnable shortcut.
         """
-        pass
+        return
 
 
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

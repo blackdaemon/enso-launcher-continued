@@ -49,6 +49,8 @@ import win32clipboard
 import pywintypes
 import logging
 
+from abc import ABCMeta, abstractmethod
+
 import _ContextUtils as ContextUtils
 import ClipboardArchive
 import ClipboardBackend
@@ -69,20 +71,22 @@ FILE_COPY_WAIT_TIME = 2000
 # Classes
 # ----------------------------------------------------------------------------
 
-class AbstractFileSelectionContext:
+class AbstractFileSelectionContext ( object ):
     """
     The abstract base class that defines the interface to
     FileSelectionContext objects.
     """
     
+    __metaclass__ = ABCMeta
+    
+    @abstractmethod
     def getSelectedFiles( self ):
         """
         Returns a list of the names of the files that are selected.
         Each element of the list is an absolute path.  If no files are
         selected, it returns None (not an empty list).
         """
-
-        raise NotImplementedError()
+        return None
 
 
 class NullFileSelectionContext( AbstractFileSelectionContext ):
@@ -98,7 +102,6 @@ class NullFileSelectionContext( AbstractFileSelectionContext ):
         Each element of the list is an absolute path.  If no files are
         selected, it returns None (not an empty list).
         """
-        
         return None
 
 

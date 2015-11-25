@@ -46,6 +46,8 @@ import win32clipboard
 import win32con
 import logging
 
+from abc import ABCMeta, abstractmethod
+
 import ClipboardBackend
 import ClipboardArchive
 import _ContextUtils as ContextUtils
@@ -122,7 +124,7 @@ def _textDictToClipboardHtml( textDict ):
 # Classes
 # ----------------------------------------------------------------------------
 
-class AbstractTextSelection:
+class AbstractTextSelection( object ):
     """
     As an abstract class, this should never be instantiated; it
     defines the interface that all TextSelection objects should
@@ -132,6 +134,8 @@ class AbstractTextSelection:
     functions shared between different subclasses.
     """
 
+    __metaclass__ = ABCMeta
+    
     @clipboardPreserving
     def getSelection( self ):
         """
@@ -149,7 +153,7 @@ class AbstractTextSelection:
         result = self._getClipboardText()
         return result
 
-
+    @abstractmethod
     def replaceSelection( self, textDict ):
         """
         Abstract method that must be overridden by subclasses.
@@ -158,10 +162,9 @@ class AbstractTextSelection:
         no selection, inserts textObject at the insertion point.
         Returns True if this operation succeeded, False if it did not.
         """
+        return
 
-        unusedArgs( textDict )
-        raise NotImplementedError()
-
+    @abstractmethod
     def insertAtCursor( self, textDict ):
         """
         Abstract method that must be overridden by subclasses.
@@ -169,9 +172,7 @@ class AbstractTextSelection:
         no selection, inserts textDict at the insertion point.
         Returns True if this operation succeeded, False if it did not.
         """
-
-        unusedArgs( textDict )
-        raise NotImplementedError()
+        return
 
 
     @clipboardDependent
@@ -230,32 +231,36 @@ class AbstractTextSelection:
 
         return newTextDict
 
+
+    @abstractmethod
     def simulateCopyKeystroke( self ):
         """
         Abstract method that must be overridden by subclasses.
         Simulate Ctrl-C or whatever keystroke causes a copy
         action in the current context.
         """
+        return
         
-        raise NotImplementedError
 
+    @abstractmethod
     def simulateCutKeystroke( self ):
         """
         Abstract method that must be overridden by subclasses.
         Simulate Ctrl-X or whatever keystroke causes a cut
         action in the current context.
         """
+        return
         
-        raise NotImplementedError
 
+    @abstractmethod
     def simulatePasteKeystroke( self ):
         """
         Abstract method that must be overridden by subclasses.
         Simulate Ctrl-V or whatever keystroke causes a paste
         action in the current context.
         """
+        return
         
-        raise NotImplementedError
 
     def _renderClipboardFormat( self, textDict, format ):
         """

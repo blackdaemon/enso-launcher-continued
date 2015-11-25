@@ -861,6 +861,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
     def _is_application(self, shortcut):
         return shortcut.type == SHORTCUT_TYPE_EXECUTABLE
 
+    def _is_runnable(self, shortcut):
+        raise NotImplementedError()
+        
     def _save_shortcut(self, name, target):
         # Shortcut actual file goes to "Enso Learn As" directory. This is typically
         # different for each platform.

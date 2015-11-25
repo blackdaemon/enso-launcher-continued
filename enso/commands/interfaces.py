@@ -91,6 +91,8 @@
     mapping between CommandExpression and _CommandImpl objects.
 """
 
+from abc import ABCMeta, abstractmethod
+
 # ----------------------------------------------------------------------------
 # Command Objects
 # ----------------------------------------------------------------------------
@@ -114,6 +116,8 @@ class _CommandImpl( object ):
             191: "/" # Instead of ? (helps access / without Shift on laptop keyboards)
         }
     """
+    
+    __metaclass__ = ABCMeta
     
     def __init__( self ):
         """
@@ -147,6 +151,8 @@ class CommandObject( _CommandImpl ):
     properties of commands.
     """
 
+    __metaclass__ = ABCMeta
+    
     def __init__( self ):
         """
         Initializes the command object.
@@ -163,7 +169,7 @@ class CommandObject( _CommandImpl ):
     def setName( self, name ):
         self.__name = name
 
-
+    @abstractmethod
     def run( self ):
         """
         Abstract Method: Should execute the command.
@@ -178,8 +184,8 @@ class CommandObject( _CommandImpl ):
         something graceful (e.g., showing a primary message), and
         should not raise an exception.
         """
+        pass
 
-        raise NotImplementedError()
 
 class AbstractCommandFactory( _CommandImpl ):
     """
@@ -197,15 +203,20 @@ class AbstractCommandFactory( _CommandImpl ):
     autocompletions, because it may be determined that the user should
     always enter an exact number.
     """
+    
+    __metaclass__ = ABCMeta
+    
+    override = ('retrieveSuggestions', 'autoComplete', 'getCommandObj', 'getCommandList')
 
+    @abstractmethod
     def getCommandList( self ):
         """
         Returns a list of all available command names (a list of strings).
         """
+        return None
 
-        raise NotImplementedError()
 
-
+    @abstractmethod
     def retrieveSuggestions( self, userText ):
         """
         Returns a list containing the VERY LATEST suggestions (in the
@@ -213,26 +224,25 @@ class AbstractCommandFactory( _CommandImpl ):
         string.  Can (and often will) have side effects on the object's
         internal data structure.
         """
+        return None
 
-        raise NotImplementedError()
 
-
+    @abstractmethod
     def autoComplete( self, userText ):
         """
         If this factory can produce a match to userText, then returns
         an AutoCompletion object.  Otherwise, returns None.
         """
+        return None
 
-        raise NotImplementedError()
 
-
+    @abstractmethod
     def getCommandObj( self, commandName ):
         """
         Should return a CommandObject matching commandName, or else
         None.
         """
-
-        raise NotImplementedError()
+        return None
 
 
 # ----------------------------------------------------------------------------

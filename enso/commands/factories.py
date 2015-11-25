@@ -57,6 +57,9 @@ from enso.commands.interfaces import AbstractCommandFactory, CommandObject
 from enso import config
 from enso import clipboard
 
+from abc import ABCMeta, abstractmethod
+
+
 # ----------------------------------------------------------------------------
 # Private Utility Functions
 # ----------------------------------------------------------------------------
@@ -124,6 +127,11 @@ class GenericPrefixFactory( AbstractCommandFactory ):
     single prefix.
     """
 
+    __metaclass__ = ABCMeta
+    override = (
+        'retrieveSuggestions', 'autoComplete', 'getCommandObj', 'getCommandList', 
+        'update', 'HELP_TEXT', 'PREFIX')
+    
     # The portion of the command expression that is common to all
     # the command names that this command factory produces.
     PREFIX = ""
@@ -208,13 +216,16 @@ class GenericPrefixFactory( AbstractCommandFactory ):
             self.__postfixesChanged = False
             self.__searchString = "\n".join( self.__postfixes )
 
+
     def afterUpdate(self):
         if self.__postfixesChanged:
             self.__postfixesChanged = False
             self.__searchString = "\n".join( self.__postfixes )
 
+
     # LONGTERM TODO: This is not the greatest design.  Perhaps in
     # Mehitabel Core 2.0 this can be replaced with an Observer pattern.
+    @abstractmethod
     def update( self ):
         """
         Template Method - Designed to allow sub-classes to update the
@@ -225,8 +236,7 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         factory.  If you don't need to update that often, then do
         something to get out of this function quickly!
         """
-
-        raise NotImplementedError
+        pass
 
 
     def retrieveSuggestions( self, userText ):
@@ -377,6 +387,7 @@ class GenericPrefixFactory( AbstractCommandFactory ):
             return None
 
 
+    @abstractmethod
     def _generateCommandObj( self, postfix ):
         """
         Virtual method for getting an actual command object.
@@ -384,8 +395,8 @@ class GenericPrefixFactory( AbstractCommandFactory ):
 
         Must be overriden by subclasses.
         """
+        return None
 
-        raise NotImplementedError()
 
 
 class ArbitraryPostfixFactory( GenericPrefixFactory ):
@@ -393,7 +404,8 @@ class ArbitraryPostfixFactory( GenericPrefixFactory ):
     Abstract factory class for factories that produce "learn as"
     commands, and other command families that can take any argument.
     """
-
+    override = ('retrieveSuggestions', 'autoComplete', 'update')
+    
     def __init__( self ):
         """
         Instantiantes the command factory.

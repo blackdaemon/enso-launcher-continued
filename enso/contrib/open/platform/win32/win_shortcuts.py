@@ -35,10 +35,12 @@ import pythoncom
 
 from win32com.shell import shell, shellcon
 
-from enso.contrib.open.interfaces import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 
-class _PyShortcut():
+class _AbstractPyShortcut( object ):
+    __metaclass__ = ABCMeta
+    
     def __init__(self, base, filename=None):
         self._base = base
         self._base_loaded = False
@@ -116,7 +118,7 @@ class _PyShortcut():
     """
 
 
-class PyShellLink(_PyShortcut):
+class PyShellLink(_AbstractPyShortcut):
     def __init__(self, filename=None):
         base = pythoncom.CoCreateInstance(
             shell.CLSID_ShellLink,
@@ -124,7 +126,7 @@ class PyShellLink(_PyShortcut):
             pythoncom.CLSCTX_INPROC_SERVER,
             shell.IID_IShellLink
         )
-        _PyShortcut.__init__(self, base, filename)
+        _AbstractPyShortcut.__init__(self, base, filename)
 
     """
     def read_custom_properties(self):
@@ -258,7 +260,7 @@ class PyShellLink(_PyShortcut):
         self._base.SetIconLocation(iconloc, idx)
 
 
-class PyInternetShortcut(_PyShortcut):
+class PyInternetShortcut(_AbstractPyShortcut):
     def __init__(self, filename=None):
         base = pythoncom.CoCreateInstance(
             shell.CLSID_InternetShortcut,
@@ -266,7 +268,7 @@ class PyInternetShortcut(_PyShortcut):
             pythoncom.CLSCTX_INPROC_SERVER,
             shell.IID_IUniformResourceLocator
         )
-        _PyShortcut.__init__(self, base, filename)
+        _AbstractPyShortcut.__init__(self, base, filename)
 
     def get_target(self):
         return self._base.GetURL()
