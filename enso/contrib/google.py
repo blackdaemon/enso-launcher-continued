@@ -50,11 +50,13 @@ import threading
 import json as jsonlib
 import urllib2
 
+from random import choice
 from contextlib import closing
 from htmlentitydefs import name2codepoint
 
 import enso.config
-from enso.commands import abstractmethod
+from abc import ABCMeta
+from enso.commands.decorators import warn_overriding
 from enso.commands import CommandManager
 from enso.commands.factories import ArbitraryPostfixFactory
 from enso.commands.mixins import CommandParameterWebSuggestionsMixin
@@ -62,6 +64,41 @@ from enso import selection
 from enso.messages import displayMessage
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 
+RANDOMIZE_USER_AGENT = True
+
+HTTP_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:26.0) Gecko/20100101 Firefox/26.0',
+    #'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Connection': 'Keep-Alive',
+    #'Accept-Encoding': 'gzip, deflate',
+    'DNT': '1'
+}
+    
+# Several different User-Agents to diversify the requests.
+# Keep the User-Agents updated. Last update:  19 Nov 2015
+# Get them here: http://techblog.willshouse.com/2012/01/03/most-common-user-agents/
+USER_AGENT_STRINGS = [
+    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.7 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.7',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11) AppleWebKit/601.1.56 (KHTML, like Gecko) Version/9.0 Safari/601.1.56',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko',
+    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
+    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
+    'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/601.2.7 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.7'
+]
 
 # ----------------------------------------------------------------------------
 # The Google command
@@ -89,7 +126,7 @@ def _get_local_domain():
     logging.info("Google local domain has been set to .%s", GOOGLE_DOMAIN)
 
 t = threading.Thread(target=_get_local_domain)
-t.setDaemon(True)
+#t.setDaemon(True)
 t.start()
 
 
@@ -103,35 +140,42 @@ def unescape_html_tags(html):
     r = re.sub('&#(\d+);', lambda m: unichr(int(m.group(1))), r)
     return r
 
-
-class GoogleCommandFactory( ArbitraryPostfixFactory, CommandParameterWebSuggestionsMixin ):
+    
+@warn_overriding
+class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, ArbitraryPostfixFactory ):
     """
     Implementation of the 'google' command.
     """
 
-    def __init__( self, which ):
+    __metaclass__ = ABCMeta
+    
+    def __init__( self, command_name ):
         """
         Initializes the google command.
         """
-        super(GoogleCommandFactory, self).__init__()
+        assert isinstance(command_name, basestring)
+        assert len(command_name) > 0
 
-        self.which = which
+        super(AbstractGoogleCommandFactory, self).__init__()
+        #super() should call the mixin init properly
+        #CommandParameterWebSuggestionsMixin.__init__(self)
+
+        self.command_name = command_name
+        self.config_key = command_name.upper().replace(" ", "_") 
 
         self.parameter = None
 
-        self.setDescription(
-            u"Performs a Google web search on the selected or typed text.")
-
         try:
-            self.do_suggestions = enso.config.PLUGIN_GOOGLE_OFFER_SUGGESTIONS
+            self.do_suggestions = getattr(enso.config, "PLUGIN_%s_OFFER_SUGGESTIONS" % self.config_key)
         except:
             self.do_suggestions = False
 
         if not self.do_suggestions:
             logging.info(
-                "Google search-suggestions are turned off in config. "
-                "Enable 'PLUGIN_GOOGLE_OFFER_SUGGESTIONS' "
-                "in your .ensorc to turn it on.")
+                "%s search-suggestions are turned off in config. "
+                "Enable 'PLUGIN_%s_OFFER_SUGGESTIONS' "
+                "in your .ensorc to turn it on." % (command_name, self.config_key)
+            )
 
 
     @safetyNetted
@@ -177,9 +221,9 @@ class GoogleCommandFactory( ArbitraryPostfixFactory, CommandParameterWebSuggesti
 
         # For compatibility with older core, use default locale if setting
         # is not used in the config...
-        if (not hasattr(enso.config, "enso.config.PLUGIN_GOOGLE_USE_DEFAULT_LOCALE")
+        if (not hasattr(enso.config, "PLUGIN_%s_USE_DEFAULT_LOCALE" % self.config_key)
             # Otherwise check for value
-            or enso.config.PLUGIN_GOOGLE_USE_DEFAULT_LOCALE):
+            or getattr(enso.config, "PLUGIN_%s_USE_DEFAULT_LOCALE" % self.config_key)):
             # Determine the user's default language setting.  Google
             # appears to use the two-letter ISO 639-1 code for setting
             # languages via the 'hl' query argument.
@@ -203,11 +247,10 @@ class GoogleCommandFactory( ArbitraryPostfixFactory, CommandParameterWebSuggesti
 
     def decodeSuggestions( self, data, headers=None ):
         suggestions = []
-
         try:
             # By default Google sends data in ISO-8859-1 encoding.
             # To force another encoding, use URL parameter oe=<encoding>
-            decoded = data.decode("ISO-8859-1")
+            decoded = unicode(data) #data.decode("ISO-8859-1")
         except Exception, e:
             logging.error("Google-suggest query unicode decoding failed: %s", e)
         else:
@@ -230,24 +273,25 @@ class GoogleCommandFactory( ArbitraryPostfixFactory, CommandParameterWebSuggesti
                         suggestions = json[1]
         return suggestions
 
-
-    @abstractmethod
-    def get_url(self):
+    def onSuggestQueryError( self, url_or_request, exception ):
         pass
-
+        
     def _generateCommandObj( self, parameter=None ):
         self.parameter = parameter
+        article = "an" if self.command_name[0] in ("i", "y") else "a" 
         if self.parameter is not None:
-            self.setDescription( u"Performs a Google web search for "
-                                 u"\u201c%s\u201d." % self.parameter )
+            self.setDescription( u"Performs %s %s search for "
+                                 u"\u201c%s\u201d." % (article, self.command_name, self.parameter)
+            )
         else:
             self.setDescription(
-                u"Performs a Google web search on the selected or typed text.")
+                u"Performs %s %s search on the selected or typed text." % (article, self.command_name)
+            )
         return self
 
 
-
-class GoogleSearchCommandFactory( GoogleCommandFactory ):
+@warn_overriding
+class GoogleSearchCommandFactory( AbstractGoogleCommandFactory ):
     HELP_TEXT = "search terms"
     PREFIX = "google "
     NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
@@ -265,18 +309,25 @@ class GoogleSearchCommandFactory( GoogleCommandFactory ):
 
         # This URL seems to returns only english matches
         #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
-
+        
         # This URL returns also national matches
-        return "http://clients1.google.%(tld)s/complete/search?" \
+        url = "http://clients1.google.%(tld)s/complete/search?" \
             "hl=en&gl=en&client=firefox&ie=%(ie)s&q=%(query)s" \
             % {
                 "tld":GOOGLE_DOMAIN,
                 "ie":input_encoding,
                 "query":query
             }
+        if RANDOMIZE_USER_AGENT:
+            HTTP_HEADERS['User-Agent'] = choice(USER_AGENT_STRINGS)
+    
+        request = urllib2.Request(url, headers=HTTP_HEADERS)
+        
+        return request
 
 
-class GoogleImagesCommandFactory( GoogleCommandFactory ):
+@warn_overriding
+class GoogleImagesCommandFactory( AbstractGoogleCommandFactory ):
     HELP_TEXT = "search terms"
     PREFIX = "images "
     NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
@@ -294,15 +345,58 @@ class GoogleImagesCommandFactory( GoogleCommandFactory ):
 
         # This URL seems to returns only english matches
         #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
-
+        
         # This URL returns also national matches
-        return "http://clients1.google.%(tld)s/complete/search?" \
+        url = "http://clients1.google.%(tld)s/complete/search?" \
             "hl=en&gl=en&client=img&ie=%(ie)s&pq=%(query)s&q=%(query)s" \
             % {
                 "tld":GOOGLE_DOMAIN,
                 "ie":input_encoding,
                 "query":query
             }
+        if RANDOMIZE_USER_AGENT:
+            HTTP_HEADERS['User-Agent'] = choice(USER_AGENT_STRINGS)
+        request = urllib2.Request(url, headers=HTTP_HEADERS)
+        
+        return request
+
+
+@warn_overriding
+class YoutubeCommandFactory( AbstractGoogleCommandFactory ):
+    """
+    Implementation of the 'youtube' command.
+    """
+    HELP_TEXT = "search terms"
+    PREFIX = "youtube "
+    NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
+    BASE_URL = "http://www.youtube.com/results?search_type=&aq=0&nofeather=True&oq=&search_query=%(query)s"
+
+    def getSuggestionsUrl(self, text):
+        if not self.do_suggestions:
+            return None
+
+        if text is None or len(text.strip()) == 0:
+            return None
+
+        input_encoding = "utf-8"
+        query = urllib.quote_plus(text.encode(input_encoding))
+
+        # This URL seems to returns only english matches
+        #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
+        
+        # This URL returns also national matches
+        url = "http://clients1.google.%(tld)s/complete/search?" \
+            "hl=en&ds=yt&client=firefox&hjson=t&ie=%(ie)s&q=%(query)s" \
+            % {
+                "tld":GOOGLE_DOMAIN,
+                "ie":input_encoding,
+                "query":query
+            }
+        if RANDOMIZE_USER_AGENT:
+            HTTP_HEADERS['User-Agent'] = choice(USER_AGENT_STRINGS)
+        request = urllib2.Request(url, headers=HTTP_HEADERS)
+        
+        return request
 
 
 # ----------------------------------------------------------------------------
@@ -312,11 +406,15 @@ class GoogleImagesCommandFactory( GoogleCommandFactory ):
 def load():
     CommandManager.get().registerCommand(
         GoogleSearchCommandFactory.NAME,
-        GoogleSearchCommandFactory("google")
+        GoogleSearchCommandFactory("Google")
         )
     CommandManager.get().registerCommand(
         GoogleImagesCommandFactory.NAME,
-        GoogleImagesCommandFactory("images")
+        GoogleImagesCommandFactory("Google images")
+        )
+    CommandManager.get().registerCommand(
+        YoutubeCommandFactory.NAME,
+        YoutubeCommandFactory("YouTube")
         )
 
 # vim:set tabstop=4 shiftwidth=4 expandtab:

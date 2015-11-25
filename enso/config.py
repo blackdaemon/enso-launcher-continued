@@ -127,8 +127,12 @@ PLUGINS = [
 # Detect default system locale and use it for google search.
 # If set to False, no locale is forced.
 PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
-# Use google search suggestions
+# Use Google search suggestions
 PLUGIN_GOOGLE_OFFER_SUGGESTIONS = False
+# Use Google Images search suggestions
+PLUGIN_GOOGLE_IMAGES_OFFER_SUGGESTIONS = True
+# Use YouTube search suggestions
+PLUGIN_YOUTUBE_OFFER_SUGGESTIONS = True
 
 # Proxy used for HTTP protocol
 # Set to None to use proxy-autodetection (default Python behavior).
