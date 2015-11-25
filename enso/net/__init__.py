@@ -180,7 +180,7 @@ def get_mac_address(host):
             for entry in out.splitlines():
                 r = re.search(r"^%s.*?([a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2})" % re.escape(host), entry, re.IGNORECASE)
                 if r:
-                    return r.group(1).upper()
+                    return r.group(1).replace(":", "").upper()
         else:
             return None
         

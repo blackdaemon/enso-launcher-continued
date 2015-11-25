@@ -108,8 +108,8 @@ def get_mac_address(host):
     return enso.net.get_mac_address(host)
 
 
-def get_current_location():
-    return LocationManager.get().get_current_location()
+def get_current_location(default_loc=None, failInOffline=False):
+    return LocationManager.get().get_current_location(default_loc, failInOffline)
 
 
 class Location(object):
@@ -123,11 +123,12 @@ class Location(object):
         self.default_gateway_mac = default_gateway_mac
 
     def __repr__(self):
+        print self.default_gateway_mac
         mac = ":".join(
             self.default_gateway_mac[i:i+2]
             for i in range(0, len(self.default_gateway_mac), 2)
         )
-        return u"%s at %s/%s; gateway %s/%s" % (
+        return u"'%s' at %s/%s; gateway %s/%s" % (
             self.name,
             self.local_ip,
             self.external_ip,
@@ -230,16 +231,22 @@ class LocationManager(object):
         #self.locations = lc.get('locations', {})
         #lc.close()
 
-    def get_current_location(self, default_loc=None):
-        gateway = get_default_gateway()
-        macaddress = get_mac_address(gateway)
-        loc = self.locations.get(macaddress, None)
-        if not loc:
-            loc = Location()
-            loc.refresh()
-            self.add_location(loc)
-        return loc
-
+    def get_current_location(self, default_loc=None, failInOffline=False):
+        try:
+            gateway = get_default_gateway()
+            macaddress = get_mac_address(gateway)
+            loc = self.locations.get(macaddress, None)
+            if not loc:
+                loc = Location()
+                loc.refresh()
+                self.add_location(loc)
+            return loc
+        except Exception as e:
+            if failInOffline:
+                raise
+            else:
+                return default_loc
+                
     def get_location_by_name(self, name):
         for loc in self.locations:
             if loc.name == name:
