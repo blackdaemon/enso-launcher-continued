@@ -18,6 +18,9 @@ options = None
 
 def change_color_scheme(color):
     """Change Enso color scheme"""
+    if not hasattr(enso.config, "COLOR_SCHEMES"):
+        print "No COLOR_SCHEMES setting found in config.py. Color scheme will not be changed."
+        return
     if color not in enso.config.COLOR_SCHEMES:
         print "Unknown color scheme '%s'. Leaving defaults." % color
         return
@@ -27,8 +30,8 @@ def change_color_scheme(color):
     layout.DESIGNER_GREEN = scheme[1]
     layout.DARK_GREEN = scheme[2]
     layout.BLACK = scheme[3]
-    layout.DESCRIPTION_BACKGROUND_COLOR = layout.DESIGNER_GREEN + "cc"
-    layout.MAIN_BACKGROUND_COLOR = layout.BLACK + "d8"
+    layout.DESCRIPTION_BACKGROUND_COLOR = layout.COLOR_DESIGNER_GREEN + "cc"
+    layout.MAIN_BACKGROUND_COLOR = layout.COLOR_BLACK + "d8"
 
 
 def process_options(argv):
@@ -145,8 +148,10 @@ def main(argv = None):
     else:
         logging.error("Invalid hotkey spec: %s" % opts.hotkey)
 
-    if not opts.quiet and opts.show_splash:
-        displayMessage("<p><command>Enso</command> is starting...</p>")
+    # Can't display message at this phase as on Linux the gtk loop is not active yet
+    # at this point and that causes screen artefacts.
+    #if not opts.quiet and opts.show_splash:
+    #    displayMessage("<p><command>Enso</command> is starting...</p>")
     
     if sys.platform.startswith("win"):
         # Add tray-icon support for win32 platform
