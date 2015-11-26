@@ -64,6 +64,8 @@ from enso.contrib.open.platform.linux import gtk_bookmarks
 from enso.contrib.open.platform.linux import desktop
 #from enso.contrib.open.platform.linux.windows import DesktopWindowsDirectory, windows_list
 
+from desktop_launch import launch_app_info
+
 """
 def limit_windows_by_title_fuzzy_search(title, win_list, first_hit=False):
     import re, operator
@@ -139,7 +141,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
         gtk_bookmarks.register_update_callback(update_gtk_bookmarks)
         learned_shortcuts.register_update_callback(update_learned_shortcuts)
         
-
+    def _is_runnable(self, shortcut):
+        return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
+        
     def _is_application(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
 
@@ -188,7 +192,8 @@ class OpenCommandImpl( AbstractOpenCommand ):
                         print e
                     print shortcut.category
                     """
-                    app.launch([], gtk.gdk.AppLaunchContext())
+                    launch_app_info(app)
+                    #app.launch([], gtk.gdk.AppLaunchContext())
             except Exception, e:
                 logging.error(e)
         else:
@@ -206,8 +211,27 @@ class OpenCommandImpl( AbstractOpenCommand ):
                 except Exception, e:
                     logging.error(e)
 
+
     def _open_with_shortcut(self, shortcut, files):
-        raise NotImplementedError()
+        assert shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE 
+
+        try:
+            # Desktop and launch-panel shortcuts should have precedence over applications, so try to
+            # get .desktop shortcut first...
+            app = None
+            if os.path.splitext(shortcut.target)[1] == ".desktop" and os.path.isfile(shortcut.target):
+                #with gtk_lock:
+                app = gio.unix.desktop_app_info_new_from_filename(shortcut.target)
+            # ...and then stored application object if .desktop does not exists
+            if not app:
+                app = applications.applications_dict.get(shortcut.name, None)
+            if app:
+                gfiles = [gio.File(filepath) for filepath in files]
+                launch_app_info(app, gfiles=gfiles)
+                #app.launch([], gtk.gdk.AppLaunchContext())
+        except Exception, e:
+            logging.error(e)
+
 
 
 class RecentCommandImpl( OpenCommandImpl ):
