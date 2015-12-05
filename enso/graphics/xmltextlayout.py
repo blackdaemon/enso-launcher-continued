@@ -280,7 +280,7 @@ class StyleRegistry:
         {'width': '1000pt', 'margin_top': '24pt'}
         """
 
-        assert selector in self._styleDict.keys()
+        assert selector in self._styleDict
 
         self.__validateKeys( properties )
         self._styleDict[ selector ].update( properties )

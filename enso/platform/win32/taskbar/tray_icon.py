@@ -158,7 +158,7 @@ class SysTrayIcon(object):
                 self.on_quit(self)
             win32gui.DestroyWindow(self.hwnd)
             win32gui.UnregisterClass(self.class_atom, self._window_class.hInstance)
-        elif id in self.custom_menu_items.keys():
+        elif id in self.custom_menu_items:
             if callable(self.custom_menu_items[id]['func']):
                 try:
                     self.custom_menu_items[id]['func'](self)

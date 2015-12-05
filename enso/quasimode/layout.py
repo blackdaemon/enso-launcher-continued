@@ -288,11 +288,10 @@ def layoutXmlLine( xml_data, styles, scale ):
                 XML_ALIASES,
             )
             document.shrinkOffset = scale[-1] - usedSize
-        except MaxLinesExceededError, e:
+        except MaxLinesExceededError as e:
             raise
         else:
             return document
-
     hasFailed = False
     # OPTIMIZATION END
 
@@ -307,7 +306,7 @@ def layoutXmlLine( xml_data, styles, scale ):
                 )
             usedSize = size
             break
-        except MaxLinesExceededError, e:
+        except MaxLinesExceededError as e:
             hasFailed = True
             # NOTE: If the error is fundamental (not size-related),
             # then it will be raised again below

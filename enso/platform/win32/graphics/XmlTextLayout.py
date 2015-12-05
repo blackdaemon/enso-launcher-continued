@@ -274,7 +274,7 @@ class StyleRegistry:
         {'width': '1000pt', 'margin_top': '24pt'}
 
         Preconditions:
-          selector in self._styleDict.keys()
+          selector in self._styleDict
         End Contract
         """
 
