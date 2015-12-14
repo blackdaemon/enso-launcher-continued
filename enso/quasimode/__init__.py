@@ -325,14 +325,15 @@ class Quasimode(object):
 
     def __onParameterModified( self, keyCode, oldText, newText ):
         cmd = self.__suggestionList.getActiveCommand()
-        if hasattr(cmd, "onParameterModified"):
+        try:
             prefixLen = len(cmd.PREFIX)
-            try:
-                cmd.onParameterModified(keyCode,
-                    oldText[prefixLen:], newText[prefixLen:],
-                    quasimodeId=self.__quasimodeID)
-            except Exception, e:
-                logging.error(e)
+            cmd.onParameterModified(keyCode,
+                oldText[prefixLen:], newText[prefixLen:],
+                quasimodeId=self.__quasimodeID)
+        except AttributeError as e:
+            pass
+        except Exception as e:
+            logging.error(e)
 
         self.__eventMgr.triggerEvent("textModified", keyCode, oldText, newText, quasimodeId=self.__quasimodeID)
 
@@ -578,22 +579,24 @@ class Quasimode(object):
         if not cmd:
             return
 
-        # Check if it is arbitrary-postfix command that supports suggestions
-        if not hasattr(cmd, "getParameterSuggestions"):
-            return
-
         try:
             suggestions = cmd.getParameterSuggestions()
-        except Exception, e:
+        except AttributeError as e:
+            # Check if it is arbitrary-postfix command that supports suggestions
+            return
+        except Exception as e:
             logging.error("Error calling command.getParameterSuggestions(): %s", e)
             return
 
+        if not suggestions and not self.__lastParameterSuggestions:
+            return
+            
         # No suggestions returned or the list has not changed since last time
         if suggestions is None or suggestions == self.__lastParameterSuggestions:
             return
 
         if not self.__parameterSuggestionList.getSuggestions():
-            # The window has not been displayed yet, compute it's horizontal position
+            # The window has not been displayed yet, compute its horizontal position
             line = layout.layoutXmlLine(
                 xml_data = "<document><line>%s</line></document>" % cmd.PREFIX,
                 styles = layout.retrieveAutocompleteStyles(),

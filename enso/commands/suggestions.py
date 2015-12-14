@@ -225,6 +225,9 @@ class Suggestion:
     
     def __str__( self ):
         return self.toText()
+    
+    def isEmpty(self):
+        return not self.toText()
         
     def toXml( self ):
         """

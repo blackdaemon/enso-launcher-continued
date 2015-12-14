@@ -172,7 +172,7 @@ class QuasimodeWindow:
         # we can dynamically add did-you-mean hint window and don't need
         # to juggle with list index here
         suggestions_start = 3
-        if len( suggestions[0].toXml() ) == 0 \
+        if suggestions[0].isEmpty() \
            and len( suggestions[0].getSource() ) == 0:
             self.__userTextWindow.hide()
             self.__didyoumeanHintWindow.hide()
@@ -185,13 +185,6 @@ class QuasimodeWindow:
                     # to overlay it with the did-you-mean hint window
                     self.__suggestionWindows[0].draw(newLines[suggestions_start])
                     suggestions_start += 1
-                def _computeWidth( doc ):
-                    lines = []
-                    for b in doc.blocks:
-                        lines.extend( b.lines )
-                    if len( lines ) == 0:
-                        return 0
-                    return max( [ l.xMax for l in lines ] )
                 w = layout.getCurrentCommandWidth(quasimode)
                 if w:
                     _, y = self.__didyoumeanHintWindow.getPosition()
@@ -215,66 +208,6 @@ class QuasimodeWindow:
             # Draw suggestions
             while self.continueDrawing( ignoreTimeElapsed = True ):
                 pass
-
-
-    # TODO: Finish this
-    def ___updateSuggestionList_____( self, quasimode ):
-        """
-        Fetches updated information from the quasimode, lays out and
-        draws the quasimode window.
-
-        This should only be called when the quasimode itself has
-        changed.
-
-        'isFullRedraw' is a boolean; if it is True, then the entire
-        quasimode display, including suggestion list, will be redrawn
-        when this function returns.  Otherwise, only the description
-        text and user text will be redrawn, and the suggestions will
-        be scheduled for redraw later.
-        """
-        
-        # Instantiate a layout object, effectively laying out the
-        # quasimode display.
-        layout = QuasimodeLayout( quasimode )
-
-        self.__drawStart = time.time()
-
-        newLines = layout.newLines
-
-        self.__descriptionWindow.draw( newLines[0] )
-
-        suggestions = quasimode.getSuggestionList().getSuggestions()
-        # TODO: Remake this so the line bear information about type, then
-        # we can dynamically add did-you-mean hint window and don't need
-        # to juggle with list index here
-        suggestions_start = 2
-        if len( suggestions[0].toXml() ) == 0 \
-           and len( suggestions[0].getSource() ) == 0:
-            self.__userTextWindow.hide()
-        else:
-            self.__userTextWindow.draw( newLines[1] )
-            didyoumean_hint = quasimode.getSuggestionList().getDidyoumeanHint()
-            if didyoumean_hint:
-                suggestions_start += 1
-                self.__didyoumeanHintWindow.draw( newLines[2] )
-            else:
-                self.__didyoumeanHintWindow.hide()
-
-
-        suggestionLines = newLines[suggestions_start:]
-
-        # We now need to hide all line windows.
-        #for i in range( len( suggestionLines ),
-        #                len( self.__suggestionWindows ) ):
-        #    self.__suggestionWindows[i].hide()
-
-        self.__suggestionsLeft = _makeSuggestionIterator(
-            suggestionLines,
-            self.__suggestionWindows
-            )
-
-        while self.continueDrawing( ignoreTimeElapsed=True ):
-            pass
 
 
     def continueDrawing( self, ignoreTimeElapsed=False ):
