@@ -182,7 +182,7 @@ class Cache( object ):
 
     def get_object(self, key, default=None):
         if key in self.__cache:
-            print "Getting memory cached object for '%s'" % (key)
+            #print "Getting memory cached object for '%s'" % (key)
             return self.__cache[key]
             
         #return self._caches.get(key, [])
@@ -190,7 +190,7 @@ class Cache( object ):
         
         fname = path_join(cache_dir, cached_file_name(key))
         if not isfile(fname):
-            print "No cached object for '%s'" % (key)
+            #print "No cached object for '%s'" % (key)
             return default
     
         try:
@@ -198,7 +198,7 @@ class Cache( object ):
             # make a new fresh request.
             modtime = getmtime(fname)
             if (time.time() - modtime) / 60 / 60 > 12:
-                print "No cached object for '%s'" % (key)
+                #print "No cached object for '%s'" % (key)
                 return default
             df = read_csv(
                 fname, 
@@ -210,17 +210,17 @@ class Cache( object ):
             result = df[0].tolist()
             #print result
             self.__cache[key] = result
-            print "Getting file cached for '%s'" % (key)
+            #print "Getting file cached for '%s'" % (key)
             return result
         except Exception as err:
             print key, err
             
-        print "No cached object for '%s'" % (key)
+        #print "No cached object for '%s'" % (key)
         return default
 
         
     def set_object(self, key, value):
-        print "Caching object for '%s' in memory" % (key)
+        #print "Caching object for '%s' in memory" % (key)
         self.__cache[key] = value
 
 
@@ -229,7 +229,7 @@ class Cache( object ):
             return
         # Flush memory cache to disk and purge memory cache
         cache_dir = ensure_cache_dir_exists(self.cache_id)
-        print "Persisting cache '%s' into %s (%d items)" % (self.cache_id, cache_dir, len(self.__cache))
+        #print "Persisting cache '%s' into %s (%d items)" % (self.cache_id, cache_dir, len(self.__cache))
         for key, value in self.__cache.items()[:]:      
             fname = path_join(cache_dir, cached_file_name(key))
             # Already saved

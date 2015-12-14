@@ -70,6 +70,11 @@ from enso.contrib.scriptotron import EnsoApi
 # Constants and global variables
 # ----------------------------------------------------------------------------
 
+DEFAULT_SUGGESTIONS_POLLING_INTERVAL = 500
+
+# Do not allow to go below this
+_MINIMAL_SUGGESTIONS_POLLING_INTERVAL = 100
+
 DEFAULT_HTTP_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:26.0) Gecko/20100101 Firefox/26.0',
     #'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -143,9 +148,9 @@ class PersistentHTTPConnection( object ):
                 # TODO: use proxy_from_url if proxy handling is needed
                 self._connection_pool = urllib3.connection_from_url(url, timeout=1, headers=headers)
             except Exception as e:
-                print e
+                logging.error("Error getting persistent HTTP connection: %s", str(e))
             else:
-                print "persistent-connection endQuasimode responder registered"
+                #print "persistent-connection endQuasimode responder registered"
                 self.__eventManager.registerResponder( self._onEndQuasimode, "endQuasimode" )
         return self._connection_pool
 
@@ -166,13 +171,13 @@ class PersistentHTTPConnection( object ):
         Close any HTTP1.1 persistent connections and invalidate connection pool
         on quasimode-end event
         """
-        print self._connection_pool
+        #print self._connection_pool
         if self._connection_pool is not None:
             try:
-                print "Closing current HTTP1.1 persistent connection"
+                #print "Closing current HTTP1.1 persistent connection"
                 self._connection_pool.close()
             finally:
-                print "Invalidating connection pool"
+                #print "Invalidating connection pool"
                 self._connection_pool = None
         self.__eventManager.removeResponder(self._onEndQuasimode)
                  
@@ -205,13 +210,15 @@ class CommandParameterWebSuggestionsMixin( object ):
     
     __metaclass__ = ABCMeta
     
-    class Implementation( object ):
+    class _Impl( object ):
         def __init__(self, caller):
             self.caller = caller
+            self.polling_interval = max(DEFAULT_SUGGESTIONS_POLLING_INTERVAL, _MINIMAL_SUGGESTIONS_POLLING_INTERVAL)
+            
             self.__suggestion_thread = None
             self.__stop_suggestion_thread = False
             self.__last_text_for_suggestions = None
-
+            
             self._persistent_connection = None
     
             self._update_queue = Queue()
@@ -219,7 +226,11 @@ class CommandParameterWebSuggestionsMixin( object ):
         
             self.__eventManager = EventManager.get()
 
+        
+        def setPollingInterval(self, interval_in_ms):
+            self.polling_interval = interval_in_ms 
 
+        
         def onParameterModified(self, keyCode, oldText, newText, quasimodeId=0.0):
             """
             This method is called automatically whenever the command parameter text
@@ -274,7 +285,7 @@ class CommandParameterWebSuggestionsMixin( object ):
             Register responder to stop the thread on "endQuasimode" event.
             """
             if self.__suggestion_thread is None:
-                print "Starting suggestion thread"
+                #print "Starting suggestion thread"
                 self.__stop_suggestion_thread = False
                 self.__suggestion_thread = threading.Thread(target=self.__suggestion_thread_func)
                 #self.__suggestion_thread.setDaemon(True)
@@ -285,7 +296,7 @@ class CommandParameterWebSuggestionsMixin( object ):
             """
             Issue stop request to the suggestion thread
             """
-            print "Stopping suggestion thread"
+            #print "Stopping suggestion thread"
             self.__stop_suggestion_thread = True
             # Provoke queue update with empty task so that suggestion thread unblocks
             self._update_queue.put_nowait(None)
@@ -334,19 +345,23 @@ class CommandParameterWebSuggestionsMixin( object ):
                         # Loop for 100ms and collect the most recently typed text
                         started = datetime.datetime.now()
                         elapsed_ms = 0
-                        while elapsed_ms < 100:
-                            try:
-                                text = self._update_queue.get(block=True, timeout=0.100)
-                            except Empty:
-                                pass
-                            else:
-                                self._update_queue.task_done()
+                        while elapsed_ms < self.polling_interval:
+                            time_to_wait = self.polling_interval - elapsed_ms
+                            #print "TO WAIT: ", time_to_wait
+                            if time_to_wait > 0:
+                                try:
+                                    text = self._update_queue.get(block=True, timeout=time_to_wait/1000)
+                                except Empty:
+                                    pass
+                                else:
+                                    self._update_queue.task_done()
                             tdiff = datetime.datetime.now() - started
-                            elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0 
+                            elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0
                         else:
                             pass
+                        #print elapsed_ms 
             finally:
-                print "Suggestion thread stopped"
+                #print "Suggestion thread stopped"
                 self.__suggestion_thread = None
     
     
@@ -370,7 +385,7 @@ class CommandParameterWebSuggestionsMixin( object ):
                 cache_id = self.caller.__class__.__name__
                 suggestions = cache_manager.get_data(text, cache_id, session_id=str(self.quasimodeId))
                 if suggestions:
-                    print "Returning %d cached results for query '%s'" % (len(suggestions), text)
+                    #print "Returning %d cached results for query '%s'" % (len(suggestions), text)
                     return suggestions
     
             """
@@ -415,7 +430,7 @@ class CommandParameterWebSuggestionsMixin( object ):
                         logging.error("Suggest response parsing failed: %s", e)
     
             if cache_manager:
-                print "Cached %d results for query '%s'" % (len(suggestions), text)
+                #print "Cached %d results for query '%s'" % (len(suggestions), text)
                 cache_manager.set_data(text, suggestions, cache_id, session_id=str(self.quasimodeId))
             
             return suggestions
@@ -429,7 +444,7 @@ class CommandParameterWebSuggestionsMixin( object ):
         
         super(CommandParameterWebSuggestionsMixin, self).__init__()
         
-        self.__impl = CommandParameterWebSuggestionsMixin.Implementation(self)
+        self.__impl = CommandParameterWebSuggestionsMixin._Impl(self)
 
 
     @abstractmethod
@@ -489,3 +504,8 @@ class CommandParameterWebSuggestionsMixin( object ):
         self.__impl.onParameterModified(keyCode, oldText, newText, quasimodeId)
 
 
+    def setSuggestionsPollingInterval(self, interval_in_ms):
+        if interval_in_ms < _MINIMAL_SUGGESTIONS_POLLING_INTERVAL:
+            raise Exception("The polling interval can't go below %d ms (%d)!" 
+                % (_MINIMAL_SUGGESTIONS_POLLING_INTERVAL, interval_in_ms))
+        self.__impl.setPollingInterval(interval_in_ms)

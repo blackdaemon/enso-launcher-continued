@@ -128,7 +128,7 @@ PLUGINS = [
 # If set to False, no locale is forced.
 PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
 # Use Google search suggestions
-PLUGIN_GOOGLE_OFFER_SUGGESTIONS = False
+PLUGIN_GOOGLE_OFFER_SUGGESTIONS = True
 # Use Google Images search suggestions
 PLUGIN_GOOGLE_IMAGES_OFFER_SUGGESTIONS = True
 # Use YouTube search suggestions
