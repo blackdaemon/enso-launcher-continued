@@ -42,6 +42,7 @@ TODO:
 from __future__ import with_statement
 
 import os
+import logging
 
 import gio
 from gtk.gdk import lock as gtk_lock
@@ -57,16 +58,19 @@ SHORTCUT_CATEGORY = "gtk-bookmark"
 BOOKMARKS_DIR = "~"
 BOOKMARKS_FILE = ".gtk-bookmarks"
 
+_dir_monitor = None
+_file_changed_event_handler = None
 
-class FileChangedEventHandler( FileSystemEventHandler ):
+
+class _FileChangedEventHandler( FileSystemEventHandler ):
     
     def __init__(self):
-        super(FileChangedEventHandler, self).__init__()
+        super(_FileChangedEventHandler, self).__init__()
         self.update_callback_func = None
         #self.update_commands_delayed = DelayedExecution(1.0, self.update_commands)
 
     def on_moved(self, event):
-        super(FileChangedEventHandler, self).on_moved(event)
+        super(_FileChangedEventHandler, self).on_moved(event)
         #what = 'directory' if event.is_directory else 'file'
         #print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
         bookmarks_filename = os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE)) 
@@ -74,19 +78,19 @@ class FileChangedEventHandler( FileSystemEventHandler ):
             self.call_callback(event)
     
     def on_created(self, event):
-        super(FileChangedEventHandler, self).on_created(event)
+        super(_FileChangedEventHandler, self).on_created(event)
         #what = 'directory' if event.is_directory else 'file'
         #print "Created %s: %s" % (what, event.src_path)
         #self.call_callback(event)
     
     def on_deleted(self, event):
-        super(FileChangedEventHandler, self).on_deleted(event)
+        super(_FileChangedEventHandler, self).on_deleted(event)
         #what = 'directory' if event.is_directory else 'file'
         #print "Deleted %s: %s" % (what, event.src_path)
         #self.call_callback(event)
     
     def on_modified(self, event):
-        super(FileChangedEventHandler, self).on_modified(event)
+        super(_FileChangedEventHandler, self).on_modified(event)
         #what = 'directory' if event.is_directory else 'file'
         #print "Modified %s: %s" % (what, event.src_path)
 
@@ -102,11 +106,8 @@ class FileChangedEventHandler( FileSystemEventHandler ):
             print "No calling update callback func was defined, that's fine"
 
 
-file_changed_event_handler = FileChangedEventHandler()
-
-
 def get_bookmarks():
-    print "Loading gtk-bookmarks"
+    logging.info("Loading gtk-bookmarks")
     basename = os.path.basename
     places = []
     with open(os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))) as f:
@@ -130,17 +131,21 @@ def get_bookmarks():
             else:
                 shortcut = shortcuts.Shortcut(
                     "%s [places]" % title, shortcuts.SHORTCUT_TYPE_URL, new_uri, category=SHORTCUT_CATEGORY)
-            print shortcut
+            #print shortcut
             places.append(shortcut)
+    logging.info("Loaded %d gtk-bookmarks" % len(places))
     return places
 
 
 def register_update_callback(callback_func):
     assert callback_func is None or callable(callback_func), "callback_func must be callable entity or None"
-    file_changed_event_handler.update_callback_func = callback_func
+    global _dir_monitor, _file_changed_event_handler
+    if _file_changed_event_handler is None:
+        _file_changed_event_handler = _FileChangedEventHandler()
+    _file_changed_event_handler.update_callback_func = callback_func
+    if _dir_monitor is None:
+        # Set up the directory watcher for shortcuts directory 
+        _dir_monitor = Observer()
+        _dir_monitor.schedule(_file_changed_event_handler, os.path.expanduser(BOOKMARKS_DIR))
+        _dir_monitor.start()
 
-
-# Set up the directory watcher for shortcuts directory 
-dir_monitor = Observer()
-dir_monitor.schedule(file_changed_event_handler, os.path.expanduser(BOOKMARKS_DIR))
-dir_monitor.start()

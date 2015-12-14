@@ -37,6 +37,7 @@
 from __future__ import with_statement
 
 import os
+import logging
 
 from gio import app_info_get_all
 from gio.unix import desktop_app_info_set_desktop_env
@@ -54,36 +55,38 @@ SHORTCUT_CATEGORY = "application"
 DESKTOP_ENVIRONMENT = utils.detect_desktop_environment()
 
 applications_dict = {}
+_dir_monitor = None
+_file_changed_event_handler = None
 
 
-
-class FileChangedEventHandler( FileSystemEventHandler ):
+#FIXME: Move this into separate module (it is duplicated in desktop, gtk_bookmarks, learned_shortcuts
+class _FileChangedEventHandler( FileSystemEventHandler ):
     
     def __init__(self):
-        super(FileChangedEventHandler, self).__init__()
+        super(_FileChangedEventHandler, self).__init__()
         self.update_callback_func = None
         #self.update_commands_delayed = DelayedExecution(1.0, self.update_commands)
 
     def on_moved(self, event):
-        super(FileChangedEventHandler, self).on_moved(event)
+        super(_FileChangedEventHandler, self).on_moved(event)
         what = 'directory' if event.is_directory else 'file'
         print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
         self.call_callback(event)
     
     def on_created(self, event):
-        super(FileChangedEventHandler, self).on_created(event)
+        super(_FileChangedEventHandler, self).on_created(event)
         what = 'directory' if event.is_directory else 'file'
         print "Created %s: %s" % (what, event.src_path)
         self.call_callback(event)
     
     def on_deleted(self, event):
-        super(FileChangedEventHandler, self).on_deleted(event)
+        super(_FileChangedEventHandler, self).on_deleted(event)
         what = 'directory' if event.is_directory else 'file'
         print "Deleted %s: %s" % (what, event.src_path)
         self.call_callback(event)
     
     def on_modified(self, event):
-        super(FileChangedEventHandler, self).on_modified(event)
+        super(_FileChangedEventHandler, self).on_modified(event)
         what = 'directory' if event.is_directory else 'file'
         print "Modified %s: %s" % (what, event.src_path)
         self.call_callback(event)
@@ -100,10 +103,8 @@ class FileChangedEventHandler( FileSystemEventHandler ):
             print "No calling update callback func was defined, that's fine"
 
 
-file_changed_event_handler = FileChangedEventHandler()
-
-
 def get_applications():
+    logging.info("open-command: Loading application shortcuts")
     # Add this to the default
     whitelist = set([
         # if you set/reset default handler for folders it is useful
@@ -145,18 +146,21 @@ def get_applications():
                     shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), filepath.strip(), SHORTCUT_CATEGORY)
                     result.append(shortcut)
                     
-    print "\n".join(sorted(str(s) for s in result))
+    #print "\n".join(sorted(str(s) for s in result))
+    logging.info("open-command: Loaded %d application shortcuts" % len(result))
     return result
 
 
 def register_update_callback(callback_func):
     assert callback_func is None or callable(callback_func), "callback_func must be callable entity or None"
-    file_changed_event_handler.update_callback_func = callback_func
-
-
-# Set up the directory watcher for shortcuts directory 
-dir_monitor = Observer()
-dir_monitor.schedule(file_changed_event_handler, "/usr/share/applications", recursive=False)
-dir_monitor.schedule(file_changed_event_handler, "/usr/local/share/applications", recursive=False)
-dir_monitor.schedule(file_changed_event_handler, os.path.expanduser("~/.local/share/applications"), recursive=False)
-dir_monitor.start()
+    global _dir_monitor, _file_changed_event_handler
+    if _file_changed_event_handler is None:
+        _file_changed_event_handler = _FileChangedEventHandler()
+    _file_changed_event_handler.update_callback_func = callback_func
+    if _dir_monitor is None:
+        # Set up the directory watcher for shortcuts directory 
+        _dir_monitor = Observer()
+        _dir_monitor.schedule(_file_changed_event_handler, "/usr/share/applications", recursive=False)
+        _dir_monitor.schedule(_file_changed_event_handler, "/usr/local/share/applications", recursive=False)
+        _dir_monitor.schedule(_file_changed_event_handler, os.path.expanduser("~/.local/share/applications"), recursive=False)
+        _dir_monitor.start()
