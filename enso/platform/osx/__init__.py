@@ -23,5 +23,8 @@ def provideInterface( name ):
     elif name == "scripts_folder":
         from enso.platform.osx.scriptfolder import get_script_folder_name
         return get_script_folder_name
+    elif name == "system":
+        import enso.platform.osx.system
+        return enso.platform.osx.system    
     else:
         return None

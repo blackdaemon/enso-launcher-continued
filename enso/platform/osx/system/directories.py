@@ -57,10 +57,10 @@ def get_user_home_dir():
     return os.path.expanduser("~")
 
 def get_enso_local_conf_dir():
-    return os.path.join(get_user_home_dir(), ".enso")
+    return os.path.join(get_user_home_dir(), "Library", "Application Support", "enso")
 
 def get_enso_cache_dir():
-    return os.path.join(get_user_home_dir(), ".cache", "enso")
+    return os.path.join(get_user_home_dir(), "Library", "Caches", "enso")
     
     
 # Enso special folder - Local data storage
@@ -68,8 +68,11 @@ SPECIALFOLDER_ENSOLOCAL = get_enso_local_conf_dir()
 
 # Enso special folder - Enso's Learn As Open Commands
 SPECIALFOLDER_ENSOLEARNAS = os.path.join(
-    get_enso_local_conf_dir(), "learned_shortcuts")
+    get_enso_local_conf_dir(), "learned_shortcuts"
+    )
 
 # Enso special folder - Enso's script commands
 SPECIALFOLDER_ENSOCOMMANDS = os.path.join(
-    get_enso_local_conf_dir(), "commands")
+    get_enso_local_conf_dir(), "commands"
+    )
+    

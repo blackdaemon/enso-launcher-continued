@@ -74,6 +74,17 @@ def get_system_folder(folder_id):
         folder = folder.decode(sys.getfilesystemencoding())
     return folder
 
+def get_user_home_dir():
+    return get_system_folder(SYSTEMFOLDER_USERPROFILE)
+
+def get_enso_local_conf_dir():
+    appdata_dir = get_system_folder(SYSTEMFOLDER_APPDATALOCAL)
+    if os.path.isdir(appdata_dir):
+        appdata_dir = get_system_folder(SYSTEMFOLDER_APPDATA)
+    return os.path.join(appdata_dir, "Enso")
+
+def get_enso_cache_dir():
+    return os.path.join(get_enso_local_conf_dir(), "cache")
 
 # Enso special folder - Local data storage
 # c:\Documents and Settings\<user>\Local Settings\Application Data\Enso
