@@ -49,6 +49,9 @@ import dbus.mainloop.glib
 from gio import File
 from enso.platform.linux.weaklib import DbusWeakCallback
 
+
+gtk.gdk.threads_init()
+
 """
 Class to handle Nautilus file-selection notifications in Linux Gnome desktop
 """
@@ -147,12 +150,13 @@ def fake_paste (display = None):
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
     display.sync()
 
+    
 def get ():
     '''Fetch text from X PRIMARY selection'''
     global selection_text, nautilus_file_selection
     
     selection_text = None
-    clipboard = gtk.clipboard_get (selection = "PRIMARY")
+    clipboard = gtk.clipboard_get (gtk.gdk.SELECTION_PRIMARY)
     clipboard.request_text (get_clipboard_text_cb)
     # Iterate until we actually received something, or we timed out waiting
     start = clock ()
@@ -162,9 +166,16 @@ def get ():
         selection_text = ""
     files = []
     # Get file list from Nautilus window (if available)
-    if nautilus_file_selection and nautilus_file_selection.paths:
-        files = nautilus_file_selection.paths
+    focus = get_focused_window(get_display())
+    wmclass = focus.get_wm_class()
+    if wmclass is None: #or wmname is None:
+        focus = focus.query_tree().parent
+        wmclass = focus.get_wm_class()
+    wmname = focus.get_wm_name()
+    #print wmclass, wmname
     #TODO: Implement file selection from other Linux file managers
+    if nautilus_file_selection and nautilus_file_selection.paths and wmclass[0] == 'nautilus':
+        files = nautilus_file_selection.paths
     selection = {
                     "text": selection_text,
                     "files": files,
