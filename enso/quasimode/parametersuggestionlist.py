@@ -56,7 +56,7 @@ from enso.graphics import xmltextlayout
 from enso.utils.xml_tools import escape_xml
 
 
-ANIMATION_TIME = 1
+ANIMATION_TIME = 10
 MAX_OPACITY = 255
 
 class ParameterSuggestionWindow:
@@ -216,16 +216,18 @@ class ParameterSuggestionWindow:
 
         #self.__window.setSize( width, height )
         
-        if not self.__is_visible:
-            self.__is_visible = True
+        if not self.__is_visible and not self.__animatingShow:
             self.__animatingShow = True
             self.__animatingHide = False
             self.__timeSinceDismissal = 0
             self.__evtManager.registerResponder( self.animationTick, "timer" )
         else:
             # Just refreshing
+            started = time.time()
             self.__window.setOpacity( MAX_OPACITY )
+            #print time.time() - started
             self.__window.update()
+        #print time.time() - started
 
 
     def hide( self, animated=True ):
@@ -262,19 +264,19 @@ class ParameterSuggestionWindow:
             self.__evtManager.registerResponder( self.animationTick, "timer" )
         else:
             self.__window.hide()
-            self.__is_visible = False
             self.__animatingHide = False
             self.__animatingShow = False
 
 
     def animationTick( self, msPassed ):
         """
-        Called on a timer event to animate the window's fadeou
+        Called on a timer event to animate the window fadeout
         """
 
         self.__timeSinceDismissal += msPassed
         if self.__timeSinceDismissal > ANIMATION_TIME:
-            self.__onAnimationFinished()
+            if self.__animatingShow and self.__is_visible:
+                self.__onAnimationFinished()
             return
 
         timeLeft  = ANIMATION_TIME - self.__timeSinceDismissal
@@ -283,7 +285,10 @@ class ParameterSuggestionWindow:
         
         if self.__animatingHide:
             self.__window.setOpacity( opacity )
+            if opacity == 0:
+                self.__is_visible = False
         elif self.__animatingShow:
+            self.__is_visible = True
             self.__window.setOpacity( MAX_OPACITY-opacity )
 
         self.__window.update()
@@ -343,6 +348,7 @@ class ParameterSuggestionList( object ):
             )
         # Nothing selected initialy
         self.__activeIndex = None
+        self.styles = layout.retrieveParameterSuggestionStyles()
 
 
     def clearState( self ):
@@ -488,7 +494,7 @@ class ParameterSuggestionList( object ):
             self.hide()
             return
 
-        styles = layout.retrieveParameterSuggestionStyles()
+        #styles = layout.retrieveParameterSuggestionStyles()
         #styles.update('document', margin_top = '0.0pt')
 
         DOCUMENT_XML = "<document>%s</document>"
@@ -498,19 +504,16 @@ class ParameterSuggestionList( object ):
         lines_xml = []
         active = self.getActiveIndex()
         for i, line in enumerate(suggestions):
-            if i == active:
-                lines_xml.append(ACTIVE_LINE_XML % escape_xml(line))
-            else:
-                lines_xml.append(LINE_XML % escape_xml(line))
+            lines_xml.append((ACTIVE_LINE_XML if i == active else LINE_XML) % escape_xml(line))
 
         xml_data = DOCUMENT_XML % "".join(lines_xml)
 
         lines = layout.layoutXmlLine(
             xml_data = xml_data,
-            styles = styles,
+            styles = self.styles,
             scale = layout.PARAMETERSUGGESTION_SCALE,
             )
-        self.__window.draw( lines, self.getActiveIndex() )
+        self.__window.draw( lines, active )
 
 
 # vim:set tabstop=4 shiftwidth=4 expandtab:

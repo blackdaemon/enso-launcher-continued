@@ -192,3 +192,5 @@ def getWorkareaSize():
     left, top, right, bottom = _get_workarea()
     return right - left, bottom - top
 
+def processWindowManagerPendingEvents():
+    return None

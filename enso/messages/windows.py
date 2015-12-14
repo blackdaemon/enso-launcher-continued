@@ -64,7 +64,16 @@ class MessageWindow:
         self.__currSize = ( 1, 1 )
         self.__currPos = ( 0, 0 )
 
-        self.__setupWindow()
+        self._wind = None
+        self._context = None
+        
+        # The TransparentWindow should not be instantiated here.
+        # As the position/size is not yet known, TransparentWindow
+        # is created with default position and size and that causes
+        # ugly flickering on Linux when the window is really drawn later.
+        # We should instead create TransparentWindow in lazy manner
+        # shortly before it needs to be drawn.
+        #self.__setupWindow()
 
 
     def __setupWindow( self ):
@@ -72,17 +81,18 @@ class MessageWindow:
         Creates the MessageWindow's underlying TransparentWindow and
         Cairo Context objects, once and for all.
         """
+        # Lazy initialization of TransparentWindow
+        if self._wind is None:
+            width = self.__maxSize[0]
+            height = self.__maxSize[1]
 
-        width = self.__maxSize[0]
-        height = self.__maxSize[1]
+            xPos = self.__currPos[0]
+            yPos = self.__currPos[1]
 
-        xPos = self.__currPos[0]
-        yPos = self.__currPos[1]
-
-        # The following are protected to allow subclasses access
-        # to them.
-        self._wind = TransparentWindow( xPos, yPos, width, height )
-        self._context = self._wind.makeCairoContext()
+            # The following are protected to allow subclasses access
+            # to them.
+            self._wind = TransparentWindow( xPos, yPos, width, height )
+            self._context = self._wind.makeCairoContext()
 
 
     def getSize( self ):
@@ -96,7 +106,7 @@ class MessageWindow:
     # LONGTERM TODO: Consider replacing setSize,setPos with setBox, and
     # establish a clipping function isOnScreen for use in the contract.
 
-    def setSize( self, width, height ):
+    def setSize( self, width, height, refresh=True ):
         """
         Sets the current size of the message window the width, height.
 
@@ -114,7 +124,7 @@ class MessageWindow:
 
         self.__currSize = width, height
 
-        if self._wind != None:
+        if self._wind is not None and refresh:
             self._wind.setSize( width, height )
 
 
@@ -123,9 +133,8 @@ class MessageWindow:
         Sets the current position of the window to xPos, yPos, which
         should be in points.
         """
-
         self.__currPos = xPos, yPos
-        if self._wind != None:
+        if self._wind is not None:
             self._wind.setPosition( xPos, yPos )
 
 
@@ -142,7 +151,9 @@ class MessageWindow:
         # window to 1x1 pixels can still result in performance
         # degredation (see trac ticket #290).
 
-        self._wind.setSize( 1, 1 )
+        self.__setupWindow()
+        # This is prtobably only needed on Win32:
+        #self._wind.setSize( 1, 1 )
         self._wind.update()
 
 
@@ -153,8 +164,10 @@ class MessageWindow:
         displayed rectangle on the screen to the size required by the
         MessageWindow's underlying content.
         """
+        self.__setupWindow()
 
-        self.setSize( *self.getSize() )
+        width, height = self.getSize()
+        self.setSize( width, height, False )
         self._wind.update()
 
 
@@ -166,6 +179,9 @@ class MessageWindow:
         # Works by blanking the whole surface.
         # The cairo paint() method does the whole (clipped) cairo
         # surface.
+
+        self.__setupWindow()
+
         cr = self._context
         cr.set_source_rgba( 0, 0, 0, 0 )
         cr.set_operator(cairo.OPERATOR_SOURCE)

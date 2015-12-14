@@ -17,7 +17,9 @@ class TransparentWindow( object ):
         yPos = int( pointsToPixels( yPos ) )
         width = max( int( pointsToPixels( width ) ), 1 )
         height = max( int( pointsToPixels( height ) ), 1 )
-        
+        self.__cached_opacity = None
+        self.__cached_position = None
+        self.__cached_size = None
         self._impl = _graphics.TransparentWindow( xPos, yPos,
                                                   width, height )
 
@@ -33,15 +35,31 @@ class TransparentWindow( object ):
         return self._impl.hideWindow()
 
     def setOpacity( self, opacity ):
-        return self._impl.setOpacity( opacity )
+        # OPTIMIZATION BEGIN:
+        # Caching last set opacity for doing it only if the value is different 
+        # as setting the opacity is quite expensive
+        if opacity != self.__cached_opacity:
+            self.__cached_opacity = opacity
+            return self._impl.setOpacity( opacity )
+        else:
+            return True
+        # OPTIMIZATION END
 
     def getOpacity( self ):
         return self._impl.getOpacity()
 
     def setPosition( self, x, y ):
-        x = int( pointsToPixels( x ))
-        y = int( pointsToPixels( y ))
-        return self._impl.setPosition( x, y )
+        # OPTIMIZATION BEGIN:
+        # Caching last set position for doing it only if the value is different 
+        if (x, y) != self.__cached_position:
+            self.__cached_position = (x, y)
+            return self._impl.setPosition( 
+                int( pointsToPixels( x )), 
+                int( pointsToPixels( y )) 
+            )
+        else:
+            return True
+        # OPTIMIZATION END
 
     def getX( self ):
         return pixelsToPoints( self._impl.getX() )
@@ -50,9 +68,17 @@ class TransparentWindow( object ):
         return pixelsToPoints( self._impl.getY() )
 
     def setSize( self, width, height ):
-        width = max( int(pointsToPixels(width)), 1 )
-        height = max( int(pointsToPixels(height)), 1 )
-        return self._impl.setSize( width, height )
+        # OPTIMIZATION BEGIN:
+        # Caching last set size for doing it only if the value is different 
+        if (width, height) != self.__cached_size:
+            self.__cached_size = (width, height)
+            return self._impl.setSize( 
+                max( int(pointsToPixels(width)), 1 ), 
+                max( int(pointsToPixels(height)), 1 ) 
+            )
+        else:
+            return True
+        # OPTIMIZATION END
 
     def getWidth( self ):
         return pixelsToPoints( self._impl.getWidth() )

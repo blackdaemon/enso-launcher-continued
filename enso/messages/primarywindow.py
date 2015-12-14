@@ -284,7 +284,6 @@ class PrimaryMsgWind( MessageWindow ):
         # rendering methods are called from here.
 
         text = self.__msg.getPrimaryXml()
-        self.clearWindow()
 
         msgText, capText = splitContent( text )
         width,height = self.getMaxSize()
@@ -298,15 +297,20 @@ class PrimaryMsgWind( MessageWindow ):
                self.__layoutBlocks( msgDoc, capDoc )
 
         # Set the window size and draw the outlining rectangle
+        self.__setSize( width, height, False )
+        self.__position()
+        #graphics.processWindowManagerPendingEvents()
+        self.clearWindow()
+        # Flush GTK events. This remedies the flashing of background
+        #graphics.processWindowManagerPendingEvents()
         self.__setupBackground( width, height )
+        
         # Draw the text.
         msgDoc.draw( msgPos[0], msgPos[1], self._context )
         if capDoc != None:
             capDoc.draw( capPos[0], capPos[1], self._context )
 
         # Set the window opacity (which can be left at 0 by the animation)
-        self.__position()
-
         self._wind.setOpacity( 255 )
         # Show and update the window.
         self.show()
@@ -379,6 +383,21 @@ class PrimaryMsgWind( MessageWindow ):
         else:
             capDoc = None
         return msgDoc, capDoc
+
+
+    def __setSize( self, width, height, refresh=True ): 
+        """
+        Given a text region of width and height, sets the size of the
+        underlying window to be that plus margins.
+        """
+        width += (2*PRIM_MSG_MARGIN)-2
+        height += (2*PRIM_MSG_MARGIN)-2
+        width = int(width)
+        height = int(height)
+        assert width <= self.getMaxSize()[0], \
+               "width %s, self.getMaxSize()[0] %s" \
+               % (width, self.getMaxSize()[0])
+        self.setSize( width, height, refresh )
 
 
     def __setupBackground( self, width, height ):

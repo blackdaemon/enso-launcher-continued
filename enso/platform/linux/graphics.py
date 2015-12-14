@@ -349,3 +349,9 @@ def getWorkareaSize ():
     """
     _, _, width, height = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
     return width, height
+
+
+def processWindowManagerPendingEvents():
+    while gtk.events_pending():
+        gtk.main_iteration(block=False)
+    

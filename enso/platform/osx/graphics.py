@@ -181,3 +181,7 @@ def getDesktopSize():
 
 def getDesktopOffset():
     return (0, 0)
+    
+def processWindowManagerPendingEvents():
+    return None
+    

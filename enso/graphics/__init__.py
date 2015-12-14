@@ -37,3 +37,8 @@ def getWorkareaSize():
     width = pixelsToPoints(width)
     height = pixelsToPoints(height)
     return (width, height)
+
+def processWindowManagerPendingEvents():
+    _graphics.processWindowManagerPendingEvents()
+    return None
+    
