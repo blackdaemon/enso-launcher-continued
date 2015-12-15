@@ -47,11 +47,9 @@ __module_version__ = __version__ = "1.0"
 import os
 import re
 import datetime
-import urllib
 import urllib2
 import logging
 
-import geoip
 from enso.net import inetcache
 
 from urllib2 import URLError
@@ -85,6 +83,7 @@ class Globals(object):
     INI_FILE = os.path.expanduser(u"~/enso_calc.ini")
     HOME_CURRENCY = None
 
+quasimode = Quasimode.get()
 
 #==============================================================================
 # Classes & Functions
@@ -283,11 +282,20 @@ class ExchangeRates( object ):
 
     def __init__(self):
         self.exchange_rates.update(self._load_rates())
+
+        import threading
+        print "Downloading currency rates in separate thread"
+        self._download_geoip_thread = threading.Thread(target=self._rates_updater_thread)
+        self._download_geoip_thread.setDaemon(True)
+        self._download_geoip_thread.start()
+
+    def _rates_updater_thread(self):
         actual_rates = self._download_actual_rates()
+        print "rates downloaded"
         if actual_rates:
             self.exchange_rates.update(actual_rates)
             self._save_rates(self.exchange_rates)
-
+        
     def _load_rates(self):
         if not os.path.isfile(self.RATES_FILENAME):
             return {}
@@ -323,7 +331,11 @@ class ExchangeRates( object ):
         csv = None
         try:
             request = urllib2.Request(url, None, HTTP_HEADERS)
-            with closing(urllib2.urlopen(request, None, 10)) as resp:
+            with closing(urllib2.urlopen(request, None, 5)) as resp:
+                # This should avoid blocking the main thread
+                # For details see:
+                # http://bugs.python.org/issue14562#msg165927
+                resp.fp._rbufsize = 0
                 csv = resp.read()
         except (URLError, HTTPException, SocketError), e:
             logging.error(e)
@@ -385,7 +397,15 @@ class ExchangeRates( object ):
 
         rates = {}
         symbols = []
-        max_rates_per_request = 200 # Limit one query to 200 items
+        # Limit one query to 200 items
+        max_rates_per_request = 200 
+        # Format is:
+        # s:    Symbol
+        # l1:   Last Trade (Price Only)
+        # b:    Bid
+        # a:    Ask
+        # d1:   Last Trade Date
+        # t1:   Last Trade Time
         url = "http://download.finance.yahoo.com/d/quotes.csv?f=sl1bad1t1&e=.csv&s=%(params)s"
         for symbol in self.exchange_rates.iterkeys():
             symbols.append("EUR%s=X" % symbol)
@@ -469,20 +489,6 @@ def is_supported_currency(iso):
     return iso.upper() in RATES.exchange_rates
 
 
-def urlopen(url, timeout=None):
-    fp = None
-    if timeout is not None:
-        try:
-            proxy_support = urllib2.ProxyHandler({})
-            opener = urllib2.build_opener(proxy_support)
-            # Use urllib2 with timeout on Python >= 2.6
-            fp = opener.open(url, timeout=timeout)
-        except (TypeError, ImportError), e:
-            fp = urllib.urlopen(url)
-    else:
-        fp = urllib.urlopen(url)
-    return fp
-
 def guess_home_currency():
     logging.info("Guessing user's local currency")
 
@@ -508,7 +514,7 @@ def guess_home_currency():
             else:
                 try:
                     # TODO: Reasonably cache this
-                    c = geoip.lookup_country(ext_ip)
+                    c = geoip.lookup_country_code(ext_ip)
                     if c:
                         logging.info("Country by IP: %s", c)
                         logging.info("Lookup currency by country...")
@@ -524,7 +530,7 @@ def guess_home_currency():
             except:
                 pass
 
-    # If all above failed, try t query geobytes directly for curency code
+    # If all above failed, try to query geobytes directly for curency code
     # TODO: Reasonably cache this
     if ext_ip and inetcache.isonline:
         try:
@@ -573,8 +579,6 @@ def get_home_currency():
         Globals.HOME_CURRENCY = hc
     return Globals.HOME_CURRENCY
 
-get_home_currency()
-
 
 def set_home_currency(curr):
     Globals.HOME_CURRENCY = curr
@@ -587,12 +591,10 @@ def set_home_currency(curr):
         config.write(fp)
 
 
-quasimode = Quasimode.get()
-
 def currency(amount, from_curr, to_curr):
     #TODO: Convert following assertions into custom exceptions
-    assert from_curr in RATES.exchange_rates.keys(), "Unknown source currency code: %s" % from_curr
-    assert to_curr in RATES.exchange_rates.keys(), "Unknown target currency code: %s" % to_curr
+    assert from_curr in RATES.exchange_rates, "Unknown source currency code: %s" % from_curr
+    assert to_curr in RATES.exchange_rates, "Unknown target currency code: %s" % to_curr
 
     unknown_rates = []
     result = None
@@ -666,6 +668,7 @@ def currency1(amount, from_curr, to_curr):
     return result
 """
 
+"""
 def _handle_currency_symbols(expression):
     logging.info(expression)
     symbol_table = [
@@ -719,6 +722,8 @@ def convert_expression(expression):
                 currconv_match.group(3)
             )
     return expression
-
+"""
+    
+get_home_currency()
 
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

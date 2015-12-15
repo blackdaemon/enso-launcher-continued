@@ -39,13 +39,13 @@
 
 import logging #@UnusedImport
 import re
-import os
-import currconv
+import itertools
 
 from xml.sax.saxutils import escape as xml_escape
 
 from enso import selection
-from enso.contrib.calc import fourfn, currconv
+from enso.contrib.calc import fourfn
+from enso.contrib.calc import currconv
 
 from enso.commands import CommandManager, CommandObject
 from enso.commands.factories import ArbitraryPostfixFactory
@@ -221,10 +221,10 @@ def cmd_calculate(ensoapi, expression = None):
         new_lines = []
         total = 0
         for line in expression.split("\n"):
-            ident = "".join((c for c in line if c==" "))
+            leading_whitespace = "".join(s for s in itertools.takewhile(str.isspace, line))
             try:
                 result, expr = fourfn.evaluate(line.strip())
-                new_lines.append(ident + unicode(result))
+                new_lines.append(u"%s%s" % (leading_whitespace, unicode(result)))
                 total += long(result)
             except ZeroDivisionError, e:
                 logging.warning(e)
@@ -280,7 +280,11 @@ def cmd_calculate(ensoapi, expression = None):
 
 
 class CalculateCommand( CommandObject ):
-    u""" Unlearn \u201copen {name}\u201d command """
+    u""" 
+    \u201ccalculate {expression}\u201d command
+    
+    Calculate mathematical expression. 
+    """
 
     HELP_TEXT = "expression"
     PREFIX = "calculate "
