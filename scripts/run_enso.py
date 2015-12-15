@@ -74,6 +74,24 @@ class LoggingDebugFilter(logging.Filter):
         return res
 
 
+class LogLevelFilter( logging.Filter, object ):
+    """Filters (lets through) all messages with level <= LEVEL"""
+    # http://stackoverflow.com/a/24956305/408556
+    def __init__(self, name, passlevel, reject):
+        super(LogLevelFilter, self).__init__(name)
+        self.passlevel = passlevel
+        self.reject = reject
+
+    def filter(self, record):
+        passed = super(LogLevelFilter, self).filter(record)
+        if self.reject:
+            return passed and (record.levelno > self.passlevel)
+        else:
+            return passed and (record.levelno <= self.passlevel)
+
+
+
+
 def main(argv = None):
     global options
 
@@ -82,18 +100,34 @@ def main(argv = None):
 
     enso.config.CMDLINE_OPTIONS = options
 
-    logformat = "%(levelname)s\t%(asctime)s %(pathname)s[%(funcName)s:%(lineno)d]: %(message)s"
+
+    logformat = "%(levelname)-9s%(asctime)s %(pathname)s[%(funcName)s:%(lineno)d]: %(message)s"
     loglevel = {
         'CRITICAL' : logging.CRITICAL,
         'ERROR' : logging.ERROR,
-        'INFO' : logging.INFO,
         'WARNING' : logging.WARNING,
-        'DEBUG' : logging.DEBUG
+        'INFO' : logging.INFO,
+        'DEBUG' : logging.DEBUG,
         }.get(opts.loglevel, logging.NOTSET)
 
     if opts.show_console:
         print "Showing console"
-        logging.basicConfig(level=loglevel, format=logformat)
+        MIN_LEVEL = loglevel
+        STDOUT_MAX_LEVEL = logging.WARNING
+        stdout_hdlr = logging.StreamHandler(sys.stdout)
+        stdout_hdlr.addFilter(LogLevelFilter('', STDOUT_MAX_LEVEL, False))
+        stdout_hdlr.setFormatter(logging.Formatter(logformat))
+        stdout_hdlr.setLevel(MIN_LEVEL)
+        
+        stderr_hdlr = logging.StreamHandler(sys.stderr)
+        stderr_hdlr.addFilter(LogLevelFilter('', STDOUT_MAX_LEVEL, True))
+        stderr_hdlr.setFormatter(logging.Formatter(logformat))
+        stderr_hdlr.setLevel(max(MIN_LEVEL, logging.CRITICAL))
+        
+        rootLogger = logging.getLogger()
+        rootLogger.addHandler(stdout_hdlr)
+        rootLogger.addHandler(stderr_hdlr)
+        rootLogger.setLevel(MIN_LEVEL)
     else:
         print "Hiding console"
         print "Logging into '%s'" % os.path.join(ENSO_DIR, "enso.log")
@@ -108,6 +142,7 @@ def main(argv = None):
         pass
         assert logging.debug("default options set:" + repr(opts)) or True
         assert logging.debug("command-line args:" + repr(args)) or True
+
 
     if not opts.ignore_ensorc:
         ensorc_path = os.path.expanduser(os.path.join("~",".ensorc"))
