@@ -43,15 +43,8 @@
 
 import os
 import time
-import locale
 import logging
 from glob import glob
-
-import fcntlmodule
-from io import BlockingIOError
-
-import gzip
-from pandas import DataFrame, read_csv   
 
 from contextlib import closing
 
@@ -69,7 +62,6 @@ from enso.events import EventManager
 ENSOAPI = EnsoApi()
 ENSO_COMMANDS_DIR = EnsoApi().get_enso_commands_folder()
 
-CACHING_COMPRESSION = True
 MAX_CACHE_AGE = 60 * 60 * 12
 
 # The directory path for cached google results
@@ -84,15 +76,11 @@ if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR, 0o744)
         
 def maybe_clean_cache():
-    """Delete all .cache and .cache.gz files in the cache directory that are older than 12 hours."""
+    """Delete all .cache files in the cache directory that are older than 12 hours."""
     now = time.time()
     for fname in glob(path_join(CACHE_DIR, "*", "*.cache")):
         if now > getmtime(fname) + MAX_CACHE_AGE:
             os.remove(fname)
-    for fname in glob(path_join(CACHE_DIR, "*", "*.cache.gz")):
-        if now > getmtime(fname) + MAX_CACHE_AGE:
-            os.remove(fname)
-
 
 # Clean the CACHEDIR once in a while
 maybe_clean_cache()
@@ -111,55 +99,8 @@ def cached_file_name(search_params):
     #sha = hashlib.sha256()
     # Make a unique file name based on the values of the google search parameters.
     #sha.update(search_params.encode())
-    return '%s.%s' % (str(sdbm_l(search_params)), 'cache.gz' if CACHING_COMPRESSION else "cache")
+    return '%s.%s' % (str(sdbm_l(search_params)), "cache")
 
-
-def nonblocking_readlines(f):
-    """Generator which yields lines from F (a file object, used only for
-       its fileno()) without blocking.  If there is no data, you get an
-       endless stream of empty strings until there is data again (caller
-       is expected to sleep for a while).
-       Newlines are normalized to the Unix standard.
-    """
-
-    fd = f.fileno()
-    fl = fcntlmodule.fcntl(fd, fcntlmodule.F_GETFL)
-    fcntlmodule.fcntl(fd, fcntlmodule.F_SETFL, fl | os.O_NONBLOCK)
-    enc = locale.getpreferredencoding(False)
-
-    buf = bytearray()
-    while True:
-        try:
-            block = os.read(fd, 8192)
-        except BlockingIOError:
-            yield ""
-            continue
-
-        if not block:
-            if buf:
-                yield buf.decode(enc)
-                #buf.clear()
-            break
-
-        buf.extend(block)
-
-        while True:
-            r = buf.find(b'\r')
-            n = buf.find(b'\n')
-            if r == -1 and n == -1: 
-                break
-
-            if r == -1 or r > n:
-                yield buf[:(n+1)].decode(enc)
-                buf = buf[(n+1):]
-            elif n == -1 or n > r:
-                yield buf[:r].decode(enc) # + '\n'
-                if n == r+1:
-                    buf = buf[(r+2):]
-                else:
-                    buf = buf[(r+1):]
-                
-                 
 
 @memoized
 def ensure_cache_dir_exists(cache_id):
@@ -169,7 +110,17 @@ def ensure_cache_dir_exists(cache_id):
         makedirs(complete_cache_dir, 0o744)
     return complete_cache_dir
 
-           
+
+def write_list_to_cache_file(fname, lst):           
+    with open(fname, "wbt") as f:
+        f.write(u"\n".join(lst).encode("UTF-8"))
+
+
+def read_list_from_cache_file(fname):           
+    with open(fname, "rb", 1024*1024) as f:
+        txt = f.read(1024*1024).decode("UTF-8")
+        return txt.splitlines()
+
 
 # ----------------------------------------------------------------------------
 # The cache
@@ -200,14 +151,9 @@ class Cache( object ):
             if (time.time() - modtime) / 60 / 60 > 12:
                 #print "No cached object for '%s'" % (key)
                 return default
-            df = read_csv(
-                fname, 
-                sep="\t", 
-                header=None, 
-                encoding="utf-8", 
-                compression=("gzip" if CACHING_COMPRESSION else None)
-            )
-            result = df[0].tolist()
+
+            result = read_list_from_cache_file(fname)
+
             #print result
             self.__cache[key] = result
             #print "Getting file cached for '%s'" % (key)
@@ -235,20 +181,9 @@ class Cache( object ):
             # Already saved
             try:
                 if not path_exists(fname):
-                    df = DataFrame(value)
-                    
-                    if CACHING_COMPRESSION:
-                        gz = None
-                        try:
-                            gz = gzip.open(fname, "wt", compresslevel=9)
-                            df.to_csv(gz, sep="\t", header=False, encoding="utf-8", index=False)
-                        finally:
-                            if gz:
-                                gz.close()
-                    else:
-                        df.to_csv(fname, sep="\t", header=False, encoding="utf-8", index=False)
+                    write_list_to_cache_file(fname, value)
             except Exception as e:
-                print e
+                logging.error(e)
             else:            
                 del self.__cache[key]
 
