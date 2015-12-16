@@ -116,8 +116,8 @@ class CommandManager:
 
     def unregisterCommand( self, cmdName ):
         cmdFound = False
-        for cmdExpr in self.__cmdFactoryDict.keys():
-            if str(cmdExpr) == cmdName:
+        for cmdExpr in self.__cmdFactoryDict.iterkeys():
+            if cmdExpr.matches( cmdName ):
                 del self.__cmdFactoryDict[cmdExpr]
                 cmdFound = True
                 break
@@ -358,7 +358,7 @@ class CommandManager:
         cmdDict = self.__cmdObjReg.getDict()
 
         # Extend the dictionary to cover the command factories.
-        for expr in self.__cmdFactoryDict.keys():
+        for expr in self.__cmdFactoryDict.iterkeys():
             if expr == self.CMD_KEY:
                 # This is the command object registry; pass.
                 pass

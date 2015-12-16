@@ -40,12 +40,12 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import re
 import logging
 from enso import config
 from enso import graphics
 from enso.graphics import xmltextlayout
 from enso.utils.xml_tools import escape_xml
+from enso.utils.html_tools import strip_html_tags
 from enso.graphics.textlayout import MaxLinesExceededError
 
 
@@ -276,7 +276,7 @@ def layoutXmlLine( xml_data, styles, scale ):
     # Caching of largest working size for given scale and xml_data
     xml_hash = hash("|".join(
         ",".join(map(str,scale))
-        + re.sub("<.*?>", "", xml_data)
+        + strip_html_tags(xml_data)
         ))
     usedSize = _size_scale_map.get(xml_hash, None)
     if usedSize:

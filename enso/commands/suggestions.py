@@ -40,7 +40,11 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import re
+try:
+    import regex as re
+except ImportError:
+    import re
+
 import enso.utils.strings
 import enso.utils.xml_tools
 
@@ -348,6 +352,9 @@ class Suggestion:
 
         # BEGIN SOURCE-STRING LOOP
 
+        re_match = re.match
+        re_escape = re.escape
+        re_I = re.I
         # Each iteration of this loop should reduce the length of
         # unusedSource, and this loop ends when unusedSource is empty.
         while len(unusedSource) > 0:
@@ -366,7 +373,7 @@ class Suggestion:
                     index = unusedSuggestion.find( target )
                     # Search on word boundaries. This is different from \b in
                     # that it considers also the underscore character as a word boundary.
-                    m = re.match(r".*[^0-9a-zA-Z](%s)" % re.escape(target), unusedSuggestion, re.I)
+                    m = re_match(r".*[^0-9a-zA-Z](%s)" % re_escape(target), unusedSuggestion, re_I)
                     if m and m.groups() and m.start(1) > index:
                         # Prefer word boundary match
                         index = m.start(1)
@@ -379,10 +386,10 @@ class Suggestion:
                             # the next "inserted" portion of the
                             # suggestion becomes an "alteration"
                             # instead.
-                            xmlFormat = "<alt>%s</alt>"
+                            xml_format = "<alt>%s</alt>"
                         else:
-                            xmlFormat = "<ins>%s</ins>"
-                        xmlText += xmlFormat % escape_xml(
+                            xml_format = "<ins>%s</ins>"
+                        xmlText += xml_format % escape_xml(
                             unusedSuggestion[:index]
                             )
                         # NOTE: Do not add inserted characters to the
@@ -423,11 +430,11 @@ class Suggestion:
         # insertion (or alteration, if appropriate).
         if len( unusedSuggestion ) > 0:
             if len( unmatchedChars ) > 0:
-                format = "<alt>%s</alt>"
+                xml_format = "<alt>%s</alt>"
             else:
-                format = "<ins>%s</ins>"
+                xml_format = "<ins>%s</ins>"
             unusedXml = escape_xml( unusedSuggestion )
-            xmlText += format % unusedXml
+            xmlText += xml_format % unusedXml
 
             completion += unusedSuggestion.split(" ")[0]
             if " " in unusedSuggestion:

@@ -91,12 +91,12 @@ def _equivalizeChars( userText ):
         "'" : "'\"",
         }
 
-    searchText = re.escape( userText )
+    re_escape = re.escape
+
+    searchText = re_escape( userText )
     for char in EQUIVALENT_CHARS.keys():
-        expr = EQUIVALENT_CHARS[char]
-        expr = re.escape( expr )
-        expr = "[%s]" % expr
-        char = re.escape(char)
+        expr = "[%s]" % re_escape( EQUIVALENT_CHARS[char] )
+        char = re_escape(char)
         searchText = searchText.replace( char, expr )
 
     # {{{searchText}}} is a pattern that may contain spaces.  To
@@ -105,7 +105,7 @@ def _equivalizeChars( userText ):
     # searchText.  Therefore, we replace each space in searchText with
     # a "multispace" match RE, i.e., a regular expression that will
     # match one or more spaces.
-    space = re.escape( " " )
+    space = re_escape( " " )
     multiSpace = "[%s]+" % space
     searchText = searchText.replace( space, multiSpace )
 
@@ -351,11 +351,11 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         # re.I matches case-insensitively
         if "(" not in pattern or ")" not in pattern:
             pattern = r"(%s)" % pattern
-        re_pattern = re.compile(r"^%s.*$" % pattern, re.M | re.I)
+        re_pattern_finditer = re.compile(r"^%s.*$" % pattern, re.M | re.I).finditer
         #print [(m.groups(), m.start(0), m.start(1)) for m in re_pattern.finditer(self.__searchString)]
         matches = [
             (m.group(0), m.start(1)-m.start(0))
-            for m in re_pattern.finditer(self.__searchString)
+            for m in re_pattern_finditer(self.__searchString)
             if m and m.groups() and m.group(0)
             ]
         matches.sort()
