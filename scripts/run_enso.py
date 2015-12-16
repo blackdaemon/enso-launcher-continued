@@ -122,7 +122,7 @@ def main(argv = None):
         stderr_hdlr = logging.StreamHandler(sys.stderr)
         stderr_hdlr.addFilter(LogLevelFilter('', STDOUT_MAX_LEVEL, True))
         stderr_hdlr.setFormatter(logging.Formatter(logformat))
-        stderr_hdlr.setLevel(max(MIN_LEVEL, logging.CRITICAL))
+        stderr_hdlr.setLevel(MIN_LEVEL)
         
         rootLogger = logging.getLogger()
         rootLogger.addHandler(stdout_hdlr)
