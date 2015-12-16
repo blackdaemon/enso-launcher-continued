@@ -41,7 +41,11 @@
 # ----------------------------------------------------------------------------
 from __future__ import with_statement
 
-import re
+try:
+    import regex as re
+except ImportError:
+    import re
+    
 import urllib
 import locale
 import webbrowser
@@ -52,7 +56,6 @@ import urllib2
 
 from random import choice
 from contextlib import closing
-from htmlentitydefs import name2codepoint
 
 import enso.config
 from abc import ABCMeta
@@ -63,6 +66,8 @@ from enso.commands.mixins import CommandParameterWebSuggestionsMixin
 from enso import selection
 from enso.messages import displayMessage
 from enso.contrib.scriptotron.tracebacks import safetyNetted
+from enso.utils.html_tools import strip_html_tags, unescape_html_entities
+
 
 RANDOMIZE_USER_AGENT = True
 
@@ -115,12 +120,8 @@ def _get_local_domain():
         with closing(urllib2.urlopen("http://www.google.com/", timeout=4)) as resp:
             # Get redirect URL
             redirected_url = resp.geturl()
-        # Parse TLD
-        domain = re.findall(
-            r"\bgoogle\.([a-z]+(?:\.[a-z]+)?)$",
-            urllib2.urlparse.urlsplit(redirected_url).netloc)
-        if domain:
-            GOOGLE_DOMAIN = domain[0]
+        domain = urllib2.urlparse.urlsplit(redirected_url).netloc
+        GOOGLE_DOMAIN = domain[domain.index("google.")+7:]
     except:
         pass
     logging.info("Google local domain has been set to .%s", GOOGLE_DOMAIN)
@@ -130,17 +131,6 @@ t = threading.Thread(target=_get_local_domain)
 t.start()
 
 
-def unescape_html_tags(html):
-    # for some reason, python 2.5.2 doesn't have this one (apostrophe)
-    name2codepoint['#39'] = 39
-
-    "unescape HTML code refs; c.f. http://wiki.python.org/moin/EscapingHtml"
-    r = re.sub('&(%s);' % '|'.join(name2codepoint),
-              lambda m: unichr(name2codepoint[m.group(1)]), html)
-    r = re.sub('&#(\d+);', lambda m: unichr(int(m.group(1))), r)
-    return r
-
-    
 @warn_overriding
 class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, ArbitraryPostfixFactory ):
     """
@@ -262,7 +252,7 @@ class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, Arbitra
                     logging.error(u"Error parsing JSON data: %s; data: '%s'", e, decoded)
                 else:
                     if json and len(json) > 1 and json[1]:
-                        suggestions = [unescape_html_tags(re.sub(r"<.*?>", "", i[0])) for i in json[1]]
+                        suggestions = [unescape_html_entities(strip_html_tags(i[0])) for i in json[1]]
             else:
                 try:
                     json = jsonlib.loads(decoded)
