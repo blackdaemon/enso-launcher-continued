@@ -15,7 +15,7 @@ To build Enso, you need:
     ccy
     httplib2
     iniparse
-    json
+    ujson (or json)
     netifaces
     pygeoip
     pyparsing
@@ -23,6 +23,7 @@ To build Enso, you need:
     shutilwhich
     urllib3
     watchdog
+    backports.functools_lru_cache
     
   * Optionally also:
     psyco (improves performance significantly, but is avaliable only for Python <= 2.6)

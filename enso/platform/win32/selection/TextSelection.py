@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,7 +28,7 @@
 
 """
     Contains all the methods for dealing with text selections.
-    
+
     Usage: Contexts.TextSelection.get() returns a TextSelection object
     ( one of AbstractTextSelection's subclasses as appropriate to the
     front application ).  The client code can then use the various
@@ -42,11 +42,14 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import os
+import win32gui
 import win32clipboard
 import win32con
 import logging
 
 from abc import ABCMeta, abstractmethod
+from enso.commands.decorators import warn_overriding
 
 import ClipboardBackend
 import ClipboardArchive
@@ -72,7 +75,7 @@ CF_HTML = ContextUtils.CF_HTML
 CF_CLIPBOARD_VIEWER_IGNORE = ContextUtils.CF_CLIPBOARD_VIEWER_IGNORE
 CF_UNICODETEXT = win32con.CF_UNICODETEXT
 CF_TEXT = win32con.CF_TEXT
-                                   
+
 
 # List of the clipboard formats in which we are able to output text
 SUPPORTED_FORMATS = [ CF_HTML,
@@ -97,14 +100,15 @@ def _concatenate( currentTextDict, additionalTextDict ):
                    additionalTextDict.get( "text", u"" )
 
     newHtml = currentTextDict.get( "html", u"" ) + \
-              currentTextDict.get( "html", u"" )    
+              currentTextDict.get( "html", u"" )
 
     newDict = {}
-    
+
     if len( newPlainText ) > 0:
         newDict[ "text" ] = newPlainText
     if len( newHtml ) > 0:
         newDict[ "html" ] = newHtml
+    return newDict
 
 def _textDictToAscii( textDict ):
     text = textDict.get( "text", u"" )
@@ -129,12 +133,14 @@ class AbstractTextSelection( object ):
     As an abstract class, this should never be instantiated; it
     defines the interface that all TextSelection objects should
     follow.
-    
+
     This class can also contain protected methods which are utility
     functions shared between different subclasses.
     """
 
     __metaclass__ = ABCMeta
+    override = ("replaceSelection", "insertAtCursor", "simulateCopyKeystroke",
+        "simulateCutKeystroke", "simulatePasteKeystroke")
     
     @clipboardPreserving
     def getSelection( self ):
@@ -143,15 +149,16 @@ class AbstractTextSelection( object ):
         containing the text that is selected in the application.
         Attempts to do so without clobbering the clipboard.
         """
-        
+
         ContextUtils.clearClipboard()
 
         ClipboardBackend.prepareForClipboardToChange()
         self.simulateCopyKeystroke()
         ClipboardBackend.waitForClipboardToChange( STANDARD_WAIT_TIME )
 
-        result = self._getClipboardText()
+        result = self.getClipboardText()
         return result
+
 
     @abstractmethod
     def replaceSelection( self, textDict ):
@@ -162,7 +169,8 @@ class AbstractTextSelection( object ):
         no selection, inserts textObject at the insertion point.
         Returns True if this operation succeeded, False if it did not.
         """
-        return
+        return True
+
 
     @abstractmethod
     def insertAtCursor( self, textDict ):
@@ -172,11 +180,11 @@ class AbstractTextSelection( object ):
         no selection, inserts textDict at the insertion point.
         Returns True if this operation succeeded, False if it did not.
         """
-        return
+        return True
 
 
     @clipboardDependent
-    def _getClipboardText( self ):
+    def getClipboardText( self ):
         """
         Attempts to get text from clipboard, create a textDict
         wrapping it, and return the dictionary; takes care of opening and
@@ -187,7 +195,7 @@ class AbstractTextSelection( object ):
 
         # We attempt to get two pieces of information from the clipboard:
         # the formatted text and the plain text.
-        
+
         # Try to get plaintext from unicode text in clipboard; this
         # is likely to be a better version of the unformatted text than
         # what we could produce by stripping out format tags, and it's
@@ -227,7 +235,7 @@ class AbstractTextSelection( object ):
         if plainText != None:
             newTextDict[ "text" ] = plainText
         if formatText != None:
-            newTextDict[ "html" ] = formatText                
+            newTextDict[ "html" ] = formatText
 
         return newTextDict
 
@@ -240,7 +248,7 @@ class AbstractTextSelection( object ):
         action in the current context.
         """
         return
-        
+    
 
     @abstractmethod
     def simulateCutKeystroke( self ):
@@ -250,7 +258,7 @@ class AbstractTextSelection( object ):
         action in the current context.
         """
         return
-        
+
 
     @abstractmethod
     def simulatePasteKeystroke( self ):
@@ -260,7 +268,7 @@ class AbstractTextSelection( object ):
         action in the current context.
         """
         return
-        
+
 
     def _renderClipboardFormat( self, textDict, format ):
         """
@@ -290,7 +298,7 @@ class AbstractTextSelection( object ):
         # Postcondition:
         assert( type( result ) == str )
         return result
-          
+
 
     def _pasteText( self, textDict ):
         """
@@ -335,13 +343,12 @@ class DefaultTextSelection( AbstractTextSelection ):
     if the currently active application is not one that we have a
     special subclass for.
     """
-    
+
     def simulateCopyKeystroke( self ):
         """
         Simulate Ctrl-C, which is the copy command in most
         applications.
         """
-        
         ContextUtils.typeCommandKey( "c" )
 
     def simulateCutKeystroke( self ):
@@ -349,7 +356,6 @@ class DefaultTextSelection( AbstractTextSelection ):
         Simulate Ctrl-X, which is the cut command in most
         applications.
         """
-        
         ContextUtils.typeCommandKey( "x" )
 
     def simulatePasteKeystroke( self ):
@@ -357,7 +363,6 @@ class DefaultTextSelection( AbstractTextSelection ):
         Simulate Ctrl-V, which is the paste command in most
         applications.
         """
-        
         ContextUtils.typeCommandKey( "v" )
 
     @clipboardPreserving
@@ -370,7 +375,6 @@ class DefaultTextSelection( AbstractTextSelection ):
         NonReplacingTextSelection.
         Returns a boolean telling whether replacement succeeded.
         """
-
         return self._pasteText( textDict )
 
 
@@ -404,19 +408,19 @@ class DefaultTextSelection( AbstractTextSelection ):
         else:
             # There was an existing selection: Concatenate it with
             # the new text:
-            currentText = self._getClipboardText()
+            currentText = self.getClipboardText()
             newText = _concatenate( currentText, textDict )
             return self._pasteText( newText )
-        
-        
+
+
 class NonReplacingTextSelection( DefaultTextSelection ):
     """
     In some applications, notably MoonEdit and Emacs, a paste
-    does not replace selected tet: it inserts
+    does not replace selected text: it inserts
     at the cursor.  This is the selection context to use for
     those applications.
     """
-    
+
     @clipboardPreserving
     def replaceSelection( self, textDict ):
         """
@@ -438,7 +442,6 @@ class NonReplacingTextSelection( DefaultTextSelection ):
         operation.
         Returns a boolean telling whether insertion succeeded.
         """
-
         return self._pasteText( textDict )
 
 
@@ -469,7 +472,6 @@ class EmacsTextSelection( NonReplacingTextSelection ):
 
 
 
-
 class CommandPromptTextSelection( DefaultTextSelection ):
     """
     Returned if the currently active application is a Windows
@@ -477,20 +479,6 @@ class CommandPromptTextSelection( DefaultTextSelection ):
     interact with the text in a command prompt, so most of
     these functions are no-ops.
     """
-
-    def getSelection( self ):
-        """
-        Always blank.
-        """
-        return {}
-
-    def replaceSelection( self, textDict ):
-        """
-        Text in the command prompt window is immutable, so
-        the replacement behavior is impossible to achieve.
-        Return False to indicate failure.
-        """
-        return False
 
     def simulatePasteKeystroke( self ):
         # Alt-space pops up the window menu (the thing you get
@@ -500,8 +488,12 @@ class CommandPromptTextSelection( DefaultTextSelection ):
         ContextUtils.typeSequence( "e p" )
 
     def simulateCopyKeystroke( self ):
-        pass
-    
+        # Alt-space pops up the window menu (the thing you get
+        # by clicking in the upper-left corner).  Then typing
+        # e and then y selects edit->copy.
+        ContextUtils.typeAltKey( " " )
+        ContextUtils.typeSequence( "e y" )
+
     def simulateCutKeystroke( self ):
         pass
 
@@ -513,7 +505,87 @@ class CommandPromptTextSelection( DefaultTextSelection ):
         """
         return self._pasteText( textDict )
 
-    
+
+class VimTextSelection( DefaultTextSelection ):
+    """
+    Returned if the currently active application is a Windows Vim/gVim.
+    """
+
+    def simulatePasteKeystroke( self ):
+        # Shift-Insert should work by default in Windows version of Vim/gVim
+        ContextUtils.typeShiftKey(win32con.VK_INSERT)
+
+    def simulateCopyKeystroke( self ):
+        # Ctrl-Insert should work by default in Windows version of Vim/gVim
+        # But yanking the selection will also clear it. So the sequence is:
+        #   copy text to clipboard: Ctrl-Insert
+        #   get to normal mode 2x: Ctrl-[ Ctrl-[
+        #   return to last selection: gv
+        ContextUtils.typeSequence('CD INS [ [ CU g v')
+
+    def simulateCutKeystroke( self ):
+        # Ctrl-Del should work by default in Windows version of Vim/gVim
+        ContextUtils.typeCommandKey(win32con.VK_DELETE)
+
+
+class PuTTYTextSelection( NonReplacingTextSelection ):
+    """
+    Returned if the currently active application is PuTTY terminal client
+    """
+
+    def simulatePasteKeystroke( self ):
+        ContextUtils.typeShiftKey(win32con.VK_INSERT)
+
+    def simulateCopyKeystroke( self ):
+        # No copy operation needed, selected text in PuTTY is automatically
+        # sent into the clipboard right after a selection is made.
+        pass
+
+    def simulateCutKeystroke( self ):
+        # TODO: No cutting possible?
+        pass
+
+    def getSelection( self ):
+        """
+        Returns a textDict ( with, potentially, "text" and "html" keys )
+        directly from the clipboard as PuTTY sends selected text
+        into the clipboard automatically.
+        """
+        return self.getClipboardText()
+
+
+class LotusNotesTextSelection( DefaultTextSelection ):
+    """
+    Returned if the currently active application is Lotus Notes.
+    """
+
+    @clipboardPreserving
+    def replaceSelection( self, textDict ):
+        """
+        Replace the selected text with the given text by first
+        cutting and discarding the selected text, then pasting in
+        the new text.
+        Returns a boolean telling whether replacement succeeded.
+        """
+        text = textDict.get('text')
+        if text:
+            win32clipboard.OpenClipboard()
+            win32clipboard.EmptyClipboard()
+            win32clipboard.SetClipboardText(text)
+            win32clipboard.CloseClipboard()
+
+            # then type the paste command key, which will cause the app to
+            # draw the data out of getPendingData.
+            self.simulatePasteKeystroke()
+
+            ClipboardBackend.waitForPaste( STANDARD_WAIT_TIME )
+
+            ClipboardBackend.finalizePasting()
+            return True
+        else:
+            return DefaultTextSelection.replaceSelection(self, textDict)
+
+
 # ----------------------------------------------------------------------------
 # Public Function
 # ----------------------------------------------------------------------------
@@ -526,16 +598,30 @@ def get():
     If no text is selected, this must return a TextSelection object with
     no text in it -- NOT a None.
     """
+    hwnd = win32gui.GetForegroundWindow()
+    className = ContextUtils.getWindowClassName(hwnd)
 
-    className = ContextUtils.getForegroundClassNameUnicode()
+    tsContext = DefaultTextSelection()
 
     if className == u"Emacs":
         tsContext = EmacsTextSelection()
     elif className == u"MoonEdit":
         tsContext = NonReplacingTextSelection()
     elif className == u"ConsoleWindowClass":
-        tsContext = CommandPromptTextSelection()
-    else:
-        tsContext = DefaultTextSelection()
-
+        processName = ContextUtils.getWindowProcessName(hwnd)
+        if os.path.basename(processName).lower() == "vim.exe":
+            tsContext = VimTextSelection()
+        else:
+            tsContext = CommandPromptTextSelection()
+    elif className == u"Vim":
+        processName = ContextUtils.getWindowProcessName(hwnd)
+        if processName and os.path.basename(processName).lower() == "gvim.exe":
+            tsContext = VimTextSelection()
+    elif className == u"PuTTY":
+        tsContext = PuTTYTextSelection()
+    elif className == u"NOTES":
+        processName = ContextUtils.getWindowProcessName(hwnd)
+        if processName and os.path.basename(processName).lower() in ("notes.exe", "nlnotes.exe"):
+            tsContext = LotusNotesTextSelection()
+        
     return tsContext

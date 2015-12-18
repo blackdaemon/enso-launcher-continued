@@ -1,0 +1,1 @@
+from WindowsRegistry import *

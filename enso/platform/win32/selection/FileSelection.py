@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -34,7 +34,7 @@
     subclass of AbstractFileSelection, as appropriate to the front
     application ).
     At present, there are only two subclasses -- one for the Windows
-    Explorer, and one (no-op) subclass for all other applications. 
+    Explorer, and one (no-op) subclass for all other applications.
 
     LONGTERM TODO: Create a subclass which can read the selected file from
     Windows Open File dialog boxen and Save File dialog boxen.
@@ -44,6 +44,7 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import os
 import win32con
 import win32clipboard
 import pywintypes
@@ -76,7 +77,7 @@ class AbstractFileSelectionContext ( object ):
     The abstract base class that defines the interface to
     FileSelectionContext objects.
     """
-    
+
     __metaclass__ = ABCMeta
     
     @abstractmethod
@@ -95,13 +96,14 @@ class NullFileSelectionContext( AbstractFileSelectionContext ):
     selected.  This should be used when we know that the current
     application can't possibly have any notion of 'file selection'.
     """
-    
+
     def getSelectedFiles( self ):
         """
         Returns a list of the names of the files that are selected.
         Each element of the list is an absolute path.  If no files are
         selected, it returns None (not an empty list).
         """
+
         return None
 
 
@@ -138,7 +140,7 @@ class DefaultFileSelectionContext( AbstractFileSelectionContext ):
         Private method for fetching the clipboard format CF_HDROP,
         which represents file targets.
         """
-        
+
         formatAvailable = win32clipboard.IsClipboardFormatAvailable(
             win32con.CF_HDROP
             )
@@ -148,7 +150,7 @@ class DefaultFileSelectionContext( AbstractFileSelectionContext ):
                     win32con.CF_HDROP
                     )
             except pywintypes.error, e:
-                logging.warn( "Error getting CF_HDROP from clipboard: %s" \
+                logging.warn( "Error getting CF_HDROP from clipboard: %s"
                                  % ( str(e) ) )
                 value = None
         else:
@@ -157,7 +159,7 @@ class DefaultFileSelectionContext( AbstractFileSelectionContext ):
             # LONGTERM TODO: See whether there are other clipboard
             # formats that could give us the information we need
             # when CF_HDROP is not available.
-            
+
         return value
 
 # ----------------------------------------------------------------------------
@@ -169,14 +171,26 @@ def get():
     Create and return an instance of the FileSelectionContext
     subclass which is appropriate to the currently active application.
     """
-    
-    windowClass = ContextUtils.getForegroundClassNameUnicode()
 
-    if windowClass == u"ConsoleWindowClass":
+    hwnd = win32gui.GetForegroundWindow()
+    className = ContextUtils.getWindowClassName(hwnd)
+    processName = ContextUtils.getWindowProcessName(hwnd)
+
+    fsContext = DefaultFileSelectionContext()
+
+    if className == u"Emacs":
         fsContext = NullFileSelectionContext()
-    elif windowClass == u"Emacs":
+    elif className == u"ConsoleWindowClass":
+        fsContext = NullFileSelectionContext()
+    elif className == u"PuTTY":
+        fsContext = NullFileSelectionContext()
+    elif (className == u"Vim" 
+        and processName 
+        and os.path.basename(processName).lower() == "gvim.exe"):
+        fsContext = NullFileSelectionContext()
+    elif className == u"NOTES":
         fsContext = NullFileSelectionContext()
     else:
         fsContext = DefaultFileSelectionContext()
-
+        
     return fsContext

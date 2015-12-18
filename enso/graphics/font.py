@@ -145,7 +145,7 @@ class Font:
             
             font_detail = _graphics.FontRegistry.get().get_font_detail(font_id)
             if font_detail:
-                font_name = font_detail['filepath']
+                font_name = font_detail.filepath
                 if not _used_font_logged:
                     logging.info("Font used: " + repr(font_detail))
                     _used_font_logged = True

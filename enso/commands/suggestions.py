@@ -46,7 +46,6 @@ except ImportError:
     import re
 
 import enso.utils.strings
-import enso.utils.xml_tools
 
 # This is used in loop so better to import the function directly to avoid lookup penalty
 from enso.utils.xml_tools import escape_xml
@@ -352,9 +351,6 @@ class Suggestion:
 
         # BEGIN SOURCE-STRING LOOP
 
-        re_match = re.match
-        re_escape = re.escape
-        re_I = re.I
         # Each iteration of this loop should reduce the length of
         # unusedSource, and this loop ends when unusedSource is empty.
         while len(unusedSource) > 0:
@@ -373,7 +369,7 @@ class Suggestion:
                     index = unusedSuggestion.find( target )
                     # Search on word boundaries. This is different from \b in
                     # that it considers also the underscore character as a word boundary.
-                    m = re_match(r".*[^0-9a-zA-Z](%s)" % re_escape(target), unusedSuggestion, re_I)
+                    m = re.match(r".*[^0-9a-zA-Z](%s)" % re.escape(target), unusedSuggestion, re.I)
                     if m and m.groups() and m.start(1) > index:
                         # Prefer word boundary match
                         index = m.start(1)

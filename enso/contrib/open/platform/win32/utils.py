@@ -157,7 +157,7 @@ def splitcmdline(cmdline):
         argv = CommandLineToArgvW(cmdline, ctypes.byref(argc))
 
         if argc.value > 0:
-            for a in [argv[i].encode('utf-8') for i in xrange(argc.value)]:
+            for a in [argv[i].encode('utf-8') for i in range(argc.value)]:
                 parts.append(a)
         return parts[0], [part for part in parts[1:] if len(part) > 0]
         """

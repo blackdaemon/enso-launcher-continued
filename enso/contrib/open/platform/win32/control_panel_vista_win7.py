@@ -419,7 +419,7 @@ def extract_strings_from_dll(dll_filename, output_filename):
 
     with open(output_filename, "w+") as output_file:
         #for id in win32api.EnumResourceNames(h, win32con.RT_STRING):
-        for id in xrange(0, 9999999):
+        for id in range(0, 9999999):
             try:
                 s = win32api.LoadString(h, id)
                 if s == "%s":
@@ -510,7 +510,7 @@ if __name__ == "__main__":
         outputfile = "c:\\tmp\\resourcestrings_%s.txt" % os.path.basename(cplfile).lower()
         q.put((cplfile, outputfile))
 
-    for i in xrange(10):
+    for i in range(10):
         t = threading.Thread(target=process_dll,args=(q, (i % 2) + 1))
         t.setDaemon(True)
         t.start()

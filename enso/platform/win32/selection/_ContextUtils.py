@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -37,14 +37,17 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import time
+import logging
+import os
 import win32api
 import win32con
 import win32gui
 import win32clipboard
+import win32process
 import ctypes
 import pywintypes
-import time
-import logging
+from ctypes import windll, wintypes
 
 from enso.utils.decorators import finalizeWrapper
 
@@ -95,12 +98,62 @@ CF_RTF  = win32clipboard.RegisterClipboardFormat("Rich Text Format")
 #    key is being depressed."
 KEYEVENTF_KEYDOWN = 0
 KEYEVENTF_KEYUP = win32con.KEYEVENTF_KEYUP
+KEYEVENTF_EXTENDEDKEY = win32con.KEYEVENTF_EXTENDEDKEY
+
+VK_LBRACKET = 0xDB
+VK_RBRACKET = 0xDD
+
+KEY_MAPPING = { "F1" : win32con.VK_F1,
+                "F2" : win32con.VK_F2,
+                "F3" : win32con.VK_F3,
+                "F4" : win32con.VK_F4,
+                "F5" : win32con.VK_F5,
+                "F6" : win32con.VK_F6,
+                "F7" : win32con.VK_F7,
+                "F8" : win32con.VK_F8,
+                "F9" : win32con.VK_F9,
+                "F10": win32con.VK_F10,
+                "F11": win32con.VK_F11,
+                "F12": win32con.VK_F12,
+                "CD" : win32con.VK_LCONTROL,
+                "CU" : win32con.VK_LCONTROL,
+                "SD" : win32con.VK_LSHIFT,
+                "SU" : win32con.VK_LSHIFT,
+                "AD" : win32con.VK_MENU,
+                "AU" : win32con.VK_MENU,
+                "ID" : win32con.VK_LWIN,
+                "IU" : win32con.VK_LWIN,
+                "LA": win32con.VK_LEFT,
+                "RA": win32con.VK_RIGHT,
+                "ESC": win32con.VK_ESCAPE,
+                "INS": win32con.VK_INSERT,
+                "DEL": win32con.VK_DELETE,
+                "[": VK_LBRACKET,
+                "]": VK_RBRACKET,
+                "LBRACKET": VK_LBRACKET,
+                "RBRACKET": VK_RBRACKET
+              }
+
+# List of keys that need to have the win32con.KEYEVENTF_EXTENDEDKEY flag set
+KEYS_EXTENDED = [
+    win32con.VK_UP,
+    win32con.VK_DOWN,
+    win32con.VK_LEFT,
+    win32con.VK_RIGHT,
+    win32con.VK_HOME,
+    win32con.VK_END,
+    win32con.VK_PRIOR, # PgUp
+    win32con.VK_NEXT,  # PgDn
+    win32con.VK_INSERT,
+    win32con.VK_DELETE
+]
 
 # ----------------------------------------------------------------------------
 # Private Module Variables
 # ----------------------------------------------------------------------------
 
 _contextUtilsHasTheClipboardOpen = False
+
 
 # ----------------------------------------------------------------------------
 # Private Functions
@@ -125,9 +178,13 @@ def _keyboardEvent( vkCode, eventType ):
     # win32all does not provide access to MapVirtualKey, so we have to use
     # ctypes to access the DLL directly, and have to append "A" to the name
     # since the function is implemented in Unicode and ANSI versions.
-    
+
     # This gives a hardware scancode for the virtual key.
     scanCode = ctypes.windll.user32.MapVirtualKeyA( vkCode, 0 )
+
+    # Some keys needs the 'extended-key' attribute
+    if vkCode in KEYS_EXTENDED:
+        eventType |= KEYEVENTF_EXTENDEDKEY
 
     # This creates the keyboard event (this function is the one called
     # by keyboard driver interupt handlers, so it's as low-level as it gets)
@@ -157,7 +214,7 @@ def safeOpenClipboard():
         try:
             win32clipboard.OpenClipboard( 0 )
             success = True
-        except pywintypes.error:
+        except pywintypes.error: #IGNORE:E1101
             if totalTime < CLIPBOARD_OPEN_WAIT_AMOUNT:
                 sleepForMs( CLIPBOARD_OPEN_WAIT_INTERVAL )
                 totalTime += CLIPBOARD_OPEN_WAIT_INTERVAL
@@ -186,10 +243,10 @@ def safeCloseClipboard():
 
     # Postconditions:
     assert( _hasTheClipboardOpen() )
-    
+
     try:
         win32clipboard.CloseClipboard()
-    except pywintypes.error:
+    except pywintypes.error: #IGNORE:E1101
         logging.warn( "Attempted to close clipboard when not open." )
     global _contextUtilsHasTheClipboardOpen
     _contextUtilsHasTheClipboardOpen = False
@@ -205,7 +262,7 @@ def clipboardDependent( function ):
     function, then closes it when the wrapped function is done,
     whether or not the wrapped function throws an exception.
     """
-    
+
     def wrapperFunc( *args, **kwargs ):
         # If safeOpenClipboard() raises an exception, this function will do
         # nothing but allow it to be raised. (We shouldn't attempt to close
@@ -231,7 +288,7 @@ def clearClipboard():
     the CF_CLIPBOARD_VIEWER_IGNORE format so that clipboard viewers
     will ignore this alteration of the clipboard.
     """
-    
+
     win32clipboard.EmptyClipboard()
     setClipboardDataViewerIgnore()
 
@@ -264,7 +321,7 @@ def interpretFormatCode( format ):
     """
     LONGTERM TODO: This is kept around for debugging but can be deleted from
     production code.
-    
+
     Given a format code (of the kind returned from the windows clipboard
     functions), returns a string describing the meaning of that
     format code.
@@ -326,36 +383,117 @@ def interpretFormatCode( format ):
         return "Unknown data format."
 
 
-def typeCommandKey( key ):
+def typeCommandKey( key, wait=0 ):
     """
     Given a character literal, simulates holding the Control key down
     and typing that character. Useful for simulating menu shortcut keys.
+    Optionally wait between keypresses number of milliseconds.
     """
 
-    _keyboardEvent( win32con.VK_CONTROL, KEYEVENTF_KEYDOWN )
-    _keyboardEvent( ord(key.upper()), KEYEVENTF_KEYDOWN )
-    _keyboardEvent( ord(key.upper()), KEYEVENTF_KEYUP )
-    _keyboardEvent( win32con.VK_CONTROL, KEYEVENTF_KEYUP )
+    _keyboardEvent( win32con.VK_LCONTROL, KEYEVENTF_KEYDOWN )
+
+    if wait:
+        sleepForMs(wait)
+
+    if isinstance(key, basestring):
+        if key in KEY_MAPPING:
+            key_code = KEY_MAPPING[key]
+        else:
+            key_code = ord(key.upper())
+    else:
+        key_code = key
+
+    _keyboardEvent( key_code, KEYEVENTF_KEYDOWN )
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( key_code, KEYEVENTF_KEYUP )
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( win32con.VK_LCONTROL, KEYEVENTF_KEYUP )
     logging.info( "I am in typeCommandKey and I just typed " + key )
 
 
-def typeAltKey( key ):
+def typeAltKey( key, wait=0 ):
     """
     Given a character literal, simulates holding the Alt key down
     and typing that character.
+    Optionally wait between keypresses number of milliseconds.
     """
-    
+
     _keyboardEvent( win32con.VK_MENU, KEYEVENTF_KEYDOWN )
-    _keyboardEvent( ord(key.upper()), KEYEVENTF_KEYDOWN )
-    _keyboardEvent( ord(key.upper()), KEYEVENTF_KEYUP )
+
+    if wait:
+        sleepForMs(wait)
+
+    if isinstance(key, basestring):
+        if key in KEY_MAPPING:
+            key_code = KEY_MAPPING[key]
+        else:
+            key_code = ord(key.upper())
+    else:
+        key_code = key
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( key_code, KEYEVENTF_KEYDOWN )
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( key_code, KEYEVENTF_KEYUP )
+
+    if wait:
+        sleepForMs(wait)
+
     _keyboardEvent( win32con.VK_MENU, KEYEVENTF_KEYUP )
+
+
+def typeShiftKey( key, wait=0 ):
+    """
+    Given a character literal, simulates holding the Shift key down
+    and typing that character.
+    Optionally wait between keypresses number of milliseconds.
+    """
+
+    _keyboardEvent( win32con.VK_LSHIFT, KEYEVENTF_KEYDOWN )
+
+    if wait:
+        sleepForMs(wait)
+
+    if isinstance(key, basestring):
+        if key in KEY_MAPPING:
+            key_code = KEY_MAPPING[key]
+        else:
+            key_code = ord(key.upper())
+    else:
+        key_code = key
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( key_code, KEYEVENTF_KEYDOWN )
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( key_code, KEYEVENTF_KEYUP )
+
+    if wait:
+        sleepForMs(wait)
+
+    _keyboardEvent( win32con.VK_LSHIFT, KEYEVENTF_KEYUP )
 
 
 def tapKey( keyCode ):
     """
     Given a virtual key code, simulates tapping that key.
     """
-    
+
     _keyboardEvent( keyCode, KEYEVENTF_KEYDOWN )
     _keyboardEvent( keyCode, KEYEVENTF_KEYUP )
 
@@ -376,6 +514,8 @@ def typeSequence( keys ):
     up, respectively.  "ID" and "IU" correspond to windows down and
     windows up, respectively.  "CD" and "CU" correspond to control down
     and control up, respectively.
+    "W###" means wait specified number of milliseconds between keypresses,
+    i.e. "W100" means to wait 100ms.
 
     LONGTERM TODO add a doctest here
     """
@@ -384,72 +524,71 @@ def typeSequence( keys ):
     # keydown, keyup, keypress, and pauses.
 
     keys = keys.split( " " )
-    mapping = { "F1" : win32con.VK_F1, 
-                "F2" : win32con.VK_F2, 
-                "F3" : win32con.VK_F3, 
-                "F4" : win32con.VK_F4, 
-                "F5" : win32con.VK_F5, 
-                "F6" : win32con.VK_F6, 
-                "F7" : win32con.VK_F7, 
-                "F8" : win32con.VK_F8, 
-                "F9" : win32con.VK_F9, 
-                "F10": win32con.VK_F10, 
-                "F11": win32con.VK_F11, 
-                "F12": win32con.VK_F12,
-                "CD" : win32con.VK_LCONTROL,
-                "CU" : win32con.VK_LCONTROL,
-                "SD" : win32con.VK_LSHIFT, 
-                "SU" : win32con.VK_LSHIFT,
-                "AD" : win32con.VK_MENU,
-                "AU" : win32con.VK_MENU,
-                "ID" : win32con.VK_LWIN,
-                "IU" : win32con.VK_LWIN,
-                "LA": win32con.VK_LEFT,
-                "RA": win32con.VK_RIGHT,
-                "ESC": win32con.VK_ESCAPE,
-                "INS": win32con.VK_INSERT,
-                "DEL": win32con.VK_DELETE
-              }
 
     for key in keys:
         key = key.upper()
-        
-        # Any one-character code means tap and release that literal key.
-        if len(key) == 1:
-            key_code = ord( key )
-            _keyboardEvent( key_code, KEYEVENTF_KEYDOWN )
-            _keyboardEvent( key_code, KEYEVENTF_KEYUP )
-            continue
-        
-        # "W##"  means wait
-        if key[0] == "W":
-            time.sleep( float(key[1:]) )
+
+        # "W###" means wait given number of milliseconds
+        if len(key) > 1 and key[0] == "W" and key[1:].isdigit():
+            sleepForMs( int(key[1:]) )
             continue
 
         # These keys require particular calls to the underlying
         # keybd_event function, and therefore don't use our keyboard
         # event wrapper.
         if key in ["SD", "AD", "ID", "CD"]:
-            win32api.keybd_event( mapping[key], 0, KEYEVENTF_KEYDOWN, 0 )
+            win32api.keybd_event( KEY_MAPPING[key], 0, KEYEVENTF_KEYDOWN, 0 )
             continue
         if key in ["SU", "AU", "IU", "CU"]:
-            win32api.keybd_event( mapping[key], 0, KEYEVENTF_KEYUP, 0 )
+            win32api.keybd_event( KEY_MAPPING[key], 0, KEYEVENTF_KEYUP, 0 )
             continue
 
-        # Any other multi-character code means look up the code
-        # in the table above, and tap the key.
-        key_code = mapping[key]
+        # Any one-character code means tap and release that literal key.
+        if key in KEY_MAPPING:
+            key_code = KEY_MAPPING[key]
+        else:
+            key_code = ord(key.upper())
         _keyboardEvent( key_code, KEYEVENTF_KEYDOWN )
         _keyboardEvent( key_code, KEYEVENTF_KEYUP )
 
 
-def getForegroundClassNameUnicode():
+def typeText( text ):
     """
-    Returns a unicode string containing the class name of the frontmost
-    application window.
+    Enables scripting of keystrokes. Useful for any case that a series
+    of keystrokes is required to accomplish the given task.
+
+    The argument is a space-separated string of keys, which can include
+    literal alphanumeric keys as well as codes for special keys and
+    codes for pauses.  Codes for pauses are the character W followed
+    by a numeric literal describing the number of seconds to wait
+    (which can be fractional).  Codes for special keys include "F1"
+    through "F12" for the function keys, "SD" for shift down, "SU"
+    for shift up, "LA" and "RA" for left and right arrow keys, and
+    "ESC" for escape.  "AD" and "AU" correspond to alt down and alt
+    up, respectively.  "ID" and "IU" correspond to windows down and
+    windows up, respectively.  "CD" and "CU" correspond to control down
+    and control up, respectively.
+    "W###" means wait specified number of milliseconds between keypresses,
+    i.e. "W100" means to wait 100ms.
+
+    LONGTERM TODO add a doctest here
     """
 
-    hwnd = win32gui.GetForegroundWindow()
+    for char in text:
+        key_code = ord(char)
+        _keyboardEvent( key_code, KEYEVENTF_KEYDOWN )
+        _keyboardEvent( key_code, KEYEVENTF_KEYUP )
+
+
+def getForegroundClassNameUnicode(hwnd=None):
+    """
+    Returns a unicode string containing the class name of the specified
+    application window.
+    If hwnd parameter is None, frontmost window will be queried.
+    """
+
+    if hwnd is None:
+        hwnd = win32gui.GetForegroundWindow()
 
     # Maximum number of chars we'll accept for the class name; the
     # rest will be truncated if it's longer than this.
@@ -466,6 +605,118 @@ def getForegroundClassNameUnicode():
     return classNameBuf.value
 
 
+def getWindowClassName(hwnd=None):
+    """
+    Returns a unicode string containing the class name of the specified
+    application window.
+    If hwnd parameter is None, frontmost window will be queried.
+    """
+    return getForegroundClassNameUnicode(hwnd)
+
+
+def getWindowProcessName(hwnd=None):
+    """
+    Returns a unicode string containing the process name of the specified
+    application window (executable path).
+    If hwnd parameter is None, frontmost window will be queried.
+    """
+    if hwnd is None:
+        hwnd = win32gui.GetForegroundWindow()
+
+    # Get PID so we can get process handle
+    _, process_id = win32process.GetWindowThreadProcessId(hwnd)
+
+    # Get process handle
+    process_handle = win32api.OpenProcess(
+        win32con.PROCESS_QUERY_INFORMATION | win32con.PROCESS_VM_READ,
+        False,
+        process_id)
+    if not process_handle:
+        return None
+
+    MAX_PATH = 260
+    MAX_BUFFER = 32767
+    
+    # Following is preffered way of getting process filename on Windows Vista/7
+    try:
+        kernel32_dll = windll.LoadLibrary("kernel32")
+
+        _QueryFullProcessImageName = kernel32_dll.QueryFullProcessImageNameW
+        PDWORD = wintypes.POINTER(wintypes.DWORD)
+        _QueryFullProcessImageName.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPVOID, PDWORD]
+        _QueryFullProcessImageName.restype = wintypes.BOOL
+    except Exception, e:
+        _QueryFullProcessImageName = None
+
+    # http://msdn.microsoft.com/en-us/library/aa365247.aspx#maxpath
+    if _QueryFullProcessImageName:
+        pexe = None
+        try:
+            # Initial buffer size should be enough for most situations
+            buffer_size = MAX_PATH
+            while buffer_size <= MAX_BUFFER:
+                bufflen = wintypes.DWORD(buffer_size)
+                ubuffer = ctypes.create_unicode_buffer("", bufflen.value)
+                success = _QueryFullProcessImageName(
+                    long(process_handle), 0, ctypes.byref(ubuffer), ctypes.byref(bufflen))
+                if success:
+                    # Buffer was big enough
+                    if bufflen.value < buffer_size:
+                        pexe = ubuffer.value
+                        break
+                    # Buffer was exact size or not big enough, try again with bigger size
+                    else:
+                        buffer_size += 1024
+                else:
+                    raise Exception(win32api.FormatMessage(win32api.GetLastError()))
+        except Exception, e:
+            logging.error("Error getting process filename using QueryFullProcessImageName(): %s", e)
+
+        return pexe
+    
+    
+    # Following is preffered way of getting process filename on Windows XP and above
+    try:
+        psapi_dll = windll.LoadLibrary("psapi")
+
+        _GetProcessImageFileName = psapi_dll.GetProcessImageFileNameW
+        _GetProcessImageFileName.argtypes = [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]
+        _GetProcessImageFileName.restype = wintypes.DWORD
+    except Exception, e:
+        _GetProcessImageFileName = None
+
+    if _GetProcessImageFileName:
+        pexe = None
+        try:
+            # Initial buffer size should be enough for most situations
+            buffer_size = MAX_PATH
+            while buffer_size <= MAX_BUFFER:
+                ubuffer = ctypes.create_unicode_buffer("", buffer_size)
+                length_copied = _GetProcessImageFileName(
+                    long(process_handle), ctypes.byref(ubuffer), buffer_size)
+                if length_copied > 0:
+                    # Buffer was big enough
+                    if length_copied < buffer_size:
+                        pexe = ubuffer.value
+                        break
+                    # Buffer was exact size or not big enough, try again with bigger size
+                    else:
+                        buffer_size += 1024
+                else:
+                    raise Exception(win32api.FormatMessage(win32api.GetLastError()))
+        except Exception, e:
+            logging.error("Error getting process filename using GetProcessImageFileName(): %s", e)
+    
+        return pexe
+    
+    try:
+        pexe = win32process.GetModuleFileNameEx(process_handle, 0)
+    except Exception, e:
+        logging.error("Error getting process filename using GetModuleFileNameEx(): %s", e)
+
+    return pexe
+
+
 # ----------------------------------------------------------------------------
 # Exception
 # ----------------------------------------------------------------------------
@@ -475,5 +726,5 @@ class ClipboardUnopenableError( Exception ):
     Exception raised if the clipboard was unable to be opened after
     multiple attempts.
     """
-    
+
     pass
