@@ -51,7 +51,6 @@ import locale
 import webbrowser
 import logging
 import threading
-import json as jsonlib
 import urllib2
 
 from random import choice
@@ -67,8 +66,15 @@ from enso import selection
 from enso.messages import displayMessage
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.utils.html_tools import strip_html_tags, unescape_html_entities
+from enso.utils.decorators import suppress
 
-
+try:
+    import ujson as jsonlib
+except ImportError as e:
+    logging.warning("Consider installing 'ujson' library for JSON parsing performance boost.")
+    import json as jsonlib
+    
+    
 RANDOMIZE_USER_AGENT = True
 
 HTTP_HEADERS = {
@@ -235,12 +241,20 @@ class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, Arbitra
         except Exception, e:
             logging.warning(e)
 
+
     def decodeSuggestions( self, data, headers=None ):
         suggestions = []
+        charset = "utf-8"
+        if headers:
+            with suppress(Exception):
+                content_type = headers.get("Content-Type", headers.get("content-type", "")).lower()
+                if content_type and "charset=" in content_type:
+                    charset = content_type.split("charset=")[-1]
         try:
             # By default Google sends data in ISO-8859-1 encoding.
             # To force another encoding, use URL parameter oe=<encoding>
-            decoded = unicode(data) #data.decode("ISO-8859-1")
+            #decoded = unicode(data) #data.decode("ISO-8859-1")
+            decoded = data.decode(charset)
         except Exception, e:
             logging.error("Google-suggest query unicode decoding failed: %s", e)
         else:
@@ -294,18 +308,19 @@ class GoogleSearchCommandFactory( AbstractGoogleCommandFactory ):
         if text is None or len(text.strip()) == 0:
             return None
 
-        input_encoding = "utf-8"
-        query = urllib.quote_plus(text.encode(input_encoding))
+        charset = "utf-8"
+        query = urllib.quote_plus(text.encode(charset))
 
         # This URL seems to returns only english matches
         #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
         
         # This URL returns also national matches
         url = "http://clients1.google.%(tld)s/complete/search?" \
-            "hl=en&gl=en&client=firefox&ie=%(ie)s&q=%(query)s" \
+            "hl=en&gl=en&client=firefox&ie=%(ie)s&oe=%(oe)s&q=%(query)s" \
             % {
                 "tld":GOOGLE_DOMAIN,
-                "ie":input_encoding,
+                "ie":charset,
+                "oe":charset,
                 "query":query
             }
         if RANDOMIZE_USER_AGENT:
@@ -330,18 +345,19 @@ class GoogleImagesCommandFactory( AbstractGoogleCommandFactory ):
         if text is None or len(text.strip()) == 0:
             return None
 
-        input_encoding = "utf-8"
-        query = urllib.quote_plus(text.encode(input_encoding))
+        charset = "utf-8"
+        query = urllib.quote_plus(text.encode(charset))
 
         # This URL seems to returns only english matches
         #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
         
         # This URL returns also national matches
         url = "http://clients1.google.%(tld)s/complete/search?" \
-            "hl=en&gl=en&client=img&ie=%(ie)s&pq=%(query)s&q=%(query)s" \
+            "hl=en&gl=en&client=img&ie=%(ie)s&oe=%(oe)s&pq=%(query)s&q=%(query)s" \
             % {
                 "tld":GOOGLE_DOMAIN,
-                "ie":input_encoding,
+                "ie":charset,
+                "oe":charset,
                 "query":query
             }
         if RANDOMIZE_USER_AGENT:
@@ -368,18 +384,19 @@ class YoutubeCommandFactory( AbstractGoogleCommandFactory ):
         if text is None or len(text.strip()) == 0:
             return None
 
-        input_encoding = "utf-8"
-        query = urllib.quote_plus(text.encode(input_encoding))
+        charset = "utf-8"
+        query = urllib.quote_plus(text.encode(charset))
 
         # This URL seems to returns only english matches
         #url = 'http://suggestqueries.google.com/complete/search?output=firefox&client=firefox&%s' % (query)
         
         # This URL returns also national matches
         url = "http://clients1.google.%(tld)s/complete/search?" \
-            "hl=en&ds=yt&client=firefox&hjson=t&ie=%(ie)s&q=%(query)s" \
+            "hl=en&ds=yt&client=firefox&hjson=t&ie=%(ie)s&oe=%(oe)s&q=%(query)s" \
             % {
                 "tld":GOOGLE_DOMAIN,
-                "ie":input_encoding,
+                "ie":charset,
+                "oe":charset,
                 "query":query
             }
         if RANDOMIZE_USER_AGENT:
