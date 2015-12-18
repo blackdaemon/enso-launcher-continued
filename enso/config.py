@@ -124,6 +124,17 @@ PLUGINS = [
            "enso.contrib.scriptotron",
            ]
 
+FONT_NAME = {"normal" : "Gentium", "italic" : "Gentium Italic"}
+
+COLOR_SCHEMES = {
+    'default' : ("#ffffff", "#9fbe57", "#7f9845", "#000000"),
+    'green' : ("#ffffff", "#9fbe57", "#7f9845", "#000000"),
+    'orange' : ("#ffffff", "#be9f57", "#987f45", "#000000"),
+    'magenta' : ("#ffffff", "#be579f", "#98457f", "#000000"),
+    'cyan' : ("#ffffff", "#99cccc", "#99aaaa", "#000000"),
+    'red' : ("#ffffff", "#cc0033", "#ff0066", "#000000")
+}
+
 # Detect default system locale and use it for google search.
 # If set to False, no locale is forced.
 PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
