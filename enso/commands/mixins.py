@@ -54,10 +54,10 @@ import logging
 import urllib3
 import warnings
 
-from contextlib import closing
 from abc import ABCMeta, abstractmethod
 
 from enso.commands.factories import ArbitraryPostfixFactory
+from enso.utils.decorators import suppress
 
 from enso import config
 from Queue import Queue, Empty
@@ -94,6 +94,7 @@ if CACHING_ENABLED:
         from enso.commands.suggestions_cache.manager import CacheManager
         cache_manager = CacheManager.get()
     except ImportError as e:
+        logging.error("Error importing cache manager, the web suggestions caching will not be available: %s" % str(e))
         cache_manager = None
         CACHING_ENABLED = False
 
@@ -173,12 +174,11 @@ class PersistentHTTPConnection( object ):
         """
         #print self._connection_pool
         if self._connection_pool is not None:
-            try:
+            with suppress(Exception):
                 #print "Closing current HTTP1.1 persistent connection"
                 self._connection_pool.close()
-            finally:
-                #print "Invalidating connection pool"
-                self._connection_pool = None
+            #print "Invalidating connection pool"
+            self._connection_pool = None
         self.__eventManager.removeResponder(self._onEndQuasimode)
                  
                
@@ -349,11 +349,8 @@ class CommandParameterWebSuggestionsMixin( object ):
                             time_to_wait = self.polling_interval - elapsed_ms
                             #print "TO WAIT: ", time_to_wait
                             if time_to_wait > 0:
-                                try:
+                                with suppress(Empty):
                                     text = self._update_queue.get(block=True, timeout=time_to_wait/1000)
-                                except Empty:
-                                    pass
-                                else:
                                     self._update_queue.task_done()
                             tdiff = datetime.datetime.now() - started
                             elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0

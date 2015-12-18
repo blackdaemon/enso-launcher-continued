@@ -46,32 +46,26 @@ import time
 import logging
 from glob import glob
 
-from contextlib import closing
-
 from os import makedirs 
 from os.path import join as path_join
 from os.path import exists as path_exists
 from os.path import isfile, getmtime
 
-
 from enso import config
-from enso.utils.memoize import memoized
-from enso.contrib.scriptotron import EnsoApi
+from enso.utils.memoize import memodict
 from enso.events import EventManager
+import enso.providers
 
-ENSOAPI = EnsoApi()
-ENSO_COMMANDS_DIR = EnsoApi().get_enso_commands_folder()
 
+DISK_CACHING = True
 MAX_CACHE_AGE = 60 * 60 * 12
 
 # The directory path for cached google results
-CACHE_DIR = os.path.expanduser(path_join("~", ".cache", "enso", "suggestions"))
+CACHE_DIR = path_join(enso.providers.getInterface("system").get_enso_cache_dir(), "suggestions")
 
 CACHE_SESSIONS = {}
 
 
-
-        
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR, 0o744)
         
@@ -102,7 +96,7 @@ def cached_file_name(search_params):
     return '%s.%s' % (str(sdbm_l(search_params)), "cache")
 
 
-@memoized
+@memodict
 def ensure_cache_dir_exists(cache_id):
     assert isinstance(cache_id, basestring) and cache_id.isalnum()
     complete_cache_dir = path_join(CACHE_DIR, cache_id)
@@ -136,6 +130,9 @@ class Cache( object ):
             #print "Getting memory cached object for '%s'" % (key)
             return self.__cache[key]
             
+        if not DISK_CACHING:
+            return default
+        
         #return self._caches.get(key, [])
         cache_dir = ensure_cache_dir_exists(self.cache_id)      
         
@@ -173,6 +170,10 @@ class Cache( object ):
     def persist(self):
         if len(self.__cache) == 0:
             return
+    
+        if not DISK_CACHING:
+            return
+        
         # Flush memory cache to disk and purge memory cache
         cache_dir = ensure_cache_dir_exists(self.cache_id)
         #print "Persisting cache '%s' into %s (%d items)" % (self.cache_id, cache_dir, len(self.__cache))
@@ -220,7 +221,7 @@ class CacheManager( object ):
 
 
     def set_data(self, key, data, cache_id, session_id=None):
-        assert isinstance(key, basestring) and key.isalnum()
+        assert isinstance(key, basestring)
         assert isinstance(cache_id, basestring) and cache_id.isalnum()
         assert session_id is None or isinstance(session_id, basestring)
         assert isinstance(data, list)
@@ -229,7 +230,7 @@ class CacheManager( object ):
         
         
     def get_data(self, key, cache_id, session_id=None):
-        assert isinstance(key, basestring) and key.isalnum()
+        assert isinstance(key, basestring)
         assert isinstance(cache_id, basestring) and cache_id.isalnum()
         assert session_id is None or isinstance(session_id, basestring)
         
