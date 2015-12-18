@@ -42,6 +42,8 @@
 
 import logging
 
+from collections import namedtuple
+
 from enso import graphics
 from enso.graphics import xmltextlayout
 from enso.graphics.measurement import inchesToPoints
@@ -335,12 +337,13 @@ class PrimaryMsgWind( MessageWindow ):
         Lays out msgText and capText into two seperate document
         objects.
 
-        Returns a tuple: ( msgDoc, capDoc )
+        Returns named tuple LayoutText( msgDoc, capDoc )
         NOTE: capDoc can be None, if capText is None.
         """
 
         root = "<document>%s</document>"
-
+        LayoutText = namedtuple('LayoutText', 'msgDoc capDoc')
+        
         for msgSize, capSize in reversed( SCALE[1:] ):
             try:
                 msgDoc = layoutMessageXml(
@@ -358,7 +361,7 @@ class PrimaryMsgWind( MessageWindow ):
                         )
                 else:
                     capDoc = None
-                return msgDoc, capDoc
+                return LayoutText(msgDoc, capDoc)
             except Exception:
                 # TODO: Lookup exact error.
                 pass
@@ -382,7 +385,7 @@ class PrimaryMsgWind( MessageWindow ):
                 )
         else:
             capDoc = None
-        return msgDoc, capDoc
+        return LayoutText(msgDoc, capDoc)
 
 
     def __setSize( self, width, height, refresh=True ): 
@@ -592,10 +595,13 @@ def splitContent( messageXml ):
     of the string will become the window title.
     """
 
+    SplitContent = namedtuple('SplitContent', 'main caption')
+    
     capLocation = messageXml.find( "<caption>" )
+    
     if capLocation == -1:
-        return ( messageXml, None )
+        return SplitContent( messageXml, None )
     else:
-        return ( messageXml[:capLocation], messageXml[capLocation:] )
+        return SplitContent( messageXml[:capLocation], messageXml[capLocation:] )
 
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

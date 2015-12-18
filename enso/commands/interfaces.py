@@ -92,6 +92,7 @@
 """
 
 from abc import ABCMeta, abstractmethod
+from collections import namedtuple
 
 # ----------------------------------------------------------------------------
 # Command Objects
@@ -169,7 +170,6 @@ class CommandObject( _CommandImpl ):
     def setName( self, name ):
         self.__name = name
 
-    @abstractmethod
     def run( self ):
         """
         Abstract Method: Should execute the command.
@@ -317,8 +317,8 @@ class CommandExpression:
         else:
             arg = ""
             prefix = expr
-
-        return string, prefix, arg
+        
+        return namedtuple('ComputedExpression', 'string prefix arg')(string, prefix, arg)
 
 
     def matches( self, userText ):

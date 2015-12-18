@@ -49,12 +49,14 @@ import logging
 import xml.sax
 import xml.sax.handler
 from xml.sax.expatreader import SAXParseException
+from collections import namedtuple
 
 from enso.utils.memoize import memoized
 from enso.graphics import measurement
 from enso.graphics import textlayout
 from enso.graphics import font
 
+RGBA = namedtuple('RGBA', 'red green blue alpha')
 
 # ----------------------------------------------------------------------------
 # Constants
@@ -104,7 +106,7 @@ def colorHashToRgba( colorHash ):
     blue = float( int(blueHex, 16) )
     alpha = float( int(alphaHex, 16) )
 
-    return ( red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0 )
+    return RGBA( red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0 )
 
 
 def stringToBool( string ):

@@ -41,6 +41,8 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+from collections import namedtuple
+
 from enso import cairo
 from enso import graphics
 from enso.graphics.measurement import pointsToPixels, pixelsToPoints
@@ -53,6 +55,8 @@ from enso.quasimode import layout
 # ----------------------------------------------------------------------------
 # TextWindow Class
 # ----------------------------------------------------------------------------
+
+Position = namedtuple('Point', 'x y')
 
 class TextWindow:
     """
@@ -92,7 +96,6 @@ class TextWindow:
         """
         LONGTERM TODO: Document this.
         """
-
         return self.__window.getHeight()
 
 
@@ -100,7 +103,7 @@ class TextWindow:
         """
         TODO: Document this.
         """
-        return self.__window.getX(), self.__window.getY()
+        return Position(self.__window.getX(), self.__window.getY())
 
 
     def setPosition(self, x, y):

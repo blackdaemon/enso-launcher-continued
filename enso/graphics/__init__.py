@@ -1,4 +1,8 @@
+from collections import namedtuple
 import enso.providers
+
+Position = namedtuple('Position', 'x y')
+Size = namedtuple('Size', 'width height')
 
 _graphics = enso.providers.getInterface("graphics")
 
@@ -9,14 +13,14 @@ def getDesktopOffset():
     left, top = _graphics.getDesktopOffset()
     left = pixelsToPoints(left)
     top = pixelsToPoints (top)
-    return (left, top)
+    return Position(left, top)
 
 def getDesktopSize():
     """ Return primary monitor desktop size in points. """
     width, height = _graphics.getDesktopSize()
     width = pixelsToPoints(width)
     height = pixelsToPoints(height)
-    return (width, height)
+    return Size(width, height)
 
 def getWorkareaOffset():
     """
@@ -26,7 +30,7 @@ def getWorkareaOffset():
     left, top = _graphics.getWorkareaOffset()
     left = pixelsToPoints(left)
     top = pixelsToPoints (top)
-    return (left, top)
+    return Position(left, top)
 
 def getWorkareaSize():
     """
@@ -36,7 +40,7 @@ def getWorkareaSize():
     width, height = _graphics.getWorkareaSize()
     width = pixelsToPoints(width)
     height = pixelsToPoints(height)
-    return (width, height)
+    return Size(width, height)
 
 def processWindowManagerPendingEvents():
     _graphics.processWindowManagerPendingEvents()

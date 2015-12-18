@@ -42,6 +42,8 @@
 # ----------------------------------------------------------------------------
 import time
 
+from collections import namedtuple
+
 from enso import commands
 from enso import config
 from enso import cairo
@@ -54,7 +56,9 @@ from enso.graphics import rounded_rect
 from enso.quasimode import layout
 from enso.graphics import xmltextlayout
 from enso.utils.xml_tools import escape_xml
+from enso.utils.decorators import suppress
 
+Position = namedtuple('Position', 'x y')
 
 ANIMATION_TIME = 10
 MAX_OPACITY = 255
@@ -102,7 +106,7 @@ class ParameterSuggestionWindow:
         LONGTERM TODO: Document this.
         """
 
-        return self.__window.getX(), self.__window.getY()
+        return Position(self.__window.getX(), self.__window.getY())
 
 
     def setPosition(self, x, y):
@@ -219,8 +223,10 @@ class ParameterSuggestionWindow:
         if not self.__is_visible and not self.__animatingShow:
             self.__animatingShow = True
             self.__animatingHide = False
+            self.__is_visible = True
             self.__timeSinceDismissal = 0
-            self.__evtManager.registerResponder( self.animationTick, "timer" )
+            with suppress(AssertionError):
+                self.__evtManager.registerResponder( self.animationTick, "timer" )
         else:
             # Just refreshing
             started = time.time()
