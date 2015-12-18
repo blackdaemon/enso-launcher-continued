@@ -340,7 +340,7 @@ class MiniMessageQueue:
         else:
             msg.slideAndFadeOut( slidingDistancePer, fadingFracPer )
             if self.__changingIndex != len( self.__visibleMessages ) - 1:
-                for i in reversed(xrange(self.__changingIndex + 1, len(self.__visibleMessages))):
+                for i in reversed(range(self.__changingIndex + 1, len(self.__visibleMessages))):
                     self.__visibleMessages[i].slideDown( slidingDistancePer )
 
 
@@ -450,7 +450,7 @@ class MiniMessageWindow( MessageWindow ):
         xPos = ( width - afterWidth ) / 2
         yPos = ( height - afterHeight ) / 2
 
-        cr = self._context
+        cr = self._getContext()
         if self.__isRounded:
             corners = [rounded_rect.UPPER_LEFT]
         else:

@@ -114,19 +114,15 @@ class CommandManager:
                    "Could not register %s. Object has not type CommandObject." % cmdName
             self.__cmdObjReg.addCommandObj( cmdObj, cmdExpr )
 
+
     def unregisterCommand( self, cmdName ):
-        cmdFound = False
-        for cmdExpr in self.__cmdFactoryDict.iterkeys():
+        for cmdExpr in self.__cmdFactoryDict.keys(): # Need keys() to obtain copy so we can mutate
             if cmdExpr.matches( cmdName ):
                 del self.__cmdFactoryDict[cmdExpr]
-                cmdFound = True
                 break
-
-        if not cmdFound:
+        else:
             self.__cmdObjReg.removeCommandObj( cmdName )
-            cmdFound = True
-        if not cmdFound:
-            raise RuntimeError( "Command '%s' does not exist." % cmdName )
+
 
     def getCommandPrefix( self, commandName ):
         """
@@ -138,14 +134,14 @@ class CommandManager:
 
         commands = []
 
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( commandName ):
                 # This expression matches commandName; try to fetch a
                 # command object from the corresponding factory.
-                cmd = self.__cmdFactoryDict[expr].getCommandObj( commandName )
-                if expr == self.CMD_KEY and cmd != None:
+                cmd = factory.getCommandObj( commandName )
+                if expr == self.CMD_KEY and cmd is not None:
                     commands.append( ( commandName, commandName ) )
-                elif cmd != None:
+                elif cmd is not None:
                     # The factory returned a non-nil command object.
                     # Make sure that nothing else has matched this
                     # commandName.
@@ -169,7 +165,7 @@ class CommandManager:
                 longest_name = longest_name[:longest_name.rfind(" ")]
             else:
                 longest_name = longest_name.rstrip(" ")
-            for _ in xrange(longest_name.count(" ") + 1):
+            for _ in range(longest_name.count(" ") + 1):
                 match = prefixes_dict.get(longest_name+' ')
                 if match:
                     assert logging.debug("EXACTMATCH: '%s'", longest_name) or True
@@ -191,14 +187,14 @@ class CommandManager:
 
         commands = []
 
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( commandName ):
                 # This expression matches commandName; try to fetch a
                 # command object from the corresponding factory.
-                cmd = self.__cmdFactoryDict[expr].getCommandObj( commandName )
-                if expr == self.CMD_KEY and cmd != None:
+                cmd = factory.getCommandObj( commandName )
+                if expr == self.CMD_KEY and cmd is not None:
                     commands.append( ( commandName, commandName ) )
-                elif cmd != None:
+                elif cmd is not None:
                     # The factory returned a non-nil command object.
                     # Make sure that nothing else has matched this
                     # commandName.
@@ -222,7 +218,7 @@ class CommandManager:
                 longest_name = longest_name[:longest_name.rfind(" ")]
             else:
                 longest_name = longest_name.rstrip(" ")
-            for _ in xrange(longest_name.count(" ") + 1):
+            for _ in range(longest_name.count(" ") + 1):
                 match = prefixes_dict.get(longest_name+' ')
                 if match:
                     assert logging.debug("EXACTMATCH: '%s'", longest_name) or True
@@ -245,11 +241,11 @@ class CommandManager:
 
         commands = []
 
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( commandName ):
                 # This expression matches commandName; try to fetch a
                 # command object from the corresponding factory.
-                cmd = self.__cmdFactoryDict[expr].getCommandObj( commandName )
+                cmd = factory.getCommandObj( commandName )
                 if cmd is not None:
                     # The factory returned a non-nil command object.
                     commands.append( ( expr, cmd ) )
@@ -273,7 +269,7 @@ class CommandManager:
                 longest_name = longest_name[:longest_name.rfind(" ")]
             else:
                 longest_name = longest_name.rstrip(" ")
-            for _ in xrange(longest_name.count(" ") + 1):
+            for _ in range(longest_name.count(" ") + 1):
                 cmd = prefixes_dict.get(longest_name+' ')
                 if cmd:
                     assert logging.debug("Longest match: '%s'", longest_name) or True
@@ -295,10 +291,9 @@ class CommandManager:
         completions = []
 
         # Check each of the command factories for a match.
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( userText ):
-                cmdFact = self.__cmdFactoryDict[expr]
-                completion = cmdFact.autoComplete( userText )
+                completion = factory.autoComplete( userText )
                 if completion is not None:
                     completions.append( completion )
 
@@ -324,13 +319,12 @@ class CommandManager:
         Returns an unsorted list of suggestions.
         """
 
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( userText ):
-                factory = self.__cmdFactoryDict[expr]
                 if len(factory.retrieveSuggestions( userText )) > 0:
                     return True
-
-        return False
+        else:
+            return False
 
 
     def retrieveSuggestions( self, userText ):
@@ -340,10 +334,9 @@ class CommandManager:
 
         suggestions = []
         # Extend the suggestions using each of the command factories
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( userText ):
-                factory = self.__cmdFactoryDict[expr]
-                suggestions += factory.retrieveSuggestions( userText )
+                suggestions.extend(factory.retrieveSuggestions( userText ))
 
         return suggestions
 
@@ -358,13 +351,13 @@ class CommandManager:
         cmdDict = self.__cmdObjReg.getDict()
 
         # Extend the dictionary to cover the command factories.
-        for expr in self.__cmdFactoryDict.iterkeys():
+        for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr == self.CMD_KEY:
                 # This is the command object registry; pass.
                 pass
             else:
                 # Cast the expression as a string.
-                cmdDict[ str(expr) ] = self.__cmdFactoryDict[expr]
+                cmdDict[ str(expr) ] = factory
 
         return cmdDict
 
@@ -427,11 +420,8 @@ class CommandObjectRegistry( GenericPrefixFactory ):
 
 
     def removeCommandObj( self, cmdExpr ):
-        cmdFound = False
         if cmdExpr in self.__cmdObjDict:
             del self.__cmdObjDict[cmdExpr]
-            cmdFound = True
-        if cmdFound:
             self.__dictTouched = True
             self._removePostfix( cmdExpr )
         else:

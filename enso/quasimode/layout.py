@@ -317,7 +317,7 @@ def layoutXmlLine( xml_data, styles, scale ):
             #print xml_data
             #logging.error(e)
 
-    if document == None:
+    if document is None:
         # no size above worked; use the smallest size
         _updateStyles( styles, scale, scale[0] )
         document = xmltextlayout.xmlMarkupToDocument(

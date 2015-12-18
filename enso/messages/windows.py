@@ -102,7 +102,10 @@ class MessageWindow:
     def getPos( self ):
         return self.__currPos
 
-
+    def _getContext(self):
+        self.__setupWindow()
+        return self._context
+    
     # LONGTERM TODO: Consider replacing setSize,setPos with setBox, and
     # establish a clipping function isOnScreen for use in the contract.
 

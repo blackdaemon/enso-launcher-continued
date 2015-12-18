@@ -132,19 +132,18 @@ def getInterface( name ):
 
     if not _providers:
         _initDefaultProviders()
-    if name not in _interfaces:
+    if name in _interfaces:
+        return _interfaces[name]
+    else:
         for provider in _providers:
             interface = provider.provideInterface( name )
             if interface:
                 logging.info( "Obtained interface '%s' from provider '%s'."
                               % (name, provider.__name__) )
                 _interfaces[name] = interface
-                break
-    if name in _interfaces:
-        return _interfaces[name]
-    else:
-        raise ProviderNotFoundError( name )
-
+                return interface
+        else:
+            raise ProviderNotFoundError( name )
 
 # ----------------------------------------------------------------------------
 # Exceptions
