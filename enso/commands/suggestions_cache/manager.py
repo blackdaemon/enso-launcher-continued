@@ -45,6 +45,7 @@ import os
 import time
 import logging
 from glob import glob
+from ctypes import c_ulong
 
 from os import makedirs 
 from os.path import join as path_join
@@ -72,7 +73,7 @@ if not os.path.exists(CACHE_DIR):
 def maybe_clean_cache():
     """Delete all .cache files in the cache directory that are older than 12 hours."""
     now = time.time()
-    for fname in glob(path_join(CACHE_DIR, "*", "*.cache")):
+    for fname in glob(path_join(CACHE_DIR, "*", "*", "*.cache")):
         if now > getmtime(fname) + MAX_CACHE_AGE:
             os.remove(fname)
 
@@ -80,20 +81,18 @@ def maybe_clean_cache():
 maybe_clean_cache()
 
 
-from ctypes import c_ulong
-
-def ulong(i): 
-    return c_ulong(i).value  # numpy would be better if available
-
-def sdbm_l(L):
-    return reduce(lambda h,c: ulong(ord(c) + (h << 6) + (h << 16) - h), L, 0)
+def sdbm_l_hash(L):
+    h = 0
+    for c in L:
+        h = c_ulong(ord(c) + (h << 6) + (h << 16) - h).value
+    return h
   
   
 def cached_file_name(search_params):
     #sha = hashlib.sha256()
     # Make a unique file name based on the values of the google search parameters.
     #sha.update(search_params.encode())
-    return '%s.%s' % (str(sdbm_l(search_params)), "cache")
+    return '%s.%s' % (str(sdbm_l_hash(search_params)), "cache")
 
 
 @memodict
@@ -102,6 +101,10 @@ def ensure_cache_dir_exists(cache_id):
     complete_cache_dir = path_join(CACHE_DIR, cache_id)
     if not path_exists(complete_cache_dir):
         makedirs(complete_cache_dir, 0o744)
+    for i in range(10):
+        cache_subdir = path_join(complete_cache_dir, str(i))
+        if not path_exists(cache_subdir):
+            makedirs(cache_subdir, 0o744)
     return complete_cache_dir
 
 
@@ -136,7 +139,8 @@ class Cache( object ):
         #return self._caches.get(key, [])
         cache_dir = ensure_cache_dir_exists(self.cache_id)      
         
-        fname = path_join(cache_dir, cached_file_name(key))
+        fname = cached_file_name(key)
+        fname = path_join(cache_dir, fname[0], fname)
         if not isfile(fname):
             #print "No cached object for '%s'" % (key)
             return default
@@ -178,7 +182,8 @@ class Cache( object ):
         cache_dir = ensure_cache_dir_exists(self.cache_id)
         #print "Persisting cache '%s' into %s (%d items)" % (self.cache_id, cache_dir, len(self.__cache))
         for key, value in self.__cache.items()[:]:      
-            fname = path_join(cache_dir, cached_file_name(key))
+            fname = cached_file_name(key)
+            fname = path_join(cache_dir, fname[0], fname)
             # Already saved
             try:
                 if not path_exists(fname):
