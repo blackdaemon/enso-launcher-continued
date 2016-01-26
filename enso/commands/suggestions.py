@@ -45,7 +45,7 @@ try:
 except ImportError:
     import re
 
-import enso.utils.strings
+from enso.utils.strings import stringRatio
 
 # This is used in loop so better to import the function directly to avoid lookup penalty
 from enso.utils.xml_tools import escape_xml
@@ -175,8 +175,7 @@ class Suggestion:
         this method may be overridden to implement custom notions of
         "nearness".
         """
-        result = enso.utils.strings.stringRatio( self.__source,
-                                                 self.__suggestion )
+        result = stringRatio( self.__source, self.__suggestion )
         assert (result >= 0) and (result <= 1),\
             "string-ratio is not between 0 and 1: %0.1f" % result
         return result

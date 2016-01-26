@@ -39,7 +39,7 @@ from __future__ import with_statement
 import os
 import logging
 
-from gio import app_info_get_all
+from gio import app_info_get_all # @UnresolvedImport Keep PyLint and PyDev happy
 from gio.unix import desktop_app_info_set_desktop_env
 from gtk.gdk import lock as gtk_lock
 from distutils.spawn import find_executable

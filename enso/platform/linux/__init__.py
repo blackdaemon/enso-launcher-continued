@@ -40,7 +40,7 @@ platforms = [
     "freebsd",
     "netbsd",
 ]
-if not True in map (lambda s: sys.platform.startswith (s), platforms):
+if not any(sys.platform.startswith(p) for p in platforms):
     raise enso.platform.PlatformUnsupportedError()
 
 def provideInterface (name):

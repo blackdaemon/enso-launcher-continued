@@ -207,6 +207,7 @@ class Block:
         currWordStartIndex = 0
         currWordLength = 0
         currLine = Line()
+        
         for i in range( len(self.__glyphs) ):
             assert( currLineLength >= currWordLength )
 

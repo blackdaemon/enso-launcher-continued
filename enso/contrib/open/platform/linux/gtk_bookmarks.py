@@ -117,7 +117,7 @@ def get_bookmarks():
             items = line.strip().split(" ", 1)
             uri = items[0]
             with gtk_lock:
-                gfile = gio.File(uri)
+                gfile = gio.File(uri) #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 if len(items) > 1:
                     title = items[1].rstrip()
                 else:

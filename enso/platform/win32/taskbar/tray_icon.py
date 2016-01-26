@@ -1,10 +1,10 @@
 import logging
 import os
 import time
-import win32api
-import win32con
-import win32gui
-import winerror
+import win32api # @UnresolvedImport
+import win32con # @UnresolvedImport
+import win32gui # @UnresolvedImport
+import winerror  # @UnresolvedImport
 
 from inspect import getargspec
 from enso.platform.win32.graphics import get_cursor_pos
@@ -43,10 +43,10 @@ class SysTrayIcon(object):
 
         # Register the Window class.
         self._window_class = win32gui.WNDCLASS()
-        self._window_class.hInstance = win32api.GetModuleHandle(None)
+        self._window_class.hInstance = win32api.GetModuleHandle(None)  # @UndefinedVariable
         self._window_class.lpszClassName = window_class_name
         self._window_class.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW;
-        self._window_class.hCursor = win32api.LoadCursor(0, win32con.IDC_ARROW)
+        self._window_class.hCursor = win32api.LoadCursor(0, win32con.IDC_ARROW)  # @UndefinedVariable
         self._window_class.hbrBackground = win32con.COLOR_WINDOW
         self._window_class.lpfnWndProc = message_map # could also specify a wndproc.
 
@@ -78,7 +78,7 @@ class SysTrayIcon(object):
 
     def _create_icons(self):
         # Try and find a custom icon
-        hinst =  win32api.GetModuleHandle(None)
+        hinst =  win32api.GetModuleHandle(None)  # @UndefinedVariable
 
         """
         iconPathName = os.path.abspath(os.path.join( os.path.split(sys.executable)[0], "pyc.ico" ))
@@ -148,7 +148,7 @@ class SysTrayIcon(object):
         return 1
 
     def _on_command(self, hwnd, msg, wparam, lparam):
-        id = win32api.LOWORD(wparam)
+        id = win32api.LOWORD(wparam)  # @UndefinedVariable
         if id == self.MENU_ITEM_ID_ABOUT:
             if self.on_about:
                 self.on_about(self)

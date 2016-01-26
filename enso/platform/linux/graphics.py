@@ -132,7 +132,7 @@ gtk would do, for instance.'''
         def draw_wallpaper (self, cr):
             '''Draw wallpaper below surface contents to fake transparency'''
             if not TransparentWindow._impl.__wallpaper_surface:
-                update_wallpaper_surface ()
+                update_wallpaper_surface () #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 if not TransparentWindow._impl.__wallpaper_surface:
                     return
             cr.set_operator (cairo.OPERATOR_DEST_ATOP)
@@ -149,7 +149,7 @@ as background when doing fake transparency'''
             root = screen.get_root_window ()
             id = root.property_get ("_XROOTPMAP_ID", "PIXMAP")[2][0]
             if hasattr (gtk.gdk, "gdk_pixmap_foreign_new"):
-                pixmap = gtk.gdk.gdk_pixmap_foreign_new (long (id))
+                pixmap = gtk.gdk.gdk_pixmap_foreign_new (long (id)) #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             else:
                 pixmap = gtk.gdk.pixmap_foreign_new (long (id))
             width, height = screen.get_width (), screen.get_height ()

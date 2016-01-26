@@ -53,7 +53,7 @@ import enso.system
 
 # This may no longer be required (it was for backward compat)
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 
     
 class ScriptCommandTracker:

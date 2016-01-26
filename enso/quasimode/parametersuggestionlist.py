@@ -149,7 +149,7 @@ class ParameterSuggestionWindow:
 
         cr.save()
         cr.set_source_rgba( 0, 0, 0, 0 )
-        cr.set_operator( cairo.OPERATOR_SOURCE )
+        cr.set_operator( cairo.OPERATOR_SOURCE ) #IGNORE:E1101 @UndefinedVariable
         cr.rectangle( width - rounded_rect.CORNER_RADIUS,
                       height - rounded_rect.CORNER_RADIUS,
                       rounded_rect.CORNER_RADIUS,
