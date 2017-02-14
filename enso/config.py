@@ -78,14 +78,13 @@ QUASIMODE_NO_COMMAND_HELP = "There is no matching command. " \
     "Use backspace to delete characters."
 
 # Message XML for the Splash message shown when Enso first loads.
-OPENING_MSG_XML = "<p>Welcome to <command>Enso</command>!</p>" + \
+OPENING_MSG_XML = "<p>Welcome to <command>Enso</command>!</p>" \
     "<caption>Copyright &#169; 2008 Humanized, Inc.</caption>"
 
 # Message XML for the About message.
 ABOUT_MSG_XML = u"<p><command>Enso</command> Community Edition</p>" \
     "<caption> </caption>" \
     "<p>Copyright &#169; 2008 <b>Humanized, Inc.</b></p>" \
-    "<p>Copyright &#169; 2008-2010 <b>Enso community</b></p>"
 
 # Message XML displayed when the mouse hovers over a mini message.
 MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
