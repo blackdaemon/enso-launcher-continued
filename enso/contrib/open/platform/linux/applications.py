@@ -49,10 +49,9 @@ from watchdog.events import FileSystemEventHandler
 
 from enso.contrib.open import shortcuts
 
-from enso.platform.linux import utils 
+from enso.platform.linux import DESKTOP_ENVIRONMENT
 
 SHORTCUT_CATEGORY = "application"
-DESKTOP_ENVIRONMENT = utils.detect_desktop_environment()
 
 applications_dict = {}
 _dir_monitor = None
@@ -156,7 +155,8 @@ def register_update_callback(callback_func):
     global _dir_monitor, _file_changed_event_handler
     if _file_changed_event_handler is None:
         _file_changed_event_handler = _FileChangedEventHandler()
-    _file_changed_event_handler.update_callback_func = callback_func
+    if _file_changed_event_handler.update_callback_func != callback_func:
+        _file_changed_event_handler.update_callback_func = callback_func
     if _dir_monitor is None:
         # Set up the directory watcher for shortcuts directory 
         _dir_monitor = Observer()

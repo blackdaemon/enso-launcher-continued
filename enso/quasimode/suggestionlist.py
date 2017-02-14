@@ -43,7 +43,7 @@
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
-import time
+from heapq import nsmallest
 
 from enso import commands
 from enso.commands.suggestions import Suggestion, AutoCompletion
@@ -217,34 +217,36 @@ class SuggestionList( object ):
         to reflect the current userText.
         """
 
-        if self.__isDirty:
-            # NOTE: in the next line, ".lstrip()" is called because the
-            # autcompletions hould ignore heading whitespace.
-            # Leaving the trailing space intact so we can indicate it by dot
-            # in special cases (user typing command parameter).
-            self.__autoCompletion = self.__autoComplete(
-                self.getUserText().lstrip()
-                )
-            # NOTE: in the next line, ".strip()" is called because the
-            # suggestions should ignore trailing whitespace.
-            self.__suggestions = self.__findSuggestions(
-                self.getUserText().strip()
-                )
-            # We need to verify that it is a valid index; if the
-            # namespace changed, then the suggestionss in the above
-            # getSuggestions() line might be different than the
-            # suggestions were the last time the active index was
-            # updated.
-            maxIndex = max( [ len(self.__suggestions)-1, 0 ] )
-            self.__activeIndex = min( [self.__activeIndex, maxIndex] )
+        if not self.__isDirty:
+            return
+            
+        # NOTE: in the next line, ".lstrip()" is called because the
+        # autcompletions hould ignore heading whitespace.
+        # Leaving the trailing space intact so we can indicate it by dot
+        # in special cases (user typing command parameter).
+        self.__autoCompletion = self.__autoComplete(
+            self.getUserText().lstrip()
+            )
+        # NOTE: in the next line, ".strip()" is called because the
+        # suggestions should ignore trailing whitespace.
+        self.__suggestions = self.__findSuggestions(
+            self.getUserText().strip()
+            )
+        # We need to verify that it is a valid index; if the
+        # namespace changed, then the suggestionss in the above
+        # getSuggestions() line might be different than the
+        # suggestions were the last time the active index was
+        # updated.
+        maxIndex = max( [ len(self.__suggestions)-1, 0 ] )
+        self.__activeIndex = min( [self.__activeIndex, maxIndex] )
 
-            activeCommandName = self.__suggestions[self.__activeIndex].toText()
-            if not activeCommandName:
-                self.__activeCommand = None
-            else:
-                self.__activeCommand = self.__cmdManager.getCommand( activeCommandName )
+        activeCommandName = self.__suggestions[self.__activeIndex].toText()
+        if not activeCommandName:
+            self.__activeCommand = None
+        else:
+            self.__activeCommand = self.__cmdManager.getCommand( activeCommandName )
 
-            self.__isDirty = False
+        self.__isDirty = False
 
 
     def __autoComplete( self, userText ):
@@ -267,37 +269,6 @@ class SuggestionList( object ):
         return autoCompletion
 
 
-    def __restrictSuggestionsByNearness( self, suggestions ):
-        # BEGIN: Performance-improving code.
-        # Eliminate most of the suggestions before sorting them.
-        threshold = 0.0
-        restrictedSuggestions = suggestions[:]
-        oldRestrictedSuggestions = restrictedSuggestions
-
-        # LONGTERM TODO: You may be able to optimize the algorithm
-        # even further in the following way: assuming that thresh(x)
-        # gives you the number of suggestions whose nearness is
-        # greater than x, first see if thresh( 0.5 ) >
-        # QUASIMODE_MAX_SUGGESTIONS; if so, see if thresh( 0.75 ) is,
-        # but if not, see if thresh( 0.25 ) is, and so forth.
-        while (len( restrictedSuggestions ) >
-               config.QUASIMODE_MAX_SUGGESTIONS):
-            threshold += 0.05
-            oldRestrictedSuggestions = restrictedSuggestions
-            restrictedSuggestions = [ \
-                s for s in oldRestrictedSuggestions \
-                if s._nearness > threshold \
-                ]
-
-        # Use the second-to-last restricted suggestions, as
-        # the last restricted suggestions may actually have
-        # fewer than we want.
-        suggestions = oldRestrictedSuggestions
-        # END: Performance-improving code.
-
-        return suggestions
-
-
     def __findSuggestions( self, userText ):
         """
         Uses the command manager to determine if there are any inexact
@@ -308,6 +279,7 @@ class SuggestionList( object ):
         suggestion different than the autocompletion for a command
         name that is similar to userText.
         """
+        # FIXME: Avoid this function to have side effects, refactor! It belongs to __update() method
 
         if len( userText ) < config.QUASIMODE_MIN_AUTOCOMPLETE_CHARS:
             return [ self.__autoCompletion ]
@@ -337,41 +309,38 @@ class SuggestionList( object ):
                     self.setUserText(userText)
                     self.setSuggestedTextPrefix("open")
 
-        suggestions = self.__cmdManager.retrieveSuggestions( userText )
+        # Get N top suggestions based on nearness
+        # __cmp__() function on Suggestion object takes care of proper sort 
+        suggestions = nsmallest(
+            # Get max+1 as the auto-completion can appear in the suggestions 
+            # list and we will remove it later
+            config.QUASIMODE_MAX_SUGGESTIONS + 1,   
+            self.__cmdManager.retrieveSuggestions( userText )
+        )
 
-        # BEGIN: Performance-improving code.
-        # Eliminate most of the suggestions before sorting them.
-        # Make sense only for really large amounts
-        if len(suggestions) > 2 * config.QUASIMODE_MAX_SUGGESTIONS:
-            suggestions = self.__restrictSuggestionsByNearness(suggestions)
-        # END: Performance-improving code.
-
-        # Because the Suggestion object implements __cmp__ to sort
-        # by nearness, we can simply sort the suggestions in place.
-        suggestions.sort()
-        suggestions = suggestions[:config.QUASIMODE_MAX_SUGGESTIONS]
+        # Remove the auto-completion entry from the list
+        try:
+            suggestions.remove(auto)
+        except ValueError:
+            # Shrink to QUASIMODE_MAX_SUGGESTIONS if not found
+            if len(suggestions) > 0:
+                del suggestions[-1]
 
         if len(suggestions) < config.QUASIMODE_MAX_SUGGESTIONS:
             if (config.QUASIMODE_APPEND_OPEN_COMMAND or len(suggestions) == 0) and not userText.startswith("open "):
-                opencmd_suggestions = self.__cmdManager.retrieveSuggestions("open %s" % userText)
+                opencmd_suggestions = nsmallest(
+                    config.QUASIMODE_MAX_SUGGESTIONS - len(suggestions), 
+                    self.__cmdManager.retrieveSuggestions("open %s" % userText) 
+                )
                 if opencmd_suggestions:
-                    # BEGIN: Performance-improving code.
-                    # Eliminate most of the suggestions before sorting them.
-                    if len(opencmd_suggestions) > 2 * config.QUASIMODE_MAX_SUGGESTIONS:
-                        opencmd_suggestions = self.__restrictSuggestionsByNearness(opencmd_suggestions)
-                    # END: Performance-improving code.
-                    opencmd_suggestions.sort()
-                    opencmd_suggestions = opencmd_suggestions[:config.QUASIMODE_MAX_SUGGESTIONS - len(suggestions)]
                     suggestions.extend(opencmd_suggestions)
                 else:
                     pass
 
-        # Make the auto-completion the 0th suggestion, and not listed
-        # more than once.
-        suggestions = [ s for s in suggestions
-                        if not s.toText() == auto.toText() ]
+        # Make auto-completion the first entry
+        suggestions.insert(0, auto)
 
-        return [ auto ] + suggestions
+        return suggestions
 
 
     def markDirty( self ):

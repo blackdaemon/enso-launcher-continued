@@ -41,7 +41,6 @@
 # ----------------------------------------------------------------------------
 
 from enso import cairo
-from enso import graphics
 from enso.graphics.transparentwindow import TransparentWindow
 
 # ----------------------------------------------------------------------------

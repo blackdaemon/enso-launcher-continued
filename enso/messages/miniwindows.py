@@ -44,6 +44,7 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import logging
 from enso import config
 from enso import graphics
 from enso.graphics.measurement import pointsToPixels, pixelsToPoints
@@ -253,6 +254,7 @@ class MiniMessageQueue:
         self.__status = self.EMPTY
 
     def __startAppearing( self, msg ):
+        #FIXME: This is slowing it down, call it only when it changes
         wa_left, wa_top = graphics.getWorkareaOffset()
         wa_width, wa_height = graphics.getWorkareaSize()
 
@@ -467,7 +469,8 @@ class MiniMessageWindow( MessageWindow ):
         doc.draw( xPos, yPos, cr )
 
 
-    def __layout( self, msg, width, height ):
+    @staticmethod
+    def __layout( msg, width, height ):
         text = msg.getMiniXml()
         text = "<document>%s</document>" % text
         for size in reversed( MINI_SCALE[1:] ):
@@ -477,9 +480,9 @@ class MiniMessageWindow( MessageWindow ):
                                         size = size,
                                         height = height, )
                 return doc
-            except Exception:
+            except Exception as e:
                 # TODO: Lookup actual errors and catch them.
-                pass
+                logging.error(e)
 
         doc = layoutMessageXml( xmlMarkup = text,
                                 width = width,

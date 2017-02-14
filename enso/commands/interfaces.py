@@ -333,10 +333,10 @@ class CommandExpression:
         Returns False otherwise.
         """
 
-        if len(userText)<len(self.__prefix):
+        if len(userText) < len(self.__prefix):
             return self.__prefix.startswith( userText )
         else:
             return userText.startswith( self.__prefix )
-        return True
+
 
 

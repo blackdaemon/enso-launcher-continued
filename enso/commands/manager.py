@@ -117,11 +117,12 @@ class CommandManager:
 
     def unregisterCommand( self, cmdName ):
         for cmdExpr in self.__cmdFactoryDict.keys(): # Need keys() to obtain copy so we can mutate
-            if cmdExpr.matches( cmdName ):
+            if cmdExpr.getString() == cmdName and cmdExpr != self.CMD_KEY: # Protect cmdObjeReg from deletion
                 del self.__cmdFactoryDict[cmdExpr]
                 break
         else:
             self.__cmdObjReg.removeCommandObj( cmdName )
+        assert self.CMD_KEY in self.__cmdFactoryDict
 
 
     def getCommandPrefix( self, commandName ):
@@ -132,7 +133,7 @@ class CommandManager:
         object for 'open {file}' will be returned.
         """
 
-        commands = []
+        prefixes = []
 
         for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( commandName ):
@@ -140,22 +141,21 @@ class CommandManager:
                 # command object from the corresponding factory.
                 cmd = factory.getCommandObj( commandName )
                 if expr == self.CMD_KEY and cmd is not None:
-                    commands.append( ( commandName, commandName ) )
+                    prefixes.append( commandName )
                 elif cmd is not None:
                     # The factory returned a non-nil command object.
                     # Make sure that nothing else has matched this
                     # commandName.
-                    commands.append( (expr.getPrefix(), expr) )
+                    prefixes.append( expr.getPrefix() )
 
-        if len(commands) == 0:
+        if len(prefixes) == 0:
             return None
-        elif len(commands) == 1:
+        elif len(prefixes) == 1:
             # There is exactly one match
-            return commands[0][0]
+            return prefixes[0]
         else:
             # There are more matches, choose the best one
-            prefixes = [ (e,c) for (e,c) in commands ]
-            prefixes_dict = dict(prefixes)
+            #prefixes_dict = dict(prefixes)
             # Try to find longest possible exact match first:
 
             longest_name = commandName
@@ -166,16 +166,14 @@ class CommandManager:
             else:
                 longest_name = longest_name.rstrip(" ")
             for _ in range(longest_name.count(" ") + 1):
-                match = prefixes_dict.get(longest_name+' ')
-                if match:
-                    assert logging.debug("EXACTMATCH: '%s'", longest_name) or True
+                if longest_name+' ' in prefixes:
+                    assert logging.debug("Command-prefix exact match: '%s'", longest_name) or True
                     return longest_name+' '
                 longest_name = longest_name[:longest_name.rfind(" ")]
 
             # Longest match not found so return the alphabetically first
-            prefixes.sort(key=operator.itemgetter(0))
-            #logging.debug("FIRSTMATCH: '%s'", prefixes[0][0])
-            return prefixes[0][0]
+            return min(prefixes)
+            
 
     def getCommandExpression( self, commandName ):
         """
@@ -185,7 +183,7 @@ class CommandManager:
         object for 'open {file}' will be returned.
         """
 
-        commands = []
+        expressions = []
 
         for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( commandName ):
@@ -193,22 +191,21 @@ class CommandManager:
                 # command object from the corresponding factory.
                 cmd = factory.getCommandObj( commandName )
                 if expr == self.CMD_KEY and cmd is not None:
-                    commands.append( ( commandName, commandName ) )
+                    expressions.append( ( commandName, commandName ) )
                 elif cmd is not None:
                     # The factory returned a non-nil command object.
                     # Make sure that nothing else has matched this
                     # commandName.
-                    commands.append( (expr.getPrefix(), expr) )
+                    expressions.append( (expr.getPrefix(), expr) )
 
-        if len(commands) == 0:
+        if len(expressions) == 0:
             return None
-        elif len(commands) == 1:
+        elif len(expressions) == 1:
             # There is exactly one match
-            return commands[0][1]
+            return expressions[0][1]
         else:
             # There are more matches, choose the best one
-            prefixes = [ (e,c) for (e,c) in commands ]
-            prefixes_dict = dict(prefixes)
+            expressions_dict = dict(expressions)
             # Try to find longest possible exact match first:
 
             longest_name = commandName
@@ -219,16 +216,14 @@ class CommandManager:
             else:
                 longest_name = longest_name.rstrip(" ")
             for _ in range(longest_name.count(" ") + 1):
-                match = prefixes_dict.get(longest_name+' ')
-                if match:
-                    assert logging.debug("EXACTMATCH: '%s'", longest_name) or True
-                    return match
+                expr = expressions_dict.get(longest_name+' ') 
+                if expr:
+                    assert logging.debug("Command-expression exact match for '%s': '%s'" % (longest_name, expr)) or True
+                    return expr
                 longest_name = longest_name[:longest_name.rfind(" ")]
 
             # Longest match not found so return the alphabetically first
-            prefixes.sort(key=operator.itemgetter(0))
-            #logging.debug("FIRSTMATCH: '%s'", prefixes[0][0])
-            return prefixes[0][1]
+            return min(expressions_dict, key=operator.itemgetter(0))[1]
 
 
     def getCommand( self, commandName ):
@@ -277,9 +272,7 @@ class CommandManager:
                 longest_name = longest_name[:longest_name.rfind(" ")]
 
             # Longest match not found so return the alphabetically first
-            prefixes.sort(key=operator.itemgetter(0))
-            #logging.debug("FIRSTMATCH: '%s'", prefixes[0][0])
-            return prefixes[0][1]
+            return min(prefixes, key=operator.itemgetter(0))[1]
 
 
     def autoComplete( self, userText ):
@@ -308,17 +301,19 @@ class CommandManager:
                     if c.toText() == "open ":
                         return c
             #Original:
-            #completions.sort( lambda a,b : cmp( a.toText(), b.toText() ) )
             # Sort by nearness
-            completions.sort()
-            return completions[0]
+            #completions.sort( lambda a,b : cmp( a.toText(), b.toText() ) )
+            #return completions[0]
+            return min(completions)
 
 
+    # FIXME: Make this faster by implementing factory.hasSuggestions()
+    # This is not used anywhere now
     def hasSuggestions( self, userText ):
         """
-        Returns an unsorted list of suggestions.
+        Returns True if the userText yields any suggestions
         """
-
+        raise NotImplementedError()
         for expr, factory in self.__cmdFactoryDict.iteritems():
             if expr.matches( userText ):
                 if len(factory.retrieveSuggestions( userText )) > 0:

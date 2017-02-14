@@ -318,7 +318,8 @@ class PrimaryMsgWind( MessageWindow ):
         self.show()
 
 
-    def __isOneLineMsg( self, msgDoc, capDoc ):
+    @staticmethod
+    def __isOneLineMsg( msgDoc, capDoc ):
         """
         Determines whether msgDoc and capDoc are both one line.
         """
@@ -332,7 +333,8 @@ class PrimaryMsgWind( MessageWindow ):
         return (numCapLines == 1 and numMsgLines == 1)
 
 
-    def __layoutText( self, msgText, capText, width, height ):
+    @staticmethod
+    def __layoutText( msgText, capText, width, height ):
         """
         Lays out msgText and capText into two seperate document
         objects.
@@ -431,8 +433,8 @@ class PrimaryMsgWind( MessageWindow ):
 
         #self.__position()
 
-
-    def __layoutBlocks( self, messageDoc, captionDoc ):
+    @staticmethod
+    def __layoutBlocks( messageDoc, captionDoc ):
         """
         Determines how the documents messageDoc and captionDoc should
         be combined to form a complete message window.
@@ -447,7 +449,7 @@ class PrimaryMsgWind( MessageWindow ):
             height = msgDoc.height
             msgPos = ( PRIM_MSG_MARGIN, PRIM_MSG_MARGIN )
             capPos = None
-        elif self.__isOneLineMsg( msgDoc, capDoc ):
+        elif PrimaryMsgWind.__isOneLineMsg( msgDoc, capDoc ):
             msgWidth = computeWidth( msgDoc )
             capWidth = computeWidth( capDoc )
             width = max( msgWidth, capWidth )
@@ -568,7 +570,7 @@ def layoutMessageXml( xmlMarkup, width, size, height, ellipsify="false",
             )
     except MaxLinesExceededError:
         pass
-    except Exception, e:
+    except Exception as e:
         if raiseLayoutExceptions:
             raise
         logging.warn( "Could not layout message text %s; got error %s"

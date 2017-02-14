@@ -48,6 +48,7 @@ except ImportError:
 from enso.utils.strings import stringRatio
 
 # This is used in loop so better to import the function directly to avoid lookup penalty
+
 from enso.utils.xml_tools import escape_xml
 
 # ----------------------------------------------------------------------------
@@ -303,7 +304,8 @@ class Suggestion:
         # This class is read-only; the only "setters" are through the
         # constructor.  If we have previously computed the xml value,
         # return that cached value.
-        if self.__xml == None:
+
+        if self.__xml is None:
             self.__transform()
 
         return self.__xml

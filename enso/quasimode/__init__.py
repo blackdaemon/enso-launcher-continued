@@ -57,6 +57,7 @@ import operator
 from enso import messages
 from enso import config
 from enso import input
+from enso import graphics
 
 from enso.utils.strings import stringRatioBestMatch
 from enso.utils.xml_tools import escape_xml
@@ -66,6 +67,7 @@ from enso.quasimode.window import QuasimodeWindow
 from enso.quasimode import layout
 from enso.messages.windows import computeWidth
 from enso.utils.memoize import memoized
+from enso.utils.decorators import suppress
 
 # Import the standard allowed key dictionary, which relates virtual
 # key codes to character strings.
@@ -261,13 +263,11 @@ class Quasimode(object):
                     suggestion = self.__parameterSuggestionList.getActiveSuggestion()
                     #print suggestion
                     activeCmd = self.__suggestionList.getActiveCommand()
-                    try:
+                    with suppress(Exception):
                         userText = "%s%s" % (
                             activeCmd.PREFIX,
                             suggestion)
                         self.__suggestionList.setUserText(userText)
-                    except:
-                        pass
                     #self.__parameterSuggestionList.setSuggestions([])
                 else:
                     # Allow handlers to act upon Tab key even if the text
@@ -342,7 +342,6 @@ class Quasimode(object):
         """
         Adds the character corresponding to keyCode to the user text.
         """
-
         newCharacter = ALLOWED_KEYCODES[keyCode]
         oldUserText = self.__suggestionList.getUserText()
 
@@ -400,8 +399,11 @@ class Quasimode(object):
 
         assert self._inQuasimode == False
 
-        self.__quasimodeID = time.clock()
+        self.__quasimodeID = time.time()
 
+        graphics.refreshDesktopInfo()
+        graphics.refreshWorkareaInfo()
+        
         if (config.QUASIMODE_DOUBLETAP_DELAY > 0
             and config.QUASIMODE_DOUBLETAP_COMMAND is not None):
             if self.__lastQuasimodeStarted is not None:
@@ -518,7 +520,7 @@ class Quasimode(object):
         try:
             cmd.run()
             self._lastRunCommand = cmd
-        except Exception:
+        except Exception as e:
             # An exception occured during the execution of the command.
             logging.error( "Command \"%s\" failed." % cmdName )
             logging.error( traceback.format_exc() )
@@ -570,7 +572,7 @@ class Quasimode(object):
         self.__lastParameterSuggestionsCheck += timePassed
 
         # Check only each 10 milliseconds
-        if self.__lastParameterSuggestionsCheck < 10:
+        if self.__lastParameterSuggestionsCheck < 5:
             return
 
         self.__lastParameterSuggestionsCheck = 0

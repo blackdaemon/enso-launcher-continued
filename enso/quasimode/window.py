@@ -160,7 +160,7 @@ class QuasimodeWindow:
         # Instantiate a layout object, effectively laying out the
         # quasimode display.
         layout = QuasimodeLayout( quasimode )
-
+        
         self.__drawStart = time.time()
 
         newLines = layout.newLines
@@ -208,7 +208,7 @@ class QuasimodeWindow:
             # Draw suggestions
             while self.continueDrawing( ignoreTimeElapsed = True ):
                 pass
-
+        
 
     def continueDrawing( self, ignoreTimeElapsed=False ):
         """
@@ -224,7 +224,6 @@ class QuasimodeWindow:
         This function should only be called after update() has been
         called.
         """
-
         if self.__suggestionsLeft:
             timeElapsed = time.time() - self.__drawStart
             if ( (not ignoreTimeElapsed) and

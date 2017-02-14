@@ -32,9 +32,9 @@
 #
 # ----------------------------------------------------------------------------
 
-import xml.sax.saxutils
-import os
+from os.path import expanduser
 import tracker
+from xml.sax.saxutils import escape as xml_escape
 
 from enso.messages import displayMessage as display_xml_message, hideMessage
 from enso import selection
@@ -74,16 +74,16 @@ class EnsoApi(object):
         if mini_msg and not isinstance(mini_msg, basestring):
             mini_msg = unicode(mini_msg)
 
-        xmltext = "<p>%s</p>" % xml.sax.saxutils.escape(msg)
+        xmltext = "<p>%s</p>" % xml_escape(msg)
         if caption:
-            caption_escaped = xml.sax.saxutils.escape(caption)
+            caption_escaped = xml_escape(caption)
             xmltext += "<caption>%s</caption>" % caption_escaped
         xmltext_mini = None
         if show_mini_msg or mini_msg is not None:
             if mini_msg is None:
                 xmltext_mini = xmltext
             else:
-                xmltext_mini = "<p>%s</p>" % xml.sax.saxutils.escape(mini_msg)
+                xmltext_mini = "<p>%s</p>" % xml_escape(mini_msg)
                 if caption:
                     xmltext_mini += "<caption>%s</caption>" % caption_escaped
         return display_xml_message(
@@ -154,14 +154,15 @@ class EnsoApi(object):
             seldict = { "text" : unicode(seldict) }
         return selection.set(seldict)
 
-    def get_enso_commands_folder(self):
+    @staticmethod
+    def get_enso_commands_folder():
         """
         Returns the location of the Enso scripts folder.
         """
-        return os.path.expanduser(tracker.getScriptsFolderName())
+        return expanduser(tracker.getScriptsFolderName())
 
-
-    def get_commands_from_text(self, text):
+    @staticmethod
+    def get_commands_from_text(text):
         """
         Given a block of Python text, returns all the valid Enso
         commands defined therein.

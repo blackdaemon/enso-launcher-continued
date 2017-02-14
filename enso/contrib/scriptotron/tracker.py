@@ -125,7 +125,7 @@ class ScriptCommandTracker:
                 )
             self._registerCommand( cmd, info["cmdExpr"] )
 
-    def clearCommands( self, commandInfoList = None ):
+    def clearCommands( self, commandInfoList=None ):
         if commandInfoList:
             for info in commandInfoList:
                 cmdExpr = info["cmdExpr"]
@@ -135,7 +135,10 @@ class ScriptCommandTracker:
                 #TODO: remove generator from _genMgr
         else:
             for cmdExpr in self._cmdExprs:
-                self._cmdMgr.unregisterCommand( cmdExpr )
+                try:
+                    self._cmdMgr.unregisterCommand( cmdExpr )
+                except RuntimeError as e:
+                    print e, cmdExpr
             self._cmdExprs = []
             self._quasimodeStartEvents[:] = []
             self._genMgr.reset()
@@ -166,8 +169,9 @@ class ScriptTracker:
     def install( cls, eventManager, commandManager ):
         cls( eventManager, commandManager )
 
+    @staticmethod
     @safetyNetted
-    def _getGlobalsFromSourceCode( self, text, filename ):
+    def _getGlobalsFromSourceCode( text, filename ):
         allGlobals = {}
         code = compile( text + "\n", filename, "exec" )
         exec code in allGlobals
@@ -176,7 +180,7 @@ class ScriptTracker:
     def _getCommandFiles( self ):
         try:
             commandFiles = [
-              os.path.join(self._scriptFolder,x)
+              os.path.join(self._scriptFolder, x)
               for x in os.listdir(self._scriptFolder)
               if x.endswith(".py")
             ]
@@ -184,7 +188,7 @@ class ScriptTracker:
             commandFiles = []
         return commandFiles
 
-    def _reloadPyScripts( self, files = None ):
+    def _reloadPyScripts( self, files=None ):
         if files:
             for file in files:
                 cmd_infos = self._commandsInFile.get(file, None)

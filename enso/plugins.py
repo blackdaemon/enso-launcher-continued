@@ -101,7 +101,7 @@ def _init():
             module.load()
         except CommandAlreadyRegisteredError, e:
             logging.warn( "Command is already registered '%s'. " % moduleName)
-        except Exception, e:
+        except Exception:
             logging.warn( "Error while loading plugin '%s':" % moduleName )
             logging.error(traceback.format_exc())
             #raise

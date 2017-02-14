@@ -40,6 +40,8 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+from time import clock
+
 import logging
 from enso import config
 from enso import graphics
@@ -142,7 +144,8 @@ def _newLineStyleRegistry():
 
 _AUTOCOMPLETE_STYLES = _newLineStyleRegistry()
 
-_SUGGESTION_STYLES   = _newLineStyleRegistry()
+_SUGGESTION_STYLES_A   = _newLineStyleRegistry()
+_SUGGESTION_STYLES_I   = _newLineStyleRegistry()
 
 _DESCRIPTION_STYLES  = _newLineStyleRegistry()
 _DESCRIPTION_STYLES.update( "ins", color = COLOR_DESIGNER_GREEN )
@@ -174,11 +177,11 @@ def _updateStyleSizes( styles, size ):
     styles should be a style registry.
     """
 
-    width = graphics.getDesktopSize()[0]
     styles.update(
         "document",
         font_size = "%fpt" % size,
-        width = "%fpt" % width,
+        # NOTE: getDesktopSize() is cached value, updated only on quasimodeStart event
+        width = "%fpt" % graphics.getDesktopSize()[0],
         margin_top = "%fpt" % (TOP_MARGIN_FACTOR * size),
         margin_bottom = "%fpt" % (BOTTOM_MARGIN_FACTOR *size),
         line_height = "%fpt" % size,
@@ -202,13 +205,16 @@ def _updateSuggestionColors( styles, active ):
         styles.update( "alt", color = COLOR_DESIGNER_GREEN )
 
 
+_updateSuggestionColors(_SUGGESTION_STYLES_A, True)
+_updateSuggestionColors(_SUGGESTION_STYLES_I, False)
+
+
 def _updateStyles( styles, scale, size ):
     """
     Updates size and ellipsification styling information for
     the style registry 'styles', based on 'size' (a font size
     in points) and 'scale' (a list of usable font sizes in points).
     """
-
     _updateStyleSizes( styles, size )
     if size == scale[0]:
         # We're at the smallest possible size.  Ellispify if needed.
@@ -217,6 +223,9 @@ def _updateStyles( styles, scale, size ):
         styles.update( "document", ellipsify = "false" )
     return styles
 
+
+#FIXME: This is slow as it is static style updated each time 
+#FIXME: This is function with side-effects... refactor it
 def retrieveDescriptionStyles( size = DESCRIPTION_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
@@ -225,6 +234,8 @@ def retrieveDescriptionStyles( size = DESCRIPTION_SCALE[-1] ):
     return _updateStyles( _DESCRIPTION_STYLES, DESCRIPTION_SCALE, size )
 
 
+#FIXME: This is slow as it is static style updated each time 
+#FIXME: This is function with side-effects... refactor it
 def retrieveAutocompleteStyles( active = True, size = LARGE_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
@@ -235,6 +246,8 @@ def retrieveAutocompleteStyles( active = True, size = LARGE_SCALE[-1] ):
     return styles
 
 
+#FIXME: This is slow as it is static style updated each time 
+#FIXME: This is function with side-effects... refactor it
 def retrieveDidyoumeanHintStyles( size = DIDYOUMEANHINT_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
@@ -243,6 +256,8 @@ def retrieveDidyoumeanHintStyles( size = DIDYOUMEANHINT_SCALE[-1] ):
     return _updateStyles( _DIDYOUMEANHINT_STYLES, DIDYOUMEANHINT_SCALE, size )
 
 
+#FIXME: This is slow as it is static style updated each time 
+#FIXME: This is function with side-effects... refactor it
 def retrieveParameterSuggestionStyles( size = PARAMETERSUGGESTION_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
@@ -251,14 +266,13 @@ def retrieveParameterSuggestionStyles( size = PARAMETERSUGGESTION_SCALE[-1] ):
     return _updateStyles( _PARAMETERSUGGESTION_STYLES, PARAMETERSUGGESTION_SCALE, size )
 
 
+#FIXME: This is slow as it is static style updated each time 
+#FIXME: This is function with side-effects... refactor it
 def retrieveSuggestionStyles( active = True, size = SMALL_SCALE[-1] ):
     """
     LONGTERM TODO: Document this.
     """
-
-    styles = _updateStyles( _SUGGESTION_STYLES, SUGGESTION_SCALE, size )
-    _updateSuggestionColors( styles, active )
-    return styles
+    return _updateStyles( _SUGGESTION_STYLES_A if active else _SUGGESTION_STYLES_I, SUGGESTION_SCALE, size )
 
 
 _size_scale_map = {}
@@ -354,7 +368,6 @@ class QuasimodeLayout:
         """
         Computes and stores the layout metrics for the quasimode.
         """
-
         self.newLines = self.__newCreateLines( quasimode )
         self.__newSmoothRags()
         self.__newRoundCorners()
@@ -400,6 +413,7 @@ class QuasimodeLayout:
             hint_text = config.DIDYOUMEAN_HINT_TEXT % didyoumean_hint
         else:
             hint_text = ""
+        
         lines.append( layoutXmlLine(
             xml_data = self.LINE_XML % hint_text,
             styles = retrieveDidyoumeanHintStyles(),
@@ -407,10 +421,9 @@ class QuasimodeLayout:
             ) )
 
         for index in range( 1, len(suggestions) ):
-            isActive = (activeIndex==index)
             lines.append( layoutXmlLine(
                 xml_data = self.LINE_XML % suggestions[index].toXml(),
-                styles = retrieveSuggestionStyles( active = isActive ),
+                styles = retrieveSuggestionStyles(active=(activeIndex==index)),
                 scale = SUGGESTION_SCALE,
                 ) )
 

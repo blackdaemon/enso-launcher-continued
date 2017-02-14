@@ -56,6 +56,16 @@ from enso.graphics import measurement
 from enso.graphics import textlayout
 from enso.graphics import font
 
+# Install lxml for speedup
+LXML_AVAILABLE = True
+try:
+    from lxml import etree
+except Exception as e:
+    logging.warn("Error importing lxml: %s", e)
+    logging.warn("Install python-lxml for speed boost")
+    LXML_AVAILABLE = False
+
+
 RGBA = namedtuple('RGBA', 'red green blue alpha')
 
 # ----------------------------------------------------------------------------
@@ -65,7 +75,7 @@ RGBA = namedtuple('RGBA', 'red green blue alpha')
 # Ordinarily, we'd use the unicodedata module for this, but it's a
 # hefty file so we'll just define values here.
 NON_BREAKING_SPACE = u"\u00a0"
-
+RE_REDUCESPACE = re.compile(r"\s+")
 
 # ----------------------------------------------------------------------------
 # Utility functions
@@ -203,13 +213,13 @@ class StyleRegistry:
 
         self._styleDict = {}
 
-    def __validateKeys( self, dict ):
+    def __validateKeys( self, style_dict ):
         """
         Makes sure that the keys of dict are the names of valid style
         properties.
         """
 
-        invalidKeys = [ key for key in dict.keys() \
+        invalidKeys = [ key for key in style_dict.keys()
                         if key not in STYLE_PROPERTIES ]
         if len( invalidKeys ) > 0:
             raise InvalidPropertyError( str(invalidKeys) )
@@ -658,6 +668,126 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
                 raise XmlMarkupUnexpectedCharactersError( content )
 
 
+
+class _LXmlMarkupHandler( object ):
+    """
+    XML content handler for XML text layout markup.
+    """
+
+    def __init__( self, styleRegistry, tagAliases=None ):
+        """
+        Initializes the content handler with the given style registry
+        and tag aliases.
+        """
+
+        self.styleRegistry = styleRegistry
+
+        if not tagAliases:
+            tagAliases = XmlMarkupTagAliases()
+        self.tagAliases = tagAliases
+
+
+    def _pushStyle( self, name, attrs ):
+        """
+        Sets the current style to the style defined by the "style"
+        attribute of the given tag.  If that style doesn't exist, we
+        use the style named by the tag.
+        """
+
+        styleDict = None
+
+        styleAttr = attrs.get( "style", None )
+        if styleAttr:
+            styleDict = self.styleRegistry.findMatch( styleAttr )
+
+        if styleDict is None:
+            styleDict = self.styleRegistry.findMatch( name )
+
+        if styleDict is None:
+            raise ValueError, "No style found for: %s, %s" % (
+                name,
+                str( styleAttr )
+                )
+
+        self.style.push( styleDict )
+
+
+    def start( self, name, attrs ):
+        """
+        Handles the beginning of an XML element.
+        """
+
+        if name == "document":
+            self.style = CascadingStyleStack()
+            self.document = None
+            self.block = None
+            self.glyphs = None
+            self._pushStyle( name, attrs )
+            self.document = self.style.makeNewDocument()
+        elif name == "block":
+            if not self.document:
+                raise XmlMarkupUnexpectedElementError(
+                    "Block element encountered outside of document element."
+                    )
+            self._pushStyle( name, attrs )
+            self.block = self.style.makeNewBlock()
+            self.glyphs = []
+        elif name == "inline":
+            if not self.block:
+                raise XmlMarkupUnexpectedElementError(
+                    "Inline element encountered outside of block element."
+                    )
+            self._pushStyle( name, attrs )
+        elif self.tagAliases.has( name ):
+            baseElement = self.tagAliases.get( name )
+            self.start( baseElement, { "style" : name } )
+        else:
+            raise XmlMarkupUnknownElementError( name )
+
+
+    def end( self, name ):
+        """
+        Handles the end of an XML element.
+        """
+
+        if name == "document":
+            self.style.pop()
+            self.document.layout()
+        elif name == "block":
+            ellipsisGlyph = self.style.makeNewGlyphs( u"\u2026" )[0]
+            self.block.setEllipsisGlyph( ellipsisGlyph )
+
+            self.style.pop()
+            self.block.addGlyphs( self.glyphs )
+            self.document.addBlock( self.block )
+            self.block = None
+            self.glyphs = None
+        elif name == "inline":
+            self.style.pop()
+        else:
+            baseElement = self.tagAliases.get( name )
+            self.end( baseElement )
+
+
+    def data( self, content ):
+        """
+        Handles XML character data.
+        """
+
+        if self.glyphs != None:
+            self.glyphs.extend( self.style.makeNewGlyphs(content) )
+        else:
+            # Hopefully, the content is just whitespace...
+            content = content.strip()
+            if content:
+                raise XmlMarkupUnexpectedCharactersError( content )
+
+    
+    def close(self):
+        #TOTO: Reset here to clean slate?
+        pass
+        
+        
 class XmlMarkupUnknownElementError( Exception ):
     """
     Exception raised when an unknown XML text layout markup element is
@@ -689,7 +819,7 @@ class XmlMarkupUnexpectedCharactersError( Exception ):
 # XML Markup to Document Conversion
 # ----------------------------------------------------------------------------
 
-def xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
+def _sax_xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
     """
     Converts the given XML text into a textlayout.Document object that
     has been fully laid out and is ready for rendering, using the
@@ -698,18 +828,54 @@ def xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
 
     # Convert all occurrences of multiple contiguous whitespace
     # characters to a single space character.
-    text = re.sub( r"\s+", " ", text )
+    text = RE_REDUCESPACE.sub( " ", text )
 
     # Convert all occurrences of the non-breaking space character
     # entity reference into its unicode equivalent (the SAX XML parser
     # doesn't recognize this one on its own, sadly).
     text = text.replace( "&nbsp;", NON_BREAKING_SPACE )
 
-    xmlMarkupHandler = _XmlMarkupHandler( styleRegistry, tagAliases )
     text = text.encode( "ascii", "xmlcharrefreplace" )
+
+    xmlMarkupHandler = _XmlMarkupHandler( styleRegistry, tagAliases )
     try:
         xml.sax.parseString( text, xmlMarkupHandler )
-    except SAXParseException, e:
-        logging.error(text)
+    except SAXParseException as e:
+        logging.error("Error parsing XML: '%s'; %s", text, e)
         raise
+    
     return xmlMarkupHandler.document
+
+
+def _lxml_xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
+    """
+    Converts the given XML text into a textlayout.Document object that
+    has been fully laid out and is ready for rendering, using the
+    given style registry and tag aliases.
+    """
+
+    # Convert all occurrences of multiple contiguous whitespace
+    # characters to a single space character.
+    text = RE_REDUCESPACE.sub( " ", text )
+
+    # Convert all occurrences of the non-breaking space character
+    # entity reference into its unicode equivalent (the SAX XML parser
+    # doesn't recognize this one on its own, sadly).
+    text = text.replace( "&nbsp;", NON_BREAKING_SPACE )
+
+    text = text.encode( "ascii", "xmlcharrefreplace" )
+
+    #TODO: Cache this?
+    handler = _LXmlMarkupHandler( styleRegistry, tagAliases )
+    parser = etree.XMLParser(
+        strip_cdata=False, resolve_entities=False, remove_blank_text=False, 
+        huge_tree=False, target=handler
+    )
+    
+    etree.fromstring(text, parser)
+
+    return handler.document
+
+# lxml parser is preferred for its speed
+xmlMarkupToDocument = _lxml_xmlMarkupToDocument if LXML_AVAILABLE \
+    else _sax_xmlMarkupToDocument

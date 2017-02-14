@@ -63,6 +63,7 @@ Position = namedtuple('Position', 'x y')
 ANIMATION_TIME = 10
 MAX_OPACITY = 255
 
+
 class ParameterSuggestionWindow:
     """
     Encapsulates the drawing of a single line of text, with optional

@@ -53,7 +53,7 @@ from os.path import exists as path_exists
 from os.path import isfile, getmtime
 
 from enso import config
-from enso.utils.memoize import memodict
+from enso.utils.memoize import memodict, lru_cache
 from enso.events import EventManager
 import enso.providers
 
@@ -95,7 +95,7 @@ def cached_file_name(search_params):
     return '%s.%s' % (str(sdbm_l_hash(search_params)), "cache")
 
 
-@memodict
+@lru_cache()
 def ensure_cache_dir_exists(cache_id):
     assert isinstance(cache_id, basestring) and cache_id.isalnum()
     complete_cache_dir = path_join(CACHE_DIR, cache_id)

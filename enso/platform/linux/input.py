@@ -337,19 +337,19 @@ class _KeyListener (Thread):
                     lines = cmd_stdout.splitlines()
                 else:
                     lines = []
-                lock_line = filter (lambda l: l.startswith ("lock"), lines)
-                num_line = filter (lambda l: "Num_Lock" in l, lines)
-                key_line = filter (lambda l: key in l, lines)
+                lock_line = [l.strip().split() for l in lines if l.startswith ("lock")]
+                num_line = [l.strip().split() for l in lines if "Num_Lock" in l]
+                key_line = [l.strip().split() for l in lines if key in l]
                 if lock_line:
-                    parts = lock_line[0].strip ().split ()
+                    parts = lock_line[0]
                     if len (parts) > 1:
                         self.__caps_lock = parts[1]
                 if num_line:
-                    parts = num_line[0].strip ().split ()
+                    parts = num_line[0]
                     if len (parts) > 1:
                         self.__num_lock_mod = parts[0]
                 if key_line:
-                    parts = key_line[0].strip ().split ()
+                    parts = key_line[0]
                     if len (parts) > 1:
                         self.__key_mod = parts[0]
             if key == "Caps_Lock":
@@ -407,6 +407,7 @@ class InputManager (object):
                 self.onTick (_TIMER_INTERVAL_IN_MS)
             except KeyboardInterrupt:
                 gtk.main_quit ()
+                return False
             finally:
                 return True # Return true to keep the timeout running
 
@@ -444,11 +445,11 @@ class InputManager (object):
             try:
                 self.onInit ()
                 gtk.main ()
-            except KeyboardInterrupt, e:
+            except KeyboardInterrupt as e:
                 logging.error(e)
-            except IOError, e:
+            except IOError as e:
                 logging.error(e)
-            except Exception, e:
+            except Exception as e:
                 logging.error(e)
         finally:
             self.__keyListener.stop ()

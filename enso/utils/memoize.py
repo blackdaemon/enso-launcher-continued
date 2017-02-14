@@ -41,12 +41,29 @@
 # ----------------------------------------------------------------------------
 
 import inspect
+import logging
 
+from enso.utils import do_once
+
+    
 # See: https://pypi.python.org/pypi/backports.functools_lru_cache/1.1
 try:
     from functools import lru_cache
 except ImportError:
-    from backports.functools_lru_cache import lru_cache
+    try:
+        from backports.functools_lru_cache import lru_cache # @UnusedImport
+    except ImportError:
+        def lru_cache(maxsize=100, typed=False):
+            def decorate(func):
+                def func_wrapper(*args, **kwargs):
+                    do_once(
+                        logging.warning,
+                        "The function %s() in module %s was meant to be cached. Consider installing backports.functools_lru_cache module to improve its performance."
+                            % (func.__name__, func.__module__)
+                    )
+                    return func(*args, **kwargs)
+                return func_wrapper
+            return decorate
     
     
 from enso.utils.decorators import finalizeWrapper
@@ -326,7 +343,7 @@ class cached_property(object):
         self.key = '_{name}'.format(name=self.__name__)
         self.func = func
 
-    def __get__(self, obj, type=None):
+    def __get__(self, obj, type=None): 
         if self.key not in obj.__dict__:
             obj.__dict__[self.key] = self.func(obj)
         return obj.__dict__[self.key]
