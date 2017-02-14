@@ -52,7 +52,6 @@ import threading
 import urllib2
 import logging
 import urllib3
-import warnings
 
 from abc import ABCMeta, abstractmethod
 
@@ -110,7 +109,7 @@ urllib2.install_opener(
         urllib2.ProxyHandler({})
     )
 )
-    
+
     
 # ----------------------------------------------------------------------------
 # PersistentHTTPConnection
@@ -278,6 +277,7 @@ class CommandParameterWebSuggestionsMixin( object ):
             """
             self.__eventManager.removeResponder(self.onEndQuasimode)
             self.__stopSuggestionThread()
+
                      
         def __startSuggestionThread(self):
             """
@@ -496,8 +496,9 @@ class CommandParameterWebSuggestionsMixin( object ):
         (These calls are performed from quasimode module on every command that
         implements this method)
 
-        It will initialize the suggestion-thread if and feed it with changed text.
+        It will initialize the suggestion-thread and feed it with changed text.
         """
+        self.quasimodeId = quasimodeId
         self.__impl.onParameterModified(keyCode, oldText, newText, quasimodeId)
 
 

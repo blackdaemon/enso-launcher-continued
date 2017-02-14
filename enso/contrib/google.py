@@ -52,8 +52,8 @@ import webbrowser
 import logging
 import threading
 import urllib2
+import random
 
-from random import choice
 from contextlib import closing
 
 import enso.config
@@ -62,6 +62,7 @@ from enso.commands.decorators import warn_overriding
 from enso.commands import CommandManager
 from enso.commands.factories import ArbitraryPostfixFactory
 from enso.commands.mixins import CommandParameterWebSuggestionsMixin
+from enso.events import EventManager
 from enso import selection
 from enso.messages import displayMessage
 from enso.contrib.scriptotron.tracebacks import safetyNetted
@@ -74,41 +75,43 @@ except ImportError as e:
     logging.warning("Consider installing 'ujson' library for JSON parsing performance boost.")
     import json as jsonlib
     
-    
+# Google suggestions polling interval in milliseconds (minimum allowed is 100) 
+SUGGESTIONS_POLLING_INTERVAL = 100
+# Maximum length of query Google accepts
+MAX_QUERY_LENGTH = 2048
+# Randomize HTTP user-agent string on Google suggestions queries (changes on every quasimode start)
 RANDOMIZE_USER_AGENT = True
 
 HTTP_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:26.0) Gecko/20100101 Firefox/26.0',
+    # This will get ramdomized on every query
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
     #'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Connection': 'Keep-Alive',
-    #'Accept-Encoding': 'gzip, deflate',
-    'DNT': '1'
 }
     
 # Several different User-Agents to diversify the requests.
-# Keep the User-Agents updated. Last update:  19 Nov 2015
+# Keep the User-Agents updated. Last update:  01 Feb 2017
 # Get them here: http://techblog.willshouse.com/2012/01/03/most-common-user-agents/
 USER_AGENT_STRINGS = [
-    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
-    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.7 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.7',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11) AppleWebKit/601.1.56 (KHTML, like Gecko) Version/9.0 Safari/601.1.56',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0.2 Safari/602.3.12',
+    'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0',
+    'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0',
     'Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
-    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.71 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.3; WOW64; rv:41.0) Gecko/20100101 Firefox/41.0',
-    'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/601.2.7 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.7'
+    'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393',
+    'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:50.0) Gecko/20100101 Firefox/50.0'
 ]
 
 # ----------------------------------------------------------------------------
@@ -128,15 +131,54 @@ def _get_local_domain():
             redirected_url = resp.geturl()
         domain = urllib2.urlparse.urlsplit(redirected_url).netloc
         GOOGLE_DOMAIN = domain[domain.index("google.")+7:]
-    except:
-        pass
+    except Exception as e:
+        logging.warning("Error parsing google.com redirect TLS: ", str(e))
     logging.info("Google local domain has been set to .%s", GOOGLE_DOMAIN)
 
 t = threading.Thread(target=_get_local_domain)
-#t.setDaemon(True)
+t.setDaemon(True)
 t.start()
 
 
+class RandomListItemProvider:
+    """
+    Returns one random item from the list based on the id.
+    It remembers the id and as long as the id does not change between the calls, 
+    the returned item stays the same.
+    As soon as the id changes, the list is shuffled and same id returns different 
+    item next time it's used.
+    
+    Example:
+        get_random_http_agent = RandomListItemProvider(agents_list)
+        
+        get_random_http_agent(100)
+            returns agent21
+        get_random_http_agent(100)
+            returns agent21
+            
+        get_random_http_agent(1020)
+            returns agent15
+        get_random_http_agent(1020)
+            returns agent15
+            
+        get_random_http_agent(100)
+            returns agent03
+        get_random_http_agent(100)
+            returns agent03
+    """
+    def __init__( self, item_list ):
+        self.item_list = item_list
+        self.last_id = 0
+    
+    def __call__(self, id):
+        # On change of the id, shuffle the strings
+        if id != self.last_id:
+            random.shuffle(self.item_list)
+            self.last_id = id
+        # Always map same string to given id
+        return self.item_list[hash(id) % len(self.item_list)]
+        
+    
 @warn_overriding
 class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, ArbitraryPostfixFactory ):
     """
@@ -155,7 +197,6 @@ class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, Arbitra
         super(AbstractGoogleCommandFactory, self).__init__()
         #super() should call the mixin init properly
         #CommandParameterWebSuggestionsMixin.__init__(self)
-
         self.command_name = command_name
         self.config_key = command_name.upper().replace(" ", "_") 
 
@@ -173,7 +214,10 @@ class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, Arbitra
                 "in your .ensorc to turn it on." % (command_name, self.config_key)
             )
 
+        self.setSuggestionsPollingInterval(SUGGESTIONS_POLLING_INTERVAL)
+        self.get_random_user_agent = RandomListItemProvider(USER_AGENT_STRINGS)
 
+        
     @safetyNetted
     def run( self ):
         """
@@ -186,8 +230,6 @@ class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, Arbitra
         # See this link for more information:
         #
         #   http://code.google.com/apis/soapsearch/reference.html
-
-        MAX_QUERY_LENGTH = 2048
 
         if self.parameter is not None:
             text = self.parameter.decode()
@@ -292,7 +334,8 @@ class AbstractGoogleCommandFactory( CommandParameterWebSuggestionsMixin, Arbitra
                 u"Performs %s %s search on the selected or typed text." % (article, self.command_name)
             )
         return self
-
+    
+        
 
 @warn_overriding
 class GoogleSearchCommandFactory( AbstractGoogleCommandFactory ):
@@ -323,8 +366,10 @@ class GoogleSearchCommandFactory( AbstractGoogleCommandFactory ):
                 "oe":charset,
                 "query":query
             }
+
         if RANDOMIZE_USER_AGENT:
-            HTTP_HEADERS['User-Agent'] = choice(USER_AGENT_STRINGS)
+            # Get random user-agent every quasimode session
+            HTTP_HEADERS['User-Agent'] = self.get_random_user_agent(self.quasimodeId)
     
         request = urllib2.Request(url, headers=HTTP_HEADERS)
         
@@ -360,8 +405,11 @@ class GoogleImagesCommandFactory( AbstractGoogleCommandFactory ):
                 "oe":charset,
                 "query":query
             }
+        
         if RANDOMIZE_USER_AGENT:
-            HTTP_HEADERS['User-Agent'] = choice(USER_AGENT_STRINGS)
+            # Get random user-agent every quasimode session
+            HTTP_HEADERS['User-Agent'] = self.get_random_user_agent(self.quasimodeId)
+
         request = urllib2.Request(url, headers=HTTP_HEADERS)
         
         return request
@@ -399,8 +447,11 @@ class YoutubeCommandFactory( AbstractGoogleCommandFactory ):
                 "oe":charset,
                 "query":query
             }
+
         if RANDOMIZE_USER_AGENT:
-            HTTP_HEADERS['User-Agent'] = choice(USER_AGENT_STRINGS)
+            # Get random user-agent every quasimode session
+            HTTP_HEADERS['User-Agent'] = self.get_random_user_agent(self.quasimodeId)
+
         request = urllib2.Request(url, headers=HTTP_HEADERS)
         
         return request
