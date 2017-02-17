@@ -57,15 +57,25 @@
 # The Document Element
 # ----------------------------------------------------------------------------
 
-class Document:
+
+class Document(object):
     """
     Encapsulates a contiguous two-dimensional area of text layout.
     The Document is made up of Blocks, each of which corresponds to a
     vertical section of text with its own alignment and margins (e.g.,
     the <p> tag in HTML).
     """
+    __slots__ = (
+        '__dict__',
+        '__weakref__',
+        'blocks',
+        'height',
+        'marginBottom',
+        'marginTop',
+        'width',
+    )
 
-    def __init__( self, width, marginTop, marginBottom ):
+    def __init__(self, width, marginTop, marginBottom):
         """
         Creates a Document with the given width and margins, all in
         points.
@@ -83,13 +93,13 @@ class Document:
         # Total height of the block, in points.
         self.height = None
 
-    def addBlock( self, block ):
+    def addBlock(self, block):
         """
         Adds the given Block object to the document.
         """
-        self.blocks.append( block )
+        self.blocks.append(block)
 
-    def layout( self ):
+    def layout(self):
         """
         Lays out the Document; must always be caled before drawing the
         document and after all the blocks have been added.
@@ -101,7 +111,7 @@ class Document:
             blocksHeight += block.height
         self.height = self.marginTop + blocksHeight + self.marginBottom
 
-    def draw( self, x, y, cairoContext ):
+    def draw(self, x, y, cairoContext):
         """
         Draws the document with its top-left corner at the given
         position (in points), using the given cairo context.
@@ -109,7 +119,7 @@ class Document:
 
         y += self.marginTop
         for block in self.blocks:
-            block.draw( x, y, cairoContext )
+            block.draw(x, y, cairoContext)
             y += block.height
 
 
@@ -117,15 +127,31 @@ class Document:
 # The Block Element
 # ----------------------------------------------------------------------------
 
-class Block:
+class Block(object):
     """
     The Block element, which a Document is made of.  A Block consists
     of individual lines, and cannot have any layout elements to its
     sides.
     """
 
-    def __init__( self, width, lineHeight, marginTop, marginBottom, textAlign,
-                  maxLines, ellipsify ):
+    __slots__ = (
+        '__dict__',
+        '__glyphs',
+        '__weakref__',
+        'ellipsify',
+        'ellipsisGlyph',
+        'height',
+        'lineHeight',
+        'lines',
+        'marginBottom',
+        'marginTop',
+        'maxLines',
+        'textAlign',
+        'width',
+    )
+
+    def __init__(self, width, lineHeight, marginTop, marginBottom, textAlign,
+                 maxLines, ellipsify):
         """
         Creates a Block object with the given width, line height, and
         margins, all in points.  Also sets the alignment of the text
@@ -163,7 +189,7 @@ class Block:
         # Total height of the block, in points.
         self.height = None
 
-    def setEllipsisGlyph( self, ellipsisGlyph ):
+    def setEllipsisGlyph(self, ellipsisGlyph):
         """
         Sets the ellipsis glyph for the block; this is the glyph
         inserted at the end of the final line of a block if maxLines
@@ -172,13 +198,13 @@ class Block:
 
         self.ellipsisGlyph = ellipsisGlyph
 
-    def addGlyphs( self, glyphs ):
+    def addGlyphs(self, glyphs):
         """
         Adds the given glyphs to the block.
         """
-        self.__glyphs.extend( glyphs )
+        self.__glyphs.extend(glyphs)
 
-    def __addLine( self, line, isPartialLine = False ):
+    def __addLine(self, line, isPartialLine=False):
         """
         Private method that adds the given line to the block.
         'isPartialLine' should be set to true if the line being added
@@ -193,10 +219,10 @@ class Block:
             alignment = "left"
         else:
             alignment = self.textAlign
-        line.layout( alignment, self.width, self.lineHeight )
-        self.lines.append( line )
+        line.layout(alignment, self.width, self.lineHeight)
+        self.lines.append(line)
 
-    def layout( self ):
+    def layout(self):
         """
         Lays out the block. This method should be called before the
         block is drawn, yet after all glyphs have been added to the
@@ -207,9 +233,9 @@ class Block:
         currWordStartIndex = 0
         currWordLength = 0
         currLine = Line()
-        
-        for i in range( len(self.__glyphs) ):
-            assert( currLineLength >= currWordLength )
+
+        for i in range(len(self.__glyphs)):
+            assert(currLineLength >= currWordLength)
 
             glyph = self.__glyphs[i]
             advance = glyph.fontGlyph.advance
@@ -223,7 +249,7 @@ class Block:
 
                 # Time to make a new line.
 
-                if len( self.lines ) == self.maxLines-1:
+                if len(self.lines) == self.maxLines - 1:
                     # We've hit the max # of lines!
                     if not self.ellipsify:
                         raise MaxLinesExceededError()
@@ -233,10 +259,10 @@ class Block:
                         # ignoring the rest of the glyphs.
                         currLine.addGlyphs(
                             self.__glyphs[currWordStartIndex:i]
-                            )
+                        )
                         currWordLength = 0
-                        currLine.ellipsify( self.ellipsisGlyph,
-                                            self.width )
+                        currLine.ellipsify(self.ellipsisGlyph,
+                                           self.width)
                         break
 
                 # Determine whether our current line has a word in it.
@@ -252,13 +278,13 @@ class Block:
                 if not currLineHasWord or glyph.isWhitespace:
                     currLine.addGlyphs(
                         self.__glyphs[currWordStartIndex:i]
-                        )
+                    )
 
                     # If the current character we're looking at is
                     # whitespace, pretend it doesn't exist because
                     # we're at the end of a line.
                     if glyph.isWhitespace:
-                        currWordStartIndex = i+1
+                        currWordStartIndex = i + 1
                         currWordLength = 0
                     else:
                         currWordStartIndex = i
@@ -268,7 +294,7 @@ class Block:
                     currWordLength += advance
 
                 # Now, create a new line.
-                self.__addLine( currLine )
+                self.__addLine(currLine)
                 currLineLength = currWordLength
                 currLine = Line()
             elif glyph.isWhitespace:
@@ -276,49 +302,49 @@ class Block:
                 # of another.  Add this word, including this
                 # whitespace character, to the current line.
                 currLine.addGlyphs(
-                    self.__glyphs[currWordStartIndex:i+1]
-                    )
+                    self.__glyphs[currWordStartIndex:i + 1]
+                )
                 currLineLength += advance
-                currWordStartIndex = i+1
+                currWordStartIndex = i + 1
                 currWordLength = 0
             else:
                 # We're still building a word.
                 currLineLength += advance
                 currWordLength += advance
 
-            assert( currLineLength >= currWordLength )
+            assert(currLineLength >= currWordLength)
 
-        assert( currLineLength >= currWordLength )
+        assert(currLineLength >= currWordLength)
 
         # Now that we're done looking through all the glyphs, we can
         # safely add the last remaining word to the current line.
         if currWordLength > 0:
             currLine.addGlyphs(
                 self.__glyphs[currWordStartIndex:]
-                )
+            )
 
         # If our current (i.e., last) line has anything on it, we're
         # going to add it to the block.
         if currLineLength > 0:
-            self.__addLine( currLine, isPartialLine = True )
+            self.__addLine(currLine, isPartialLine=True)
 
         self.__glyphs = None
         self.height = self.marginTop + \
-                      self.lineHeight * len(self.lines) + \
-                      self.marginBottom
+            self.lineHeight * len(self.lines) + \
+            self.marginBottom
 
-    def draw( self, x, y, cairoContext ):
+    def draw(self, x, y, cairoContext):
         """
         Draws the block with its upper-left corner at the given
         coordinates (in points), using the given cairo context.
         """
 
         for line in self.lines:
-            line.draw( x, y, cairoContext )
+            line.draw(x, y, cairoContext)
             y += self.lineHeight
 
 
-class GlyphWiderThanBlockError( Exception ):
+class GlyphWiderThanBlockError(Exception):
     """
     Exception raised when a glyph is wider than a block and therefore
     can't be added to the block.
@@ -327,7 +353,7 @@ class GlyphWiderThanBlockError( Exception ):
     pass
 
 
-class MaxLinesExceededError( Exception ):
+class MaxLinesExceededError(Exception):
     """
     Exception thrown by a Block object when the maximum number of
     lines for the block has been exceeded.
@@ -340,7 +366,7 @@ class MaxLinesExceededError( Exception ):
 # The Line Element
 # ----------------------------------------------------------------------------
 
-class Line:
+class Line(object):
     """
     Encapsulates a line, made up of glyphs.
 
@@ -349,7 +375,25 @@ class Line:
     'CSS Pocket Reference', 2nd edition, pgs. 12-13.
     """
 
-    def __init__( self ):
+    __slots__ = (
+        '__alignOfs',
+        '__cursorPos',
+        '__dict__',
+        '__ofsPerSpace',
+        '__weakref__',
+        'ascent',
+        'descent',
+        'distanceToBaseline',
+        'externalLeading',
+        'glyphs',
+        'lineHeight',
+        'xMax',
+        'xMin',
+        'yMax',
+        'yMin',
+    )
+
+    def __init__(self):
         """
         Creates an empty line.
         """
@@ -389,7 +433,7 @@ class Line:
         self.xMax = None
         self.yMax = None
 
-    def layout( self, alignment, width, lineHeight ):
+    def layout(self, alignment, width, lineHeight):
         """
         Lays out the glyphs on the line; this should be called after
         adding all glyphs to the line, but before drawing it.
@@ -404,7 +448,7 @@ class Line:
         # http://freetype.sourceforge.net/freetype2/docs/glyphs/Image3.png
 
         # Cut off a trailing whitespace character, if it exists.
-        if len( self.glyphs ) > 1 and self.glyphs[-1].isWhitespace:
+        if len(self.glyphs) > 1 and self.glyphs[-1].isWhitespace:
             self.glyphs = self.glyphs[:-1]
 
         # Determine our bounding box.
@@ -457,18 +501,18 @@ class Line:
                 self.__ofsPerSpace = widthNeeded / spaceCount
                 xMax = width
         else:
-            raise InvalidAlignmentError( alignment )
+            raise InvalidAlignmentError(alignment)
 
         # Determine some line metrics information.
-        self.ascent = max( [glyph.font.ascent for glyph in self.glyphs] )
-        self.descent = max( [glyph.font.descent for glyph in self.glyphs] )
+        self.ascent = max([glyph.font.ascent for glyph in self.glyphs])
+        self.descent = max([glyph.font.descent for glyph in self.glyphs])
 
         self.lineHeight = lineHeight
-        self.externalLeading = ( self.lineHeight -
-                                 (self.ascent +
-                                  self.descent) )
+        self.externalLeading = (self.lineHeight -
+                                (self.ascent +
+                                 self.descent))
         self.distanceToBaseline = ( self.externalLeading / 2.0 ) + \
-                                  self.ascent
+            self.ascent
 
         # Set the bounding box in screen coordinates, relative to the
         # top-left of the line's line box.
@@ -477,12 +521,12 @@ class Line:
         self.xMax = xMax + self.__alignOfs
         self.yMax = -yMin + self.distanceToBaseline
 
-    def addGlyphs( self, glyphs ):
+    def addGlyphs(self, glyphs):
         """
         Adds the given glyphs to the end of the line.
         """
 
-        if len( self.glyphs ) > 0:
+        if len(self.glyphs) > 0:
             lastGlyph = self.glyphs[-1]
         else:
             lastGlyph = None
@@ -490,17 +534,17 @@ class Line:
         for glyph in glyphs:
             if lastGlyph:
                 # Perform kerning, if possible.
-                if ( glyph.font == lastGlyph.font ):
+                if (glyph.font == lastGlyph.font):
                     kernDist = glyph.font.getKerningDistance(
                         lastGlyph.char, glyph.char
-                        )
+                    )
                     self.__cursorPos += kernDist
             glyph.pos = self.__cursorPos
             self.__cursorPos += glyph.fontGlyph.advance
             lastGlyph = glyph
-        self.glyphs.extend( glyphs )
+        self.glyphs.extend(glyphs)
 
-    def removeGlyph( self ):
+    def removeGlyph(self):
         """
         Removes the last glyph from the line.
         """
@@ -508,7 +552,7 @@ class Line:
         removedGlyph = self.glyphs.pop()
         self.__cursorPos = removedGlyph.pos
 
-    def ellipsify( self, ellipsisGlyph, maxWidth ):
+    def ellipsify(self, ellipsisGlyph, maxWidth):
         """
         'Ellipsifies' this line by removing its current glyphs until
         this line with the given ellipsis glyph appended is shorter
@@ -524,9 +568,9 @@ class Line:
             self.removeGlyph()
 
         # Add the ellipsis to the end of this line.
-        self.addGlyphs( [ellipsisGlyph] )
+        self.addGlyphs([ellipsisGlyph])
 
-    def draw( self, x, y, cairoContext ):
+    def draw(self, x, y, cairoContext):
         """
         Draws the line to the given cairo context so that the top-left
         of the line's line box is at the given coordinates, in points.
@@ -538,23 +582,23 @@ class Line:
         currFont = None
         for glyph in self.glyphs:
             glyphX = spaceOfs + \
-                     self.__alignOfs + \
-                     x + \
-                     glyph.pos
+                self.__alignOfs + \
+                x + \
+                glyph.pos
 
             if not glyph.isWhitespace:
                 if currFont != glyph.font:
                     currFont = glyph.font
-                    currFont.loadInto( cairoContext )
-                cairoContext.set_source_rgba( *glyph.color )
-                cairoContext.move_to( glyphX, y )
+                    currFont.loadInto(cairoContext)
+                cairoContext.set_source_rgba(*glyph.color)
+                cairoContext.move_to(glyphX, y)
 
-                cairoContext.show_text( glyph.charAsUtf8 )
+                cairoContext.show_text(glyph.charAsUtf8)
             else:
                 spaceOfs += self.__ofsPerSpace
 
 
-class InvalidAlignmentError( Exception ):
+class InvalidAlignmentError(Exception):
     """
     Exception raised when an invalid alignment is used as an argument
     to a function or method.
@@ -567,15 +611,26 @@ class InvalidAlignmentError( Exception ):
 # The Glyph Element
 # ----------------------------------------------------------------------------
 
-class Glyph:
+class Glyph(object):
     """
     The smallest element of text layout, the glyph encapsulates a
     single character on a line, including its font, style, size, and
     color.
     """
 
+    __slots__ = (
+        '__dict__',
+        '__weakref__',
+        'char',
+        'charAsUtf8',
+        'color',
+        'font',
+        'fontGlyph',
+        'isWhitespace',
+        'pos',
+    )
 
-    def __init__( self, fontGlyph, color ):
+    def __init__(self, fontGlyph, color):
         """
         Creates the glyph from the given font glyph and color.
         """
@@ -593,10 +648,10 @@ class Glyph:
         # Whether this glyph represents valid, breaking whitespace.
         self.isWhitespace = (self.char == " ")
 
-    def __repr__( self ):
+    def __repr__(self):
         """
         Returns a textual representation of this glyph for debugging.
         """
 
-        char = self.char.encode( "ascii", "replace" )
+        char = self.char.encode("ascii", "replace")
         return "<TextLayout Glyph '%s'>" % char
