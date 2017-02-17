@@ -34,7 +34,8 @@
 
 import logging
 
-class EventResponderList( object ):
+
+class EventResponderList(object):
     """
     Behaves like a list with limited functionality.  When the list is
     non-empty, an event handler is registered for a particular event
@@ -43,37 +44,55 @@ class EventResponderList( object ):
     becomes non-empty again.
     """
 
-    def __init__( self, eventManager, eventName, responderFunc ):
+    def __init__(self, eventManager, eventName, responderFunc):
         self.__eventManager = eventManager
         self.__eventName = eventName
         self.__responderFunc = responderFunc
         self.__isRegistered = False
-        self.__items = []
+        self.__items = {}
 
-    def append( self, item ):
-        self.__items.append( item )
+    """
+    def append(self, item):
+        self.__items.append(item)
         self.__onItemsChanged()
-
-    def __setitem__( self, i, j ):
-        if ( not isinstance( i, slice ) or 
-             not (i.start == None and i.stop == None) ):
+    """
+    
+    def __setitem__(self, key, value):
+        """
+        if (not isinstance(item, slice) or
+                not (item.start is None and item.stop is None)):
             raise NotImplementedError()
-        self.__items[:] = j
+        """
+        self.__items[key] = value
         self.__onItemsChanged()
 
-    def __iter__( self ):
-        for item in self.__items:
-            yield item
+    def __delitem__(self, key):
+        del self.__items[key]
+        self.__onItemsChanged()
+        
+    def __iter__(self):
+        for key, item in self.__items.items():
+            yield key, item
 
-    def __onItemsChanged( self ):
+    def __onItemsChanged(self):
         if self.__items and (not self.__isRegistered):
-            assert logging.debug("Registering EventResponderList for onTimer event") or True
+            assert logging.debug(
+                "Registering EventResponderList for onTimer event") or True
             self.__eventManager.registerResponder(
                 self.__responderFunc,
                 self.__eventName
-                )
+            )
             self.__isRegistered = True
         elif self.__isRegistered and (not self.__items):
-            assert logging.debug("Removing EventResponderList for onTimer event") or True
-            self.__eventManager.removeResponder( self.__responderFunc )
+            assert logging.debug(
+                "Removing EventResponderList for onTimer event") or True
+            self.__eventManager.removeResponder(self.__responderFunc)
             self.__isRegistered = False
+
+    def fromlist(self, lst):
+        self.__items = dict((id(item), item) for item in lst)
+        self.__onItemsChanged()
+
+    def clear(self):
+        self.__items.clear()
+        self.__onItemsChanged()
