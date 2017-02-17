@@ -56,11 +56,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
     def _get_learn_as_dir(self):
         return LEARN_AS_DIR
 
-    def _reload_shortcuts(self):
-        shortcuts = []
-        shortcuts.extend(get_shortcuts())
-        shortcuts.extend(get_applications())
-        return ShortcutsDict(((s.name, s) for s in shortcuts))
+    def _reload_shortcuts(self, shortcuts_dict):
+        shortcuts_dict.extend(get_shortcuts())
+        shortcuts_dict.extend(get_applications())
 
     def _is_application(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE

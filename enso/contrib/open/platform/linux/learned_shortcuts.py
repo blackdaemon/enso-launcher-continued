@@ -35,14 +35,15 @@
 
 # Future imports
 from __future__ import with_statement
-
-import os
 import logging
+import os
 
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from enso.contrib.open import shortcuts
+from enso.contrib.open.platform.linux.utils import get_file_type
+
 
 SHORTCUT_CATEGORY = "learned"
 my_documents_dir = os.path.expanduser('~/Documents')
@@ -56,8 +57,7 @@ _dir_monitor = None
 _file_changed_event_handler = None
 
 
-
-class _FileChangedEventHandler( FileSystemEventHandler ):
+class _FileChangedEventHandler(FileSystemEventHandler):
     
     def __init__(self):
         super(_FileChangedEventHandler, self).__init__()
@@ -68,7 +68,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_moved(event)
         what = 'directory' if event.is_directory else 'file'
         print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
@@ -76,7 +76,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_created(event)
         what = 'directory' if event.is_directory else 'file'
         print "Created %s: %s" % (what, event.src_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
@@ -84,7 +84,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_deleted(event)
         what = 'directory' if event.is_directory else 'file'
         print "Deleted %s: %s" % (what, event.src_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
@@ -92,7 +92,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_modified(event)
         what = 'directory' if event.is_directory else 'file'
         print "Modified %s: %s" % (what, event.src_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
 
@@ -108,19 +108,14 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
             print "No calling update callback func was defined, that's fine"
 
 
-
-def get_shortcut_type(filepath):
-    return shortcuts.SHORTCUT_TYPE_EXECUTABLE
-
-
 def get_learned_shortcuts():
     logging.info("Loading learn-as shortcuts")
     result = []
     for f in os.listdir(LEARN_AS_DIR):
         name = os.path.basename(f).lower()
         filepath = os.path.join(LEARN_AS_DIR, f)
-        t = get_shortcut_type(filepath)
-        shortcut = shortcuts.Shortcut(name, t, filepath, category=SHORTCUT_CATEGORY)
+        t = get_file_type(filepath)
+        shortcut = shortcuts.Shortcut(name, t, filepath, shortcut_filename=filepath, category=SHORTCUT_CATEGORY)
         result.append(shortcut)
     #print result
     logging.info("Loaded %d shortcuts" % len(result))
@@ -132,9 +127,10 @@ def register_update_callback(callback_func):
     global _dir_monitor, _file_changed_event_handler
     if _file_changed_event_handler is None:
         _file_changed_event_handler = _FileChangedEventHandler()
-    _file_changed_event_handler.update_callback_func = callback_func
+    if _file_changed_event_handler.update_callback_func != callback_func:
+        _file_changed_event_handler.update_callback_func = callback_func
     if _dir_monitor is None:
-        # Set up the directory watcher for shortcuts directory 
+        # Set up the directory watcher for shortcuts directory
         _dir_monitor = Observer()
         _dir_monitor.schedule(_file_changed_event_handler, LEARN_AS_DIR, recursive=False)
         _dir_monitor.start()

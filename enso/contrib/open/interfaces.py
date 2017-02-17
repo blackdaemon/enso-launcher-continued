@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -35,9 +37,9 @@
 
 import os
 import threading
-from xml.sax.saxutils import escape as xml_escape
-
+import urlparse
 from abc import ABCMeta, abstractmethod
+from xml.sax.saxutils import escape as xml_escape
 
 try:
     import regex as re
@@ -45,20 +47,19 @@ except Exception, e:
     import re
 
 import enso.messages
-
+from enso.contrib.open import shortcuts
 from enso.contrib.open import utils
-from enso.contrib.open.shortcuts import ShortcutsDict
 
 
-def display_xml_message(msg):
+def display_message(msg):
     enso.messages.displayMessage("<p>%s</p>" % msg)
 
 
-class ShortcutAlreadyExistsError( Exception ):
+class ShortcutAlreadyExistsError(Exception):
     pass
 
 
-#TODO: This is not a good set of URL regexps! Do more unit-testing
+# TODO: This is not a good set of URL regexps! Do more unit-testing
 _RE_URL_FINDERS = [
     re.compile(r"""
         (   # hostname / IP address
@@ -77,24 +78,42 @@ _RE_URL_FINDERS = [
     re.compile(r"(mailto:)?[-_\.\d\w]+@[-_\.\d\w]+", re.IGNORECASE),
 ]
 
-def is_url(text):
+
+def is_valid_url(text):
     """
-    >>> is_url("mailto:aks12kjACd.ka-0a_0@alsksk.com")
+    >>> is_valid_url("mailto:aks12kjACd.ka-0a_0@alsksk.com")
     True
-    >>> is_url("<aks12kjACd.ka-0a_0@alsksk.com>")
+    >>> is_valid_url("<aks12kjACd.ka-0a_0@alsksk.com>")
     True
     """
-    for urltest in _RE_URL_FINDERS:
-        if urltest.search(text, re.I):
-            return True
-
-    return False
+    return any(urltest.search(text, re.I) for urltest in _RE_URL_FINDERS)
 
 
+def is_url2(text):
+    """If @text is an URL, return a cleaned-up URL, else return None"""
+    text = text.strip()
+    components = list(urlparse.urlparse(text))
+    domain = "".join(components[1:])
+    dotparts = domain.rsplit(".")
+  
+    # 1. Domain name part is one word (without spaces)
+    # 2. Urlparse parses a scheme (http://), else we apply heuristics
+    if len(domain.split()) == 1 and (components[0] or ("." in domain and
+            len(dotparts) >= 2 and len(dotparts[-1]) >= 2 and
+            any(char.isalpha() for char in domain) and
+            all(part[:1].isalnum() for part in dotparts))):
+        if not components[0]:
+            url = "http://" + "".join(components[1:])
+        else:
+            url = text
+        name = ("".join(components[1:3])).strip("/")
+        if name:
+            return url
 
-class IOpenCommand( object ):
-    """ 
-    Open command interface 
+
+class IOpenCommand(object):
+    """
+    Open command interface
     """
 
     __metaclass__ = ABCMeta
@@ -148,16 +167,13 @@ class IOpenCommand( object ):
         return
 
 
-
-class AbstractOpenCommand( IOpenCommand ):
-    """ 
+class AbstractOpenCommand(IOpenCommand):
+    """
     Implements platform independent Open command functionality.
     Platform implementations should subclass this class and override
     all abstract methods.
     """
 
-    shortcut_dict = None
-    
     def __init__(self):
         super(AbstractOpenCommand, self).__init__()
         """
@@ -170,16 +186,17 @@ class AbstractOpenCommand( IOpenCommand ):
         def reloader_thread(self):
             with utils.Timer("Reloading \"open\" command shortcuts dict"):
                 self._reload_shortcuts(self.shortcut_dict)
-                #if not isinstance(shortcuts, dict):
-                #    shortcuts = dict(shortcuts)
-                #self.shortcuts_map.update(shortcuts)
-                pass
+                """
+                if not isinstance(shortcuts, dict):
+                    shortcuts = dict(shortcuts)
+                self.shortcuts_map.update(shortcuts)
+                """
 
         # Reload shortcuts dictionary in the thread
         self._unlearn_open_undo = []
-        self.shortcut_dict = ShortcutsDict()
+        self.shortcut_dict = shortcuts.ShortcutsDict()
         t = threading.Thread(target=reloader_thread, args=(self,))
-        t.setDaemon(True)
+        # t.setDaemon(True)
         t.start()
 
     def get_shortcuts(self, force_reload=False):
@@ -187,7 +204,7 @@ class AbstractOpenCommand( IOpenCommand ):
         if force_reload or self.shortcut_dict is None:
             with utils.Timer("Reloading shortcuts dict"):
                 if self.shortcut_dict is None:
-                    self.shortcut_dict = ShortcutsDict()
+                    self.shortcut_dict = shortcuts.ShortcutsDict()
                 self._reload_shortcuts(self.shortcut_dict)
         return self.shortcut_dict
 
@@ -220,10 +237,20 @@ class AbstractOpenCommand( IOpenCommand ):
         Unregister shortcut.
         Undo functionality is implemented here.
         """
+        # FIXME: Do not offer non-unlearnable shortcuts to "unlearn open" command
         shortcut = self.shortcut_dict[shortcut_name]
-        self._unlearn_open_undo.append(shortcut)
-        self._remove_shortcut(shortcut)
-        del self.shortcut_dict[shortcut_name]
+        if shortcut.flags & shortcuts.SHORTCUT_FLAG_CANTUNLEARN:
+            raise Exception("Shortcut can't be unlearned: %s" % shortcut.target)
+        try:
+            removed = self._remove_shortcut(shortcut)
+        except Exception as e:
+            raise
+        else:
+            if removed:
+                self._unlearn_open_undo.append(shortcut)
+                del self.shortcut_dict[shortcut_name]
+            else:
+                raise Exception("Shortcut can't be unlearned: %s" % shortcut.target)
 
     def undo_remove_shortcut(self):
         if len(self._unlearn_open_undo) > 0:
@@ -245,17 +272,17 @@ class AbstractOpenCommand( IOpenCommand ):
             self._open_with_shortcut(None, targets)
             return
 
-        display_xml_message(u"Opening selected %s with <command>%s</command>..."
+        display_message(
+            u"Opening selected %s with <command>%s</command>..."
             % ("files" if len(targets) > 1 else "file" if os.path.isfile(targets[0]) else "folder",
-                xml_escape(shortcut_name)))
+                xml_escape(shortcut_name))
+        )
 
         self._open_with_shortcut(self.shortcut_dict[shortcut_name], targets)
-        #print file, application
-
+        # print file, application
 
     def _is_url(self, text):
-        return is_url(text)
-
+        return is_valid_url(text)
 
     @abstractmethod
     def _reload_shortcuts(self, shortcuts_dict):
@@ -311,6 +338,3 @@ class AbstractOpenCommand( IOpenCommand ):
         by runnable shortcut.
         """
         return
-
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

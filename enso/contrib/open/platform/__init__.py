@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+
 import sys
 
 from enso.contrib.open.interfaces import AbstractOpenCommand
@@ -9,7 +11,7 @@ from enso.contrib.open.interfaces import AbstractOpenCommand
 if sys.platform.startswith("win"):
     from enso.contrib.open.platform import win32
     OpenCommandImpl = win32.OpenCommandImpl
-elif any(map(sys.platform.startswith, ("linux","openbsd","freebsd","netbsd"))):
+elif any(map(sys.platform.startswith, ("linux", "openbsd", "freebsd", "netbsd"))):
     from enso.contrib.open.platform import linux
     OpenCommandImpl = linux.OpenCommandImpl
 elif sys.platform == "darwin":
@@ -18,5 +20,3 @@ elif sys.platform == "darwin":
 else:
     import enso.platform
     raise enso.platform.PlatformUnsupportedError()
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

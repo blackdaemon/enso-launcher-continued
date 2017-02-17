@@ -8,24 +8,25 @@
 # Licence:   GNU General Public License v3 (or any later version)
 
 import locale
-from unicodedata import normalize, category
+from unicodedata import category, normalize
+
 
 def _folditems():
     _folding_table = {
         # general non-decomposing characters
         # FIXME: This is not complete
-        u"ł" : u"l",
-        u"œ" : u"oe",
-        u"ð" : u"d",
-        u"þ" : u"th",
-        u"ß" : u"ss",
+        u"ł": u"l",
+        u"œ": u"oe",
+        u"ð": u"d",
+        u"þ": u"th",
+        u"ß": u"ss",
         # germano-scandinavic canonical transliterations
-        u"ü" : u"ue",
-        u"å" : u"aa",
-        u"ä" : u"ae",
-        u"æ" : u"ae",
-        u"ö" : u"oe",
-        u"ø" : u"oe",
+        u"ü": u"ue",
+        u"å": u"aa",
+        u"ä": u"ae",
+        u"æ": u"ae",
+        u"ö": u"oe",
+        u"ø": u"oe",
     }
 
     for c, rep in _folding_table.iteritems():
@@ -34,6 +35,7 @@ def _folditems():
 
 folding_table = dict(_folditems())
 
+
 def tounicode(utf8str):
     """Return `unicode` from UTF-8 encoded @utf8str
     This is to use the same error handling etc everywhere
@@ -41,6 +43,7 @@ def tounicode(utf8str):
     if isinstance(utf8str, unicode):
         return utf8str
     return utf8str.decode("UTF-8", "replace") if utf8str is not None else u""
+
 
 def toutf8(ustr):
     """Return UTF-8 `str` from unicode @ustr
@@ -51,11 +54,13 @@ def toutf8(ustr):
         return ustr
     return ustr.encode("UTF-8")
 
+
 def fromlocale(lstr):
     """Return a unicode string from locale bytestring @lstr"""
     assert isinstance(lstr, str)
     enc = locale.getpreferredencoding(do_setlocale=False)
     return lstr.decode(enc, "replace")
+
 
 def tolocale(ustr):
     """Return a locale-encoded bytestring from unicode @ustr"""
@@ -83,4 +88,3 @@ def tofolded(ustr):
     """
     srcstr = normalize("NFKD", ustr.translate(folding_table))
     return u"".join([c for c in srcstr if category(c) != 'Mn'])
-

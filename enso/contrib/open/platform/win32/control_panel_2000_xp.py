@@ -33,24 +33,16 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import os
-import sys
-import logging
 import glob
+import os
 import unicodedata
-import ctypes
-import win32api
+
 import win32con
-from ctypes import wintypes
-import pythoncom
 from win32com.shell import shell, shellcon
 
-from enso.contrib.open.platform.win32 import utils
-from enso.contrib.open.platform.win32.control_panel import ControlPanelInfo
 from enso.contrib.open import shortcuts
-# TODO: This import should be changed as soon as registry support gets merged
-# into working branch
-from enso.contrib.open.platform.win32 import registry
+from enso.contrib.open.platform.win32 import registry, utils
+from enso.contrib.open.platform.win32.control_panel import ControlPanelInfo
 
 
 def get_control_panel_applets(use_categories=True):
@@ -64,24 +56,27 @@ def get_control_panel_applets(use_categories=True):
     # Cache disabled ("don't load") control-panels from registry for lookup
     # Note: Control-panel applets can be disabled using TweakUI
     cpl_disabled_panels = set(
-        cplfile.lower() for cplfile,_,_ in registry.walk_values(win32con.HKEY_LOCAL_MACHINE,
-        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Control Panel\\don't load",
-        valuetypes = (win32con.REG_SZ,))
+        cplfile.lower() for cplfile, _, _ in registry.walk_values(
+            win32con.HKEY_LOCAL_MACHINE,
+            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Control Panel\\don't load",
+            valuetypes=(win32con.REG_SZ,)
+        )
     )
 
-    # List control-panel applets from system directory, exclude disabled applets
+    # List control-panel applets from system directory, exclude disabled
+    # applets
     cpl_files = [cpl for cpl
-        in glob.iglob(os.path.join(os.path.expandvars("${WINDIR}"), "system32", "*.cpl"))
-        if os.path.basename(cpl).lower() not in cpl_disabled_panels]
+                 in glob.iglob(os.path.join(os.path.expandvars("${WINDIR}"), "system32", "*.cpl"))
+                 if os.path.basename(cpl).lower() not in cpl_disabled_panels]
 
     # Add control-panel applets from custom locations, read from registry
     search_paths = os.getenv('PATH').split(";")
     search_paths.insert(0, os.path.join(os.getenv('WINDIR'), "System32"))
     for _, cplfile, _ in registry.walk_values(
-        win32con.HKEY_LOCAL_MACHINE,
-        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Control Panel\\Cpls",
-        valuetypes = (win32con.REG_EXPAND_SZ, win32con.REG_SZ),
-        autoexpand = True):
+            win32con.HKEY_LOCAL_MACHINE,
+            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Control Panel\\Cpls",
+            valuetypes=(win32con.REG_EXPAND_SZ, win32con.REG_SZ),
+            autoexpand=True):
         if not os.path.isfile(cplfile):
             if os.path.isabs(cplfile):
                 continue
@@ -100,15 +95,16 @@ def get_control_panel_applets(use_categories=True):
     # Read descriptions of control-panel applets from the .cpl files directly
     for cplfile in cpl_files:
         for file, name, desc, index in cpi.get_cplinfo(cplfile):
-            name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore')
+            name = unicodedata.normalize(
+                'NFKD', name).encode('ascii', 'ignore')
             name = name.lower()
-            #name = xml_escape(name)
+            # name = xml_escape(name)
             control_panel_applets.append(
                 shortcuts.Shortcut(
                     (u"%s (control panel)" % name) if use_categories else name,
                     shortcuts.SHORTCUT_TYPE_CONTROL_PANEL,
                     "rundll32.exe shell32.dll,Control_RunDLL \"%s\",@%d"
-                        % (cplfile, index)
+                    % (cplfile, index)
                 ))
     del cpi
 
@@ -136,7 +132,7 @@ def get_control_panel_applets(use_categories=True):
             u"device manager%s" % (
                 " (control panel)" if use_categories else ""),
             shortcuts.SHORTCUT_TYPE_CONTROL_PANEL,
-            #"rundll32.exe shell32.dll,Control_RunDLL sysdm.cpl,,1"
+            # "rundll32.exe shell32.dll,Control_RunDLL sysdm.cpl,,1"
             "rundll32.exe devmgr.dll DeviceManager_Execute"),
         shortcuts.Shortcut(
             u"disk management%s" % (

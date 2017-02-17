@@ -34,31 +34,27 @@
 # ----------------------------------------------------------------------------
 
 from __future__ import with_statement
-
-import os
-import logging
-import glob
-import unicodedata
 import ctypes
+import glob
+import logging
+import os
+import unicodedata
+from ctypes import wintypes
+from xml.etree import cElementTree as ElementTree
+
+import _winreg as winreg
 import win32api
 import win32con
-import _winreg as winreg
-from ctypes import wintypes
 from win32com.shell import shell, shellcon
-import xml.etree.cElementTree as ElementTree
+
+from enso.contrib.open import shortcuts
+from enso.contrib.open.platform.win32 import registry, utils
+from enso.contrib.open.platform.win32.control_panel import ControlPanelInfo
 
 try:
     import regex as re
 except Exception, e:
     import re
-
-# TODO: This import should be changed as soon as registry support gets merged
-# into the working branch
-from enso.contrib.open.platform.win32 import registry
-
-from enso.contrib.open.platform.win32.control_panel import ControlPanelInfo
-from enso.contrib.open.platform.win32 import utils
-from enso.contrib.open import shortcuts
 
 
 def read_task_links_xml(xml_file = None, xml = None):

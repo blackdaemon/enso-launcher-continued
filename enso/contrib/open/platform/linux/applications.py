@@ -35,21 +35,19 @@
 
 # Future imports
 from __future__ import with_statement
-
-import os
 import logging
-
-from gio import app_info_get_all # @UnresolvedImport Keep PyLint and PyDev happy
-from gio.unix import desktop_app_info_set_desktop_env
-from gtk.gdk import lock as gtk_lock
+import os
 from distutils.spawn import find_executable
 
-from watchdog.observers import Observer
+from gio import app_info_get_all  # @UnresolvedImport Keep PyLint and PyDev happy
+from gio.unix import desktop_app_info_set_desktop_env
+from gtk.gdk import lock as gtk_lock
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from enso.contrib.open import shortcuts
-
 from enso.platform.linux import DESKTOP_ENVIRONMENT
+
 
 SHORTCUT_CATEGORY = "application"
 
@@ -58,8 +56,8 @@ _dir_monitor = None
 _file_changed_event_handler = None
 
 
-#FIXME: Move this into separate module (it is duplicated in desktop, gtk_bookmarks, learned_shortcuts
-class _FileChangedEventHandler( FileSystemEventHandler ):
+# FIXME: Move this into separate module (it is duplicated in desktop, gtk_bookmarks, learned_shortcuts
+class _FileChangedEventHandler(FileSystemEventHandler):
     
     def __init__(self):
         super(_FileChangedEventHandler, self).__init__()
@@ -128,7 +126,7 @@ def get_applications():
     with gtk_lock:
         for item in app_info_get_all():
             id_ = item.get_id()
-            if id_ in whitelist or (item.should_show() and not id_ in blacklist):
+            if id_ in whitelist or (item.should_show() and id_ not in blacklist):
                 name = item.get_name().lower()
                 filepath = item.get_executable()
                 #print filepath,";",item.get_commandline(),";",item.get_description()
@@ -141,8 +139,8 @@ def get_applications():
                         if not find_executable(filepath):
                             continue
                     applications_dict[name] = item
-                    s_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE #get_shortcut_type(filepath)
-                    shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), filepath.strip(), SHORTCUT_CATEGORY)
+                    s_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE  # get_shortcut_type(filepath)
+                    shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), category=SHORTCUT_CATEGORY)
                     result.append(shortcut)
                     
     #print "\n".join(sorted(str(s) for s in result))
@@ -158,7 +156,7 @@ def register_update_callback(callback_func):
     if _file_changed_event_handler.update_callback_func != callback_func:
         _file_changed_event_handler.update_callback_func = callback_func
     if _dir_monitor is None:
-        # Set up the directory watcher for shortcuts directory 
+        # Set up the directory watcher for shortcuts directory
         _dir_monitor = Observer()
         _dir_monitor.schedule(_file_changed_event_handler, "/usr/share/applications", recursive=False)
         _dir_monitor.schedule(_file_changed_event_handler, "/usr/local/share/applications", recursive=False)

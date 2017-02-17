@@ -39,12 +39,14 @@ from gtk import recent_manager_get_default
 from enso.contrib.open import shortcuts
 from enso.platform.linux.weaklib import gobject_connect_weakly
 
+
 SHORTCUT_CATEGORY = "recent"
 
 
 recent_manager = recent_manager_get_default()
 
-class RecentChangedSignalReceiver( object ):
+
+class RecentChangedSignalReceiver(object):
     def __init__(self):
         self.update_callback_func = None
         
@@ -79,11 +81,11 @@ def get_recent_documents(max_days=None, for_application_named=None):
             leaf = gio.File(uri).get_path()
         else:
             leaf = uri
-        #print leaf, item.get_mime_type()
-        type = shortcuts.SHORTCUT_TYPE_DOCUMENT
-        shortcut = shortcuts.Shortcut(name, type, leaf, category=SHORTCUT_CATEGORY)
+        target_type = shortcuts.SHORTCUT_TYPE_DOCUMENT
+        shortcut = shortcuts.Shortcut(name, target_type, leaf, category=SHORTCUT_CATEGORY)
         item_leaves.append(shortcut)
     return item_leaves
+
 
 def register_update_callback(callback_func):
     assert callback_func is None or callable(callback_func), "callback_func must be callable entity or None"

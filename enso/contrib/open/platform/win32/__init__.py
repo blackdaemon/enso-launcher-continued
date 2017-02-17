@@ -33,41 +33,39 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-# Future imports
 from __future__ import with_statement
-
-# Imports
-import os
-import logging
-import unicodedata
-import sqlite3
-from itertools import chain
-
-# PyWin32 imports
 import ctypes
+import logging
+import os
+import sqlite3
+import unicodedata
+from ctypes import wintypes
+from itertools import chain
+from xml.sax.saxutils import escape as xml_escape
+
+import pythoncom
 import win32api
 import win32con
 import win32file
 import winerror
-from ctypes import wintypes
-import pythoncom
-from xml.sax.saxutils import escape as xml_escape
-
 from win32com.shell import shell, shellcon
 
 import enso.providers
 from enso.contrib.open import interfaces
+from enso.contrib.open.interfaces import (
+    AbstractOpenCommand,
+    ShortcutAlreadyExistsError,
+)
+from enso.contrib.open.platform.win32 import (
+    filesystem,
+    registry,
+    utils,
+    win_shortcuts,
+)
+from enso.contrib.open.shortcuts import *  # IGNORE:W0401
 from enso.contrib.open.utils import Timer
-from enso.contrib.open.shortcuts import * #IGNORE:W0401
-from enso.contrib.open.platform.win32 import win_shortcuts
-from enso.contrib.open.platform.win32 import utils
-from enso.contrib.open.interfaces import AbstractOpenCommand, ShortcutAlreadyExistsError
 from enso.contrib.scriptotron.ensoapi import EnsoApi
-
-from enso.contrib.open.platform.win32 import filesystem
-# This import should be changed as soon as registry support gets merged into
-# the working branch
-from enso.contrib.open.platform.win32 import registry
+from enso.utils.decorators import suppress
 
 try:
     import regex as re
@@ -82,6 +80,10 @@ except ImportError:
     logging.warning("directory_watcher interface is not available. \"Open\" command items reloading will be disabled.")
     directory_watcher = None
 
+if utils.platform_windows_vista() or utils.platform_windows_7():
+    from enso.contrib.open.platform.win32 import control_panel_vista_win7 as control_panel
+else:
+    from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
 
 EXECUTABLE_EXTS = ['.exe', '.com', '.cmd', '.bat', '.py', '.pyw']
 EXECUTABLE_EXTS.extend(
@@ -193,9 +195,10 @@ def get_file_type(target):
     target = target.strip(" \t\r\n\0")
     # Before deciding whether to examine given text using URL regular expressions
     # do some simple checks for the probability that the text represents a file path
-    if not os.path.exists(target):
-        if interfaces.is_url(target):
-            return SHORTCUT_TYPE_URL
+    
+    #FIXME: the file existence check must be also based on PATH search, probably use "is_runnable" instead
+    if not os.path.exists(target) and interfaces.is_valid_url(target):
+        return SHORTCUT_TYPE_URL
 
     file_path = target
     file_name, file_ext = os.path.splitext(file_path)
@@ -401,50 +404,40 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
 
 def get_special_folders(use_categories=True):
     #TODO:Use sublasses here (something like SpecialShortcut, or FixedShortcut)
-    try:
+    with suppress():
         yield Shortcut(
                 "desktop folder",
                 SHORTCUT_TYPE_FOLDER,
                 get_special_folder_path(shellcon.CSIDL_DESKTOPDIRECTORY)
             )
-    except:
-        pass #IGNORE:W0702
 
-    try:
+    with suppress():
         yield Shortcut(
                 "my documents folder",
                 SHORTCUT_TYPE_FOLDER,
                 get_special_folder_path(shellcon.CSIDL_PERSONAL)
             )
-    except:
-        pass #IGNORE:W0702
 
-    try:
+    with suppress():
         yield Shortcut(
                 "my pictures folder",
                 SHORTCUT_TYPE_FOLDER,
                 get_special_folder_path(shellcon.CSIDL_MYPICTURES)
             )
-    except:
-        pass #IGNORE:W0702
 
-    try:
+    with suppress():
         yield Shortcut(
                 "my videos folder",
                 SHORTCUT_TYPE_FOLDER,
                 get_special_folder_path(shellcon.CSIDL_MYVIDEO)
             )
-    except:
-        pass #IGNORE:W0702
 
-    try:
+    with suppress():
         yield Shortcut(
                 "my music folder",
                 SHORTCUT_TYPE_FOLDER,
                 get_special_folder_path(shellcon.CSIDL_MYMUSIC)
             )
-    except:
-        pass #IGNORE:W0702
 
     if not os.path.isfile(RECYCLE_BIN_LINK):
         recycle_shortcut = pythoncom.CoCreateInstance(
@@ -464,13 +457,7 @@ def get_special_folders(use_categories=True):
 
 
 def get_control_panel_applets(use_categories=True):
-    if utils.platform_windows_vista() or utils.platform_windows_7():
-        from enso.contrib.open.platform.win32 import control_panel_vista_win7
-        return control_panel_vista_win7.get_control_panel_applets(use_categories)
-    else:
-        from enso.contrib.open.platform.win32 import control_panel_2000_xp
-        return control_panel_2000_xp.get_control_panel_applets(use_categories)
-
+    return control_panel.get_control_panel_applets(use_categories)
 
 
 def get_gameexplorer_entries(use_categories=True):
@@ -663,7 +650,6 @@ def open_with_shortcut(shortcut, targets):
 class OpenCommandImpl( AbstractOpenCommand ):
 
     def __init__(self, use_categories = True):
-        print "OpenCommandIMpl.__init__()"
         self.shortcut_dict = None
         self.use_categories = use_categories
         super(OpenCommandImpl, self).__init__()
@@ -673,13 +659,11 @@ class OpenCommandImpl( AbstractOpenCommand ):
         of a monitored directory changes
         """
         with Timer("Updated shortcut list by directory: %s" % directory):
-            try:
+            with suppress():
                 # Need to initialize this here because it's called from
                 # the directory-watcher in a new thread.
                 pythoncom.CoInitialize()
-            except:
-                # already initialized.
-                pass
+
             # Reload directory contents, the list of changes passed from
             # the directory-watcher is not always reliable
             if directory == GAMEEXPLORER_DIR:
@@ -695,19 +679,16 @@ class OpenCommandImpl( AbstractOpenCommand ):
             # Update shortcuts related to this directory only
             self.shortcut_dict.update_by_dir(directory, updated_dict)
 
-    def _reload_shortcuts(self):
-        try:
+    def _reload_shortcuts(self, shortcuts_dict):
+        with suppress():
             # Need to initialize this here because it's called from
             # the directory-watcher in a new thread.
             pythoncom.CoInitialize()
-        except:
-            # already initialized.
-            pass
 
         try:
             self.shortcut_dict = load_cached_shortcuts()
             logging.info("Loaded shortcuts from cache")
-        except Exception, e:
+        except Exception as e:
             logging.error(e)
 
         desktop_dir = get_special_folder_path(shellcon.CSIDL_DESKTOPDIRECTORY)
@@ -937,13 +918,10 @@ class RecentCommandImpl( AbstractOpenCommand ):
         of a monitored directory changes
         """
         with Timer("Updated shortcut list by directory: %s" % directory):
-            try:
+            with suppress():
                 # Need to initialize this here because it's Called From
                 # The Directory-watcher In A New Thread.
                 pythoncom.CoInitialize()
-            except:
-                # already initialized.
-                pass
             # Reload directory contents, the list of changes passed from
             # the directory-watcher is not always reliable
             # TODO: Add categories reload here
@@ -955,13 +933,10 @@ class RecentCommandImpl( AbstractOpenCommand ):
             self.shortcut_dict.update_by_dir(directory, updated_dict)
 
     def _reload_shortcuts(self):
-        try:
+        with suppress():
             # Need to initialize this here because it's called from
             # the directory-watcher in a new thread.
             pythoncom.CoInitialize()
-        except:
-            # already initialized.
-            pass
 
         recent_documents_dir = get_special_folder_path(shellcon.CSIDL_RECENT)
 

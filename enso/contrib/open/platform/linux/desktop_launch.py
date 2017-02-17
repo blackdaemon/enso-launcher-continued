@@ -6,23 +6,25 @@
 # Credits:   Copyright 2007-2011 Ulrik Sverdrup <ulrik.sverdrup@gmail.com>
 # Licence:   GNU General Public License v3 (or any later version)
 
-import os
 import logging
+import os
 
-import pygtk
-pygtk.require('2.0')
-import glib
 import gio
+import glib
 import gtk
-
+import pygtk
 import xdg.BaseDirectory
 import xdg.DesktopEntry
 import xdg.Exceptions
 
-import desktop_parse
-import kupferstring
-import terminal
+from enso.contrib.open.platform.linux import (
+    desktop_parse,
+    kupferstring,
+    terminal,
+)
 
+
+pygtk.require('2.0')
 
 __all__ = ['launch_app_info', 'spawn_app', 'spawn_app_id']
 
@@ -33,20 +35,24 @@ STARTUP_ENV = "DESKTOP_STARTUP_ID"
 #       are really only sending xmessages. (roughly).
 
 
-class SpawnError (Exception):
+class SpawnError(Exception):
     "Error starting application"
 
-class ResourceLookupError (Exception):
+
+class ResourceLookupError(Exception):
     "Unable to find resource"
 
-class ResourceReadError (Exception):
+
+class ResourceReadError(Exception):
     "Unable to open resource"
+
 
 def gtk_to_unicode(gtkstring):
     """Return unicode for a GTK/GLib string (bytestring or unicode)"""
     if isinstance(gtkstring, unicode):
         return gtkstring
     return gtkstring.decode("UTF-8", "ignore")
+
 
 def find_desktop_file(desk_id):
     """Find file for @desk_id or raise ResourceLookupError
@@ -90,6 +96,7 @@ def find_desktop_file(desk_id):
                 return desktop_file_path
     raise ResourceLookupError("Cannot locate '%s'" % (desk_id,))
 
+
 def read_desktop_info(desktop_file):
     """
     Get the keys StartupNotify, Terminal, Exec, Path, Icon
@@ -110,6 +117,7 @@ def read_desktop_info(desktop_file):
         "Icon": gtk_to_unicode(de.getIcon()),
         "Name": gtk_to_unicode(de.getName()),
     }
+
 
 def create_desktop_info(commandline, name, icon, work_dir, in_terminal, startup_notify):
     return {
@@ -153,6 +161,7 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
     """
     supports_single_file = False
     files_added_at_end = False
+    
     class Flags(object):
         did_see_small_f = False
         did_see_large_f = False
@@ -204,7 +213,7 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
                 logging.warn("Warning, multiple file format specs!")
                 return True, []
             Flags.did_see_large_f = True
-            return True, filter(bool,[get_file_path(f) for f in gfilelist])
+            return True, filter(bool, [get_file_path(f) for f in gfilelist])
         if elem == "%i":
             if desktop_info["Icon"]:
                 return True, ["--icon", desktop_info["Icon"]]
@@ -259,6 +268,7 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
 
     return supports_single_file, files_added_at_end, new_argv
 
+
 def _file_for_app_info(app_info):
     try:
         desktop_file = find_desktop_file(app_info.get_id())
@@ -267,15 +277,16 @@ def _file_for_app_info(app_info):
         desktop_file = None
     return desktop_file
 
+
 def _info_for_desktop_file(desktop_file):
     if not desktop_file:
         return None
     try:
         desktop_info = read_desktop_info(desktop_file)
-    except ResourceReadError as e:
-        logging.error(e)
+    except ResourceReadError:
         desktop_info = None
     return desktop_info
+
 
 def launch_app_info(app_info, gfiles=[], in_terminal=None, timestamp=None,
                     desktop_file=None, launch_cb=None, screen=None):
@@ -347,6 +358,7 @@ def launch_app_info(app_info, gfiles=[], in_terminal=None, timestamp=None,
             return False
     return True
 
+
 def spawn_app_id(app_id, argv, workdir=None, startup_notify=True, screen=None):
     """
     Spawn @argv trying to notify it as if it is app_id
@@ -357,6 +369,7 @@ def spawn_app_id(app_id, argv, workdir=None, startup_notify=True, screen=None):
         app_info = None
         startup_notify = False
     return spawn_app(app_info, argv, [], workdir, startup_notify, screen=screen)
+
 
 def spawn_app(app_info, argv, filelist, workdir=None, startup_notify=True,
               timestamp=None, launch_cb=None, screen=None):
@@ -397,20 +410,23 @@ def spawn_app(app_info, argv, filelist, workdir=None, startup_notify=True,
     argv = list(locale_encode_argv(argv))
 
     try:
-        (pid, _ig1, _ig2, _ig3) = glib.spawn_async(argv,
-                               working_directory=workdir,
-                               flags=glib.SPAWN_SEARCH_PATH,
-                               child_setup=child_setup,
-                               user_data=child_env_add)
-        logging.debug("Launched", argv,  notify_id, "pid:", pid)
+        (pid, _ig1, _ig2, _ig3) = glib.spawn_async(
+            argv,
+            working_directory=workdir,
+            flags=glib.SPAWN_SEARCH_PATH,
+            child_setup=child_setup,
+            user_data=child_env_add
+        )
+        logging.debug("Launched '%s'; notify_id: %s; pid: %d", argv, notify_id, pid)
     except glib.GError as exc:
-        logging.error("Error Launching ", argv, unicode(exc))
+        logging.error("Error Launching '%s'; %s", argv, unicode(exc))
         if notify_id:
             gtk.gdk.notify_startup_complete_with_id(notify_id)
         raise SpawnError(unicode(exc))
     if launch_cb:
         launch_cb(argv, pid, notify_id, filelist, timestamp)
     return pid
+
 
 def child_setup(add_environ):
     """Called to setup the child process before exec()
@@ -419,12 +435,14 @@ def child_setup(add_environ):
     for key in add_environ:
         os.putenv(key, add_environ[key])
 
+
 def locale_encode_argv(argv):
     for x in argv:
         if isinstance(x, unicode):
             yield kupferstring.tolocale(x)
         else:
             yield x
+
 
 def get_info_for_id(id_):
     return gio.unix.DesktopAppInfo(id_)
@@ -435,4 +453,3 @@ if __name__ == '__main__':
         id_ = raw_input("Give me an App ID > ")
         launch_app_info(get_info_for_id(id_ + ".desktop"), [])
         #launch_app_info(gio.AppInfo("gvim"), [gio.File(".")])
-

@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+    
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -29,10 +31,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import os
 import time
-import logging
 from contextlib import contextmanager
+
 
 @contextmanager
 def Timer(name):
@@ -44,5 +45,3 @@ def Timer(name):
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
