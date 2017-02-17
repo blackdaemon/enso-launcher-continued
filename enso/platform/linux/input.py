@@ -32,19 +32,19 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import logging
-import subprocess
-import os
 import atexit
-
+import logging
+import os
 from threading import Thread
-from time import sleep
+
 import gobject
 import gtk
+from CharMaps import STANDARD_ALLOWED_KEYCODES as CASE_INSENSITIVE_KEYCODE_MAP
 from Xlib import X
-from utils import *
-
 from shutilwhich import which
+from utils import get_display, get_keycode, get_status_output, sanitize_char
+
+from enso.utils.decorators import suppress
 
 
 gtk.gdk.threads_init()
@@ -53,11 +53,11 @@ gtk.gdk.threads_init()
 _TIMER_INTERVAL = 0.010
 
 # Timer interval in milliseconds.
-_TIMER_INTERVAL_IN_MS = int (_TIMER_INTERVAL * 1000)
+_TIMER_INTERVAL_IN_MS = int(_TIMER_INTERVAL * 1000)
 
 # Input modes
 QUASI_MODAL = 0
-MODAL       = 1
+MODAL = 1
 
 KEYCODE_CAPITAL = -1
 KEYCODE_SPACE = -1
@@ -108,18 +108,18 @@ KEYCODE_QUASIMODE_CANCEL2 = 3
 
 QUASIMODE_TRIGGER_KEYS = ["Caps_Lock"]
 
-from CharMaps import STANDARD_ALLOWED_KEYCODES as CASE_INSENSITIVE_KEYCODE_MAP
 #CASE_INSENSITIVE_KEYCODE_MAP = {}
 
-def fill_keymap ():
+
+def fill_keymap():
     '''Fill keymap'''
     global EXTRA_KEYCODES
     EXTRA_KEYCODES = []
     special_keycodes = {}
-    display = get_display ()
-    for i in range (0, 255):
-        keyval = display.keycode_to_keysym (i, 0)
-        if int (keyval) > 0x110000:
+    display = get_display()
+    for i in range(0, 255):
+        keyval = display.keycode_to_keysym(i, 0)
+        if int(keyval) > 0x110000:
             continue
         if keyval == gtk.keysyms.Return:
             special_keycodes["KEYCODE_RETURN"] = i
@@ -196,194 +196,200 @@ def fill_keymap ():
         elif keyval == gtk.keysyms.KP_Enter:
             special_keycodes["KEYCODE_KP_ENTER"] = i
         else:
-            char = unichr (int (keyval))
-            if len (char) > 0 and ord (char) > 0:
-                CASE_INSENSITIVE_KEYCODE_MAP[i] = str (char)
-    vars = globals ()
+            char = unichr(int(keyval))
+            if len(char) > 0 and ord(char) > 0:
+                CASE_INSENSITIVE_KEYCODE_MAP[i] = str(char)
+    vars = globals()
     for i in special_keycodes:
         vars[i] = special_keycodes[i]
-        EXTRA_KEYCODES.append (special_keycodes[i])
+        EXTRA_KEYCODES.append(special_keycodes[i])
 
-fill_keymap ()
+fill_keymap()
+
 
 class _KeyListener (Thread):
     '''Keyboard input handling thread'''
 
-    __parent    = None
-    __callback  = None
+    __parent = None
+    __callback = None
 
-    __display   = None
+    __display = None
 
     __terminate = False
-    __restart   = False
+    __restart = False
 
-    __capture   = False
+    __capture = False
 
-    __lock      = False
+    __lock = False
 
     __caps_lock = None
     __num_lock_mod = None
-    __key_mod   = None
+    __key_mod = None
 
-    def __init__ (self, parent, callback):
+    def __init__(self, parent, callback):
         '''Initialize object'''
-        Thread.__init__ (self)
+        Thread.__init__(self)
         self.__parent = parent
         self.__callback = callback
 
-    def run (self):
+    def run(self):
         '''Main keyboard event loop'''
-        def make_event (type, keycode = None):
+        def make_event(type, keycode=None):
             return {
-                    "event": type,
-                    "keycode": keycode,
-                   }
-        self.__display = get_display ()
-        self.__display.set_error_handler (self.error_handler)
+                "event": type,
+                "keycode": keycode,
+            }
+        self.__display = get_display()
+        self.__display.set_error_handler(self.error_handler)
         '''Outter loop, used for configuration handling'''
         while not self.__terminate:
-            trigger_key, trigger_keycode = self.grab (QUASIMODE_TRIGGER_KEYS)
+            trigger_key, trigger_keycode = self.grab(QUASIMODE_TRIGGER_KEYS)
             events = [X.KeyPress]
-            if not self.__parent.getModality ():
+            if not self.__parent.getModality():
                 events += [X.KeyRelease]
             self.__restart = False
             '''Inner loop, used for event processing'''
             while not self.__restart:
-                event = self.__display.next_event ()
+                event = self.__display.next_event()
                 self.__lock = True
                 with gtk.gdk.lock:
-                    if hasattr (event,"detail") \
+                    if hasattr (event, "detail") \
                        and event.detail == trigger_keycode \
                        and event.type in events:
-                        if self.__parent.getModality ():
+                        if self.__parent.getModality():
                             continue
                         elif event.type == X.KeyPress:
-                            self.__callback (make_event ("quasimodeStart"))
+                            self.__callback(make_event("quasimodeStart"))
                             self.__capture = True
                         elif event.type == X.KeyRelease:
-                            self.__callback (make_event ("quasimodeEnd"))
+                            self.__callback(make_event("quasimodeEnd"))
                             self.__capture = False
                     elif not self.__parent.getModality () and self.__capture \
-                         and event.type in events:
+                            and event.type in events:
                         modifiers_mask = gtk.gdk.MODIFIER_MASK
                         if self.__key_mod:
-                            mod_str = self.__key_mod.upper ()
-                            mod = eval ("gtk.gdk.%s_MASK" % mod_str)
+                            mod_str = self.__key_mod.upper()
+                            mod = eval("gtk.gdk.%s_MASK" % mod_str)
                             modifiers_mask &= ~mod
                         state = event.state & modifiers_mask
-                        keyval = self.__display.keycode_to_keysym (event.detail,
-                                                                   state)
+                        keyval = self.__display.keycode_to_keysym(event.detail,
+                                                                  state)
                         if not keyval and self.__num_lock_mod:
-                            #print "numlock mod"
-                            mod_str = self.__num_lock_mod.upper ()
-                            mod = eval ("gtk.gdk.%s_MASK" % mod_str)
+                            # print "numlock mod"
+                            mod_str = self.__num_lock_mod.upper()
+                            mod = eval("gtk.gdk.%s_MASK" % mod_str)
                             modifiers_mask &= ~mod
                             state = event.state & modifiers_mask
                             keyval = \
-                                self.__display.keycode_to_keysym (event.detail,
-                                                                  state)
-                        #print keyval, event.detail
-                        #FIXME: Handling of numpad "5" key, converting it to normal "5" key
+                                self.__display.keycode_to_keysym(event.detail,
+                                                                 state)
+                        # print keyval, event.detail
+                        # FIXME: Handling of numpad "5" key, converting it to
+                        # normal "5" key
                         if keyval == 65437:
                             keyval, event.detail = 53, 14
                         if event.detail in EXTRA_KEYCODES \
-                           or sanitize_char (keyval):
+                           or sanitize_char(keyval):
                             if event.type == X.KeyPress:
-                                self.__callback (make_event ("keyDown",
-                                                             event.detail))
+                                self.__callback(make_event("keyDown",
+                                                           event.detail))
                             else:
-                                self.__callback (make_event ("keyUp",
-                                                             event.detail))
+                                self.__callback(make_event("keyUp",
+                                                           event.detail))
 
                 self.__lock = False
             self.ungrab(QUASIMODE_TRIGGER_KEYS)
 
-    def unlock (self):
+    def unlock(self):
         '''Unlock GDK threading lock'''
         if self.__lock:
-            gtk.gdk.threads_leave ()
+            gtk.gdk.threads_leave()
 
-    def stop (self):
+    def stop(self):
         '''Halt thread: restart inner loop and kill outter loop'''
         self.__restart = True
         self.__terminate = True
 
-    def restart (self):
+    def restart(self):
         '''Restart inner loop to use latest options'''
         self.__restart = True
 
-    def error_handler (self, error, *args):
+    def error_handler(self, error, *args):
         '''Catch Xlib errors'''
-        logging.critical ("X protocol error caught : %s" % error)
-        self.__parent.stop ()
+        logging.critical("X protocol error caught : %s" % error)
+        self.__parent.stop()
 
-    def grab (self, keys):
+    def grab(self, keys):
         '''Grab specific keys'''
-        root_window = self.__display.screen ().root
+        root_window = self.__display.screen().root
         keycode = 0
         xset_cmd = which("xset")
         xmodmap_cmd = which("xmodmap")
         if not xset_cmd:
-            logging.warn ("xset not found, you might experience some bad key-repeat problems")
+            logging.warn(
+                "xset not found, you might experience some bad key-repeat problems")
         for key in keys:
-            keycode = get_keycode (key)
+            keycode = get_keycode(key)
             if not keycode:
                 continue
             if xset_cmd:
-                os.system ("%s -r %d" % (xset_cmd, keycode)) # FIXME: revert on exit
+                # FIXME: revert on exit
+                os.system("%s -r %d" % (xset_cmd, keycode))
             if xmodmap_cmd:
-                cmd_status, cmd_stdout = get_status_output("%s -pm" % xmodmap_cmd)
+                cmd_status, cmd_stdout = get_status_output(
+                    "%s -pm" % xmodmap_cmd)
                 if cmd_status == 0 and cmd_stdout:
                     lines = cmd_stdout.splitlines()
                 else:
                     lines = []
-                lock_line = [l.strip().split() for l in lines if l.startswith ("lock")]
-                num_line = [l.strip().split() for l in lines if "Num_Lock" in l]
+                lock_line = [l.strip().split()
+                             for l in lines if l.startswith("lock")]
+                num_line = [l.strip().split()
+                            for l in lines if "Num_Lock" in l]
                 key_line = [l.strip().split() for l in lines if key in l]
                 if lock_line:
                     parts = lock_line[0]
-                    if len (parts) > 1:
+                    if len(parts) > 1:
                         self.__caps_lock = parts[1]
                 if num_line:
                     parts = num_line[0]
-                    if len (parts) > 1:
+                    if len(parts) > 1:
                         self.__num_lock_mod = parts[0]
                 if key_line:
                     parts = key_line[0]
-                    if len (parts) > 1:
+                    if len(parts) > 1:
                         self.__key_mod = parts[0]
             if key == "Caps_Lock":
                 if not self.__caps_lock:
-                    logging.debug ("Caps Lock already disabled!")
+                    logging.debug("Caps Lock already disabled!")
                 else:
-                    self.disable_caps_lock ()
-                    atexit.register (self.enable_caps_lock)
-            ownev = not self.__parent.getModality ()
-            root_window.grab_key (keycode, X.AnyModifier, ownev,
-                                  X.GrabModeAsync, X.GrabModeAsync)
+                    self.disable_caps_lock()
+                    atexit.register(self.enable_caps_lock)
+            ownev = not self.__parent.getModality()
+            root_window.grab_key(keycode, X.AnyModifier, ownev,
+                                 X.GrabModeAsync, X.GrabModeAsync)
             return key, keycode
-        logging.critical ("Couldn't find quasimode key")
-        self.__parent.stop ()
+        logging.critical("Couldn't find quasimode key")
+        self.__parent.stop()
         return None, None
 
-    def ungrab (self, keys):
+    def ungrab(self, keys):
         '''Ungrab specific keys'''
         root_window = self.__display.screen().root
         for keycode in keys:
-            root_window.ungrab_key (keycode, 0)
+            root_window.ungrab_key(keycode, 0)
 
-    def disable_caps_lock (self):
+    def disable_caps_lock(self):
         '''Disable Caps Lock'''
         if self.__caps_lock:
-            assert logging.debug ("Using xmodmap to disable Caps Lock") or True
-            os.system ('xmodmap -e "clear Lock"')
+            assert logging.debug("Using xmodmap to disable Caps Lock") or True
+            os.system('xmodmap -e "clear Lock"')
 
-    def enable_caps_lock (self):
+    def enable_caps_lock(self):
         '''Enable Caps Lock'''
         if self.__caps_lock:
-            assert logging.debug ("Using xmodmap to enable Caps Lock") or True
-            os.system ('xmodmap -e "add Lock = %s"' % self.__caps_lock)
-
+            assert logging.debug("Using xmodmap to enable Caps Lock") or True
+            os.system('xmodmap -e "add Lock = %s"' % self.__caps_lock)
 
 
 class InputManager (object):
@@ -396,55 +402,55 @@ class InputManager (object):
 
     __keyListener = None
 
-    def __init__ (self):
+    def __init__(self):
         '''Initialize object'''
         pass
 
-    def __timerCallback (self):
+    def __timerCallback(self):
         '''Handle gobject timeout'''
         with gtk.gdk.lock:
             try:
-                self.onTick (_TIMER_INTERVAL_IN_MS)
+                self.onTick(_TIMER_INTERVAL_IN_MS)
             except KeyboardInterrupt:
-                gtk.main_quit ()
+                gtk.main_quit()
                 return False
             finally:
-                return True # Return true to keep the timeout running
+                return True  # Return true to keep the timeout running
 
-    def __keyCallback (self, info):
+    def __keyCallback(self, info):
         '''Handle callbacks from KeyListener'''
         if info["event"] == "quasimodeStart":
-            self.onKeypress (EVENT_KEY_QUASIMODE,
-                             KEYCODE_QUASIMODE_START)
+            self.onKeypress(EVENT_KEY_QUASIMODE,
+                            KEYCODE_QUASIMODE_START)
         elif info["event"] == "quasimodeEnd":
-            self.onKeypress (EVENT_KEY_QUASIMODE,
-                             KEYCODE_QUASIMODE_END)
+            self.onKeypress(EVENT_KEY_QUASIMODE,
+                            KEYCODE_QUASIMODE_END)
         elif info["event"] == "someKey":
-            self.onSomeKey ()
+            self.onSomeKey()
         elif info["event"] in ["keyUp", "keyDown"]:
             keycode = info["keycode"]
             if info["event"] == "keyUp":
                 eventType = EVENT_KEY_UP
             else:
                 eventType = EVENT_KEY_DOWN
-            self.onKeypress (eventType, keycode)
+            self.onKeypress(eventType, keycode)
         else:
-            logging.warn ("Don't know what to do with event: %s" % info)
+            logging.warn("Don't know what to do with event: %s" % info)
 
-    def run (self):
+    def run(self):
         '''Main input events processing loop'''
-        logging.info( "Entering InputManager.run ()" )
+        logging.info("Entering InputManager.run ()")
 
-        timeout_source = gobject.timeout_add (_TIMER_INTERVAL_IN_MS,
-                                              self.__timerCallback)
+        timeout_source = gobject.timeout_add(_TIMER_INTERVAL_IN_MS,
+                                             self.__timerCallback)
 
-        self.__keyListener = _KeyListener (self, self.__keyCallback)
-        self.__keyListener.start ()
+        self.__keyListener = _KeyListener(self, self.__keyCallback)
+        self.__keyListener.start()
 
         try:
             try:
-                self.onInit ()
-                gtk.main ()
+                self.onInit()
+                gtk.main()
             except KeyboardInterrupt as e:
                 logging.error(e)
             except IOError as e:
@@ -452,63 +458,61 @@ class InputManager (object):
             except Exception as e:
                 logging.error(e)
         finally:
-            self.__keyListener.stop ()
-            gobject.source_remove (timeout_source)
+            self.__keyListener.stop()
+            gobject.source_remove(timeout_source)
 
-        logging.info ("Exiting InputManager.run ()")
-        exit (1)
+        logging.info("Exiting InputManager.run ()")
+        exit(1)
 
-    def stop (self):
+    def stop(self):
         '''Stop main loop by exiting from gtk mainloop'''
-        try:
-            self.__keyListener.unlock ()
-            gtk.main_quit ()
-        except:
-            pass
+        with suppress(Exception):
+            self.__keyListener.unlock()
+            gtk.main_quit()
 
-    def enableMouseEvents (self, isEnabled):
+    def enableMouseEvents(self, isEnabled):
         # TODO: Implementation needed.
         self.__mouseEventsEnabled = isEnabled
 
-    def onKeypress (self, eventType, vkCode):
+    def onKeypress(self, eventType, vkCode):
         pass
 
-    def onSomeKey (self):
+    def onSomeKey(self):
         pass
 
-    def onSomeMouseButton (self):
+    def onSomeMouseButton(self):
         pass
 
-    def onExitRequested (self):
+    def onExitRequested(self):
         pass
 
-    def onMouseMove (self, x, y):
+    def onMouseMove(self, x, y):
         pass
 
-    def getQuasimodeKeycode (self, quasimodeKeycode):
+    def getQuasimodeKeycode(self, quasimodeKeycode):
         return self.__qmKeycodes[quasimodeKeycode]
 
-    def setQuasimodeKeycode (self, quasimodeKeycode, keycode):
+    def setQuasimodeKeycode(self, quasimodeKeycode, keycode):
         # TODO: Implementation needed.
         self.__qmKeycodes[quasimodeKeycode] = keycode
 
-    def setModality (self, isModal):
+    def setModality(self, isModal):
         # TODO: Implementation needed.
         if self.__isModal != isModal:
             self.__isModal = isModal
-            self.__keyListener.restart ()
+            self.__keyListener.restart()
 
-    def getModality (self):
+    def getModality(self):
         return self.__isModal
 
-    def setCapsLockMode (self, caps_lock_enabled):
+    def setCapsLockMode(self, caps_lock_enabled):
         if caps_lock_enabled:
-            self.__keyListener.enable_caps_lock ()
+            self.__keyListener.enable_caps_lock()
         else:
-            self.__keyListener.disable_caps_lock ()
+            self.__keyListener.disable_caps_lock()
 
-    def onTick (self, msPassed):
+    def onTick(self, msPassed):
         pass
 
-    def onInit (self):
+    def onInit(self):
         pass

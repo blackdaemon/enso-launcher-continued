@@ -39,7 +39,6 @@
     absolute imports (this will change in Py3k, though).
 """
 
-__all__ = ("strip_html_tags", "unescape_html_entities")
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -62,21 +61,25 @@ except ImportError:
 # ----------------------------------------------------------------------------
 # Public Constants
 # ----------------------------------------------------------------------------
+__all__ = ("strip_html_tags", "unescape_html_entities")
 
 # for some reason, python 2.5.2 doesn't have this one (apostrophe)
 name2codepoint['#39'] = 39
 
-RE_SUB_HTMLENTITIES = re.compile(r"&(%s);" % '|'.join(name2codepoint), re.UNICODE).sub
+RE_SUB_HTMLENTITIES = re.compile(
+    r"&(%s);" % '|'.join(name2codepoint), re.UNICODE).sub
 RE_SUB_HTMLCODEPOINTS = re.compile(r"&#(\d+);", re.UNICODE).sub
 
 RE_SUB_HTMLTAGS = re.compile(r"<.*?>", re.UNICODE).sub
 
-    
+
 def __strip_html_tags__lxml(html):
     return lxml.html.fromstring(html).text_content()
 
+
 def __strip_html_tags__re(html, replacement=""):
     return RE_SUB_HTMLTAGS(replacement, html)
+
 
 def strip_html_tags(html, replacement=""):
     if replacement:
@@ -85,6 +88,7 @@ def strip_html_tags(html, replacement=""):
         return __strip_html_tags__lxml(html)
     else:
         return __strip_html_tags__re(html)
+
 
 def unescape_html_entities(html):
     "unescape HTML code refs; c.f. http://wiki.python.org/moin/EscapingHtml"

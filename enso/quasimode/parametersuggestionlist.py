@@ -41,22 +41,21 @@
 # Imports
 # ----------------------------------------------------------------------------
 import time
-
 from collections import namedtuple
 
-from enso import commands
-from enso import config
-from enso import cairo
-from enso import graphics
+from enso import cairo, commands, config, graphics
 from enso.events import EventManager
-from enso.graphics.measurement import pointsToPixels, pixelsToPoints
-from enso.graphics.measurement import convertUserSpaceToPoints
+from enso.graphics import rounded_rect, xmltextlayout
+from enso.graphics.measurement import (
+    convertUserSpaceToPoints,
+    pixelsToPoints,
+    pointsToPixels,
+)
 from enso.graphics.transparentwindow import TransparentWindow
-from enso.graphics import rounded_rect
 from enso.quasimode import layout
-from enso.graphics import xmltextlayout
-from enso.utils.xml_tools import escape_xml
 from enso.utils.decorators import suppress
+from enso.utils.xml_tools import escape_xml
+
 
 Position = namedtuple('Position', 'x y')
 
@@ -71,7 +70,7 @@ class ParameterSuggestionWindow:
     default width (margins + text width).
     """
 
-    def __init__( self, height, position ):
+    def __init__(self, height, position):
         """
         Creates the underlying TransparentWindow and Cairo context.
 
@@ -83,24 +82,23 @@ class ParameterSuggestionWindow:
         desk_left, desk_top = graphics.getDesktopOffset()
 
         xPos, yPos = position
-        if yPos+height > desk_height:
+        if yPos + height > desk_height:
             pass
-        self.__window = TransparentWindow(xPos+desk_left, yPos+desk_top, desk_width, desk_height-desk_top-yPos)
+        self.__window = TransparentWindow(
+            xPos + desk_left, yPos + desk_top, desk_width, desk_height - desk_top - yPos)
         self.__context = self.__window.makeCairoContext()
         self.__is_visible = False
         self.__animatingShow = False
         self.__animatingHide = False
         self.__timeSinceDismissal = 0
         self.__evtManager = EventManager.get()
-        
 
-    def getHeight( self ):
+    def getHeight(self):
         """
         LONGTERM TODO: Document this.
         """
 
         return self.__window.getHeight()
-
 
     def getPosition(self):
         """
@@ -109,15 +107,13 @@ class ParameterSuggestionWindow:
 
         return Position(self.__window.getX(), self.__window.getY())
 
-
     def setPosition(self, x, y):
         """
         LONGTERM TODO: Document this.
         """
         self.__window.setPosition(x, y)
 
-
-    def draw( self, document, activeIndex ):
+    def draw(self, document, activeIndex):
         """
         Draws the text described by document.
 
@@ -125,40 +121,41 @@ class ParameterSuggestionWindow:
         window should reflect the drawn content.
         """
 
-        def _computeWidth( doc ):
+        def _computeWidth(doc):
             lines = []
             for b in doc.blocks:
-                lines.extend( b.lines )
-            if len( lines ) == 0:
+                lines.extend(b.lines)
+            if len(lines) == 0:
                 return 0
-            return max( [ l.xMax for l in lines ] )
-        def _computeHeight( doc ):
+            return max([l.xMax for l in lines])
+
+        def _computeHeight(doc):
             height = 0
             for b in doc.blocks:
                 height += b.height
-                #for line in b.lines:
+                # for line in b.lines:
                 #    height += line.lineHeight
             return height
 
         width = _computeWidth(document) + layout.L_MARGIN + layout.R_MARGIN
         width = max(width, 300)
-        height = document.height #_computeHeight(document)
+        height = document.height  # _computeHeight(document)
 
         cr = self.__context
 
         # Clear the areas where the corners of the rounded rectangle will be.
 
         cr.save()
-        cr.set_source_rgba( 0, 0, 0, 0 )
-        cr.set_operator( cairo.OPERATOR_SOURCE ) #IGNORE:E1101 @UndefinedVariable
-        cr.rectangle( width - rounded_rect.CORNER_RADIUS,
-                      height - rounded_rect.CORNER_RADIUS,
-                      rounded_rect.CORNER_RADIUS,
-                      rounded_rect.CORNER_RADIUS )
-        cr.rectangle( width - rounded_rect.CORNER_RADIUS,
-                      0,
-                      rounded_rect.CORNER_RADIUS,
-                      rounded_rect.CORNER_RADIUS )
+        cr.set_source_rgba(0, 0, 0, 0)
+        cr.set_operator(cairo.OPERATOR_SOURCE)  # IGNORE:E1101 @UndefinedVariable
+        cr.rectangle(width - rounded_rect.CORNER_RADIUS,
+                     height - rounded_rect.CORNER_RADIUS,
+                     rounded_rect.CORNER_RADIUS,
+                     rounded_rect.CORNER_RADIUS)
+        cr.rectangle(width - rounded_rect.CORNER_RADIUS,
+                     0,
+                     rounded_rect.CORNER_RADIUS,
+                     rounded_rect.CORNER_RADIUS)
         cr.paint()
 
         """
@@ -173,20 +170,21 @@ class ParameterSuggestionWindow:
         corners.append( rounded_rect.LOWER_LEFT )
         """
         corners = {
-            rounded_rect.UPPER_RIGHT:None,
-            rounded_rect.LOWER_RIGHT:14,
-            rounded_rect.LOWER_LEFT:None
-            }
-        
-        document.background = xmltextlayout.colorHashToRgba( layout.MAIN_BACKGROUND_COLOR )
+            rounded_rect.UPPER_RIGHT: None,
+            rounded_rect.LOWER_RIGHT: 14,
+            rounded_rect.LOWER_LEFT: None
+        }
 
-        cr.set_source_rgba( *document.background )
-        rounded_rect.drawRoundedRect( context = cr,
-                                      rect = ( 0, 0, width, height ),
-                                      softenedCorners=corners )
+        document.background = xmltextlayout.colorHashToRgba(
+            layout.MAIN_BACKGROUND_COLOR)
+
+        cr.set_source_rgba(*document.background)
+        rounded_rect.drawRoundedRect(context=cr,
+                                     rect=(0, 0, width, height),
+                                     softenedCorners=corners)
         cr.fill_preserve()
 
-        cr.set_source_rgba( *xmltextlayout.colorHashToRgba( "#404040" ) )
+        cr.set_source_rgba(*xmltextlayout.colorHashToRgba("#404040"))
         cr.set_line_width(1.0)
 
         if activeIndex is not None:
@@ -195,49 +193,49 @@ class ParameterSuggestionWindow:
             bar_height = document.blocks[0].height
             bar_top = activeIndex * bar_height + document.marginTop
 
-            rounded_rect.drawRoundedRect( context = cr,
-	                                      rect = (
-	                                          bar_left,
-	                                          bar_top,
-	                                          bar_width,
-	                                          bar_height),
-	                                      softenedCorners = rounded_rect.ALL_CORNERS,
-	                                      radius=2 )
+            rounded_rect.drawRoundedRect(context=cr,
+                                         rect=(
+                                             bar_left,
+                                             bar_top,
+                                             bar_width,
+                                             bar_height),
+                                         softenedCorners=rounded_rect.ALL_CORNERS,
+                                         radius=2)
 
         cr.fill_preserve()
-        #cr.stroke()
+        # cr.stroke()
 
         cr.restore()
 
         # Next, draw the text.
-        document.draw( layout.L_MARGIN,
-                       document.shrinkOffset,
-                       self.__context )
+        document.draw(layout.L_MARGIN,
+                      document.shrinkOffset,
+                      self.__context)
 
-        width = min( self.__window.getMaxWidth(), width )
+        width = min(self.__window.getMaxWidth(), width)
 
-        #height = document.blocks[0].height * len(document.blocks) #layout.PARAMETERSUGGESTION_SCALE[-1]*layout.HEIGHT_FACTOR
+        # height = document.blocks[0].height * len(document.blocks) #layout.PARAMETERSUGGESTION_SCALE[-1]*layout.HEIGHT_FACTOR
         #height = min( self.__window.getMaxHeight(), height )
 
         #self.__window.setSize( width, height )
-        
+
         if not self.__is_visible and not self.__animatingShow:
             self.__animatingShow = True
             self.__animatingHide = False
             self.__is_visible = True
             self.__timeSinceDismissal = 0
             with suppress(AssertionError):
-                self.__evtManager.registerResponder( self.animationTick, "timer" )
+                self.__evtManager.registerResponder(
+                    self.animationTick, "timer")
         else:
             # Just refreshing
             started = time.time()
-            self.__window.setOpacity( MAX_OPACITY )
-            #print time.time() - started
+            self.__window.setOpacity(MAX_OPACITY)
+            # print time.time() - started
             self.__window.update()
-        #print time.time() - started
+        # print time.time() - started
 
-
-    def hide( self, animated=True ):
+    def hide(self, animated=True):
         """
         Clears the window's surface (making it disappear).
         """
@@ -262,20 +260,19 @@ class ParameterSuggestionWindow:
         #self.__context.paint ()
         #self.__context.set_operator (cairo.OPERATOR_OVER)
 
-        #self.__window.update()
+        # self.__window.update()
 
         if animated:
             self.__timeSinceDismissal = 0
             self.__animatingHide = True
             self.__animatingShow = False
-            self.__evtManager.registerResponder( self.animationTick, "timer" )
+            self.__evtManager.registerResponder(self.animationTick, "timer")
         else:
             self.__window.hide()
             self.__animatingHide = False
             self.__animatingShow = False
 
-
-    def animationTick( self, msPassed ):
+    def animationTick(self, msPassed):
         """
         Called on a timer event to animate the window fadeout
         """
@@ -286,23 +283,22 @@ class ParameterSuggestionWindow:
                 self.__onAnimationFinished()
             return
 
-        timeLeft  = ANIMATION_TIME - self.__timeSinceDismissal
+        timeLeft = ANIMATION_TIME - self.__timeSinceDismissal
         frac = timeLeft / float(ANIMATION_TIME)
-        opacity = int( MAX_OPACITY*frac )
-        
+        opacity = int(MAX_OPACITY * frac)
+
         if self.__animatingHide:
-            self.__window.setOpacity( opacity )
+            self.__window.setOpacity(opacity)
             if opacity == 0:
                 self.__is_visible = False
         elif self.__animatingShow:
             self.__is_visible = True
-            self.__window.setOpacity( MAX_OPACITY-opacity )
+            self.__window.setOpacity(MAX_OPACITY - opacity)
 
         self.__window.update()
 
-    
     def __onAnimationFinished(self):
-        self.__evtManager.removeResponder( self.animationTick )
+        self.__evtManager.removeResponder(self.animationTick)
         if self.__animatingHide:
             self.__animatingHide = False
             self.__window.hide()
@@ -315,7 +311,7 @@ class ParameterSuggestionWindow:
 # The SuggestionList Singleton
 # ----------------------------------------------------------------------------
 
-class ParameterSuggestionList( object ):
+class ParameterSuggestionList(object):
     """
     A singleton class that encapsulates all of the textual information
     created when a user types in the quasimode, including the user's
@@ -335,7 +331,7 @@ class ParameterSuggestionList( object ):
     # update near/around fetching these attributes, and will eliminate
     # a source of errors.
 
-    def __init__( self, commandManager ):
+    def __init__(self, commandManager):
         """
         Initializes the ParameterSuggestionList.
         """
@@ -346,19 +342,18 @@ class ParameterSuggestionList( object ):
         # Set all of the member variables to their empty values.
         self.clearState()
 
-        yPos = layout.DESCRIPTION_SCALE[-1]*layout.HEIGHT_FACTOR \
-            + layout.AUTOCOMPLETE_SCALE[-1]*layout.HEIGHT_FACTOR
-        height = layout.PARAMETERSUGGESTION_SCALE[-1]*layout.HEIGHT_FACTOR
+        yPos = layout.DESCRIPTION_SCALE[-1] * layout.HEIGHT_FACTOR \
+            + layout.AUTOCOMPLETE_SCALE[-1] * layout.HEIGHT_FACTOR
+        height = layout.PARAMETERSUGGESTION_SCALE[-1] * layout.HEIGHT_FACTOR
         self.__window = ParameterSuggestionWindow(
-            height = 200,
-            position = [ 200, yPos ],
-            )
+            height=200,
+            position=[200, yPos],
+        )
         # Nothing selected initialy
         self.__activeIndex = None
         self.styles = layout.retrieveParameterSuggestionStyles()
 
-
-    def clearState( self ):
+    def clearState(self):
         """
         Clears all of the variables relating to the state of the
         quasimode's generated information.
@@ -375,15 +370,13 @@ class ParameterSuggestionList( object ):
 
         self.__isDirty = False
 
-
     def __markDirty(self):
         self.__isDirty = True
-
 
     def isActive(self):
         return len(self.__suggestions) > 0
 
-    def getSuggestions( self ):
+    def getSuggestions(self):
         """
         In a pair with getAutoCompletion(), this method gets the latest
         suggestion list, making sure that the internal variable is
@@ -391,8 +384,7 @@ class ParameterSuggestionList( object ):
         """
         return self.__suggestions
 
-
-    def setSuggestions( self, suggestions, xPos=None ):
+    def setSuggestions(self, suggestions, xPos=None):
         """
         Sets the suggestions list and displays/hides the suggestions window.
         If xPos parameter is specified, the window is placed at the given
@@ -419,8 +411,7 @@ class ParameterSuggestionList( object ):
             self.__activeIndex = None
             self.hide()
 
-
-    def getActiveSuggestion( self ):
+    def getActiveSuggestion(self):
         """
         Determines the command name of the "active" command, i.e., the
         name that is indicated to the user as the command that will
@@ -430,8 +421,7 @@ class ParameterSuggestionList( object ):
         activeSugg = self.__suggestions[self.__activeIndex]
         return activeSugg
 
-
-    def setActiveSuggestion( self, pos ):
+    def setActiveSuggestion(self, pos):
         """
         Changes which of the suggestions is "active", i.e., which suggestion
         will be activated when the user releases the CapsLock key.
@@ -440,15 +430,14 @@ class ParameterSuggestionList( object ):
             return
         if pos < 0:
             pos = len(self.getSuggestions()) + pos
-        pos = min(pos, len(self.getSuggestions())-1)
+        pos = min(pos, len(self.getSuggestions()) - 1)
         pos = max(0, pos)
         self.__activeIndex = pos
         # One of the source variables has changed.
         self.__markDirty()
         self.draw()
 
-
-    def cycleActiveSuggestion( self, distance ):
+    def cycleActiveSuggestion(self, distance):
         """
         Changes which of the suggestions is "active", i.e., which suggestion
         will be activated when the user releases the CapsLock key.
@@ -460,8 +449,8 @@ class ParameterSuggestionList( object ):
             self.__activeIndex += distance - 1
         else:
             self.__activeIndex += distance
-        if len( self.getSuggestions() ) > 0:
-            truncateLength = len( self.getSuggestions() )
+        if len(self.getSuggestions()) > 0:
+            truncateLength = len(self.getSuggestions())
             self.__activeIndex = self.__activeIndex % truncateLength
         else:
             self.__activeIndex = 0
@@ -469,12 +458,10 @@ class ParameterSuggestionList( object ):
         self.__markDirty()
         self.draw()
 
-
-    def getActiveIndex( self ):
+    def getActiveIndex(self):
         return self.__activeIndex
 
-
-    def resetActiveSuggestion( self ):
+    def resetActiveSuggestion(self):
         """
         Sets the active suggestion to 0, i.e., the user's
         text/auto-completion.
@@ -485,12 +472,10 @@ class ParameterSuggestionList( object ):
         # One of the source variables has changed.
         self.__markDirty()
 
-
-    def hide( self ):
+    def hide(self):
         self.__window.hide()
 
-
-    def draw( self ):
+    def draw(self):
         if not self.__isDirty:
             return
 
@@ -511,16 +496,17 @@ class ParameterSuggestionList( object ):
         lines_xml = []
         active = self.getActiveIndex()
         for i, line in enumerate(suggestions):
-            lines_xml.append((ACTIVE_LINE_XML if i == active else LINE_XML) % escape_xml(line))
+            lines_xml.append(
+                (ACTIVE_LINE_XML if i == active else LINE_XML) % escape_xml(line))
 
         xml_data = DOCUMENT_XML % "".join(lines_xml)
 
         lines = layout.layoutXmlLine(
-            xml_data = xml_data,
-            styles = self.styles,
-            scale = layout.PARAMETERSUGGESTION_SCALE,
-            )
-        self.__window.draw( lines, active )
+            xml_data=xml_data,
+            styles=self.styles,
+            scale=layout.PARAMETERSUGGESTION_SCALE,
+        )
+        self.__window.draw(lines, active)
 
 
 # vim:set tabstop=4 shiftwidth=4 expandtab:

@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -44,14 +44,14 @@ import inspect
 import logging
 
 from enso.utils import do_once
+from enso.utils.decorators import finalizeWrapper
 
-    
 # See: https://pypi.python.org/pypi/backports.functools_lru_cache/1.1
 try:
     from functools import lru_cache
 except ImportError:
     try:
-        from backports.functools_lru_cache import lru_cache # @UnusedImport
+        from backports.functools_lru_cache import lru_cache  # @UnusedImport
     except ImportError:
         def lru_cache(maxsize=100, typed=False):
             def decorate(func):
@@ -59,14 +59,11 @@ except ImportError:
                     do_once(
                         logging.warning,
                         "The function %s() in module %s was meant to be cached. Consider installing backports.functools_lru_cache module to improve its performance."
-                            % (func.__name__, func.__module__)
+                        % (func.__name__, func.__module__)
                     )
                     return func(*args, **kwargs)
                 return func_wrapper
             return decorate
-    
-    
-from enso.utils.decorators import finalizeWrapper
 
 
 # ----------------------------------------------------------------------------
@@ -75,18 +72,19 @@ from enso.utils.decorators import finalizeWrapper
 
 _memoizedFunctions = []
 
+
 class _MemoizedFunction:
     """
     Encapsulates all information about a function that is memoized.
     """
-    
-    def __init__( self, function ):
+
+    def __init__(self, function):
         self.function = function
         self.cache = {}
-        _memoizedFunctions.append( self )
+        _memoizedFunctions.append(self)
 
 
-def _generateArgWrapper( function, wrappedFunction ):
+def _generateArgWrapper(function, wrappedFunction):
     """
     Given any function and a wrappedFunction of the form
     wrappedFunction(*args), creates an argument-wrapper function that
@@ -139,7 +137,7 @@ def _generateArgWrapper( function, wrappedFunction ):
 
     To solve these problems, let's try using _generateArgWrapper() on
     our memoized function:
-    
+
       >>> f = _generateArgWrapper( myFunction, memoizedMyFunction )
 
     Now the function 'f' can be used just like myFunction():
@@ -163,27 +161,27 @@ def _generateArgWrapper( function, wrappedFunction ):
       1
     """
 
-    args, varargs, varkw, defaults = inspect.getargspec( function )
+    args, varargs, varkw, defaults = inspect.getargspec(function)
 
-    assert varkw == None, "Memoized functions cannot take ** arguments."
+    assert varkw is None, "Memoized functions cannot take ** arguments."
 
-    argspecString = inspect.formatargspec( args, varargs, None, defaults )
-    argspecStringNoDefaults = inspect.formatargspec( args,
-                                                     varargs,
-                                                     None,
-                                                     None )
+    argspecString = inspect.formatargspec(args, varargs, None, defaults)
+    argspecStringNoDefaults = inspect.formatargspec(args,
+                                                    varargs,
+                                                    None,
+                                                    None)
 
-    codeString = "\n".join( [
+    codeString = "\n".join([
         "def argWrapperGenerator( wrappedFunction ):",
         "    def argWrappedFunction%(argspecString)s:",
         "        return wrappedFunction%(argspecStringNoDefaults)s",
         "    return argWrappedFunction",
-        ] )
+    ])
 
     codeString = codeString % {
-        "argspecString" : argspecString,
-        "argspecStringNoDefaults" : argspecStringNoDefaults,
-        }
+        "argspecString": argspecString,
+        "argspecStringNoDefaults": argspecStringNoDefaults,
+    }
 
     fakeFileName = "<Memoize-generated code for '%s'>" % function.__name__
 
@@ -200,10 +198,10 @@ def _generateArgWrapper( function, wrappedFunction ):
 
     argWrapperGenerator = localsDict["argWrapperGenerator"]
 
-    return argWrapperGenerator( wrappedFunction )
+    return argWrapperGenerator(wrappedFunction)
 
 
-def memoized( function ):
+def memoized(function):
     """
     'Memoizes' the function, causing its results to be cached based on
     the called arguments.  When subsequent calls to function are made
@@ -263,13 +261,13 @@ def memoized( function ):
     a flyweight pool).
     """
 
-    mfWrap = _MemoizedFunction( function )
+    mfWrap = _MemoizedFunction(function)
 
     # For efficiency purposes, let's make it as easy to look up
     # mfWrap.cache as possible.
     cache = mfWrap.cache
 
-    def memoizedFunctionWrapper( *args ):
+    def memoizedFunctionWrapper(*args):
         # We're using a try-except clause here instead of testing
         # whether the dictionary has a key because we believe that it
         # is more efficient; it's preferable to speed up the most
@@ -279,14 +277,14 @@ def memoized( function ):
         try:
             return cache[args]
         except KeyError:
-            cache[args] = function( *args )
+            cache[args] = function(*args)
             return cache[args]
-    
-    finalWrapper = _generateArgWrapper( function, memoizedFunctionWrapper )
 
-    return finalizeWrapper( function,
-                            finalWrapper,
-                            "Memoized" )
+    finalWrapper = _generateArgWrapper(function, memoizedFunctionWrapper)
+
+    return finalizeWrapper(function,
+                           finalWrapper,
+                           "Memoized")
 
 
 def getMemoizeStats():
@@ -299,20 +297,21 @@ def getMemoizeStats():
         "Number of unique function values recorded: %(numValues)s"
 
     info = STAT_STRING % dict(
-        numFuncs = len( _memoizedFunctions ),
-        numValues = sum( [ len(i.cache.keys()) \
-                           for i in _memoizedFunctions ] ),
-        )
+        numFuncs=len(_memoizedFunctions),
+        numValues=sum([len(i.cache.keys())
+                       for i in _memoizedFunctions]),
+    )
 
     return info
 
 
-def memodict( function ):
+def memodict(function):
     """ Memoization decorator for a function taking a single argument """
     class memodict(dict):
+
         def __missing__(self, key):
             ret = self[key] = function(key)
-            return ret 
+            return ret
     return memodict().__getitem__
 
 
@@ -343,8 +342,7 @@ class cached_property(object):
         self.key = '_{name}'.format(name=self.__name__)
         self.func = func
 
-    def __get__(self, obj, type=None): 
+    def __get__(self, obj, type=None):
         if self.key not in obj.__dict__:
             obj.__dict__[self.key] = self.func(obj)
         return obj.__dict__[self.key]
-    

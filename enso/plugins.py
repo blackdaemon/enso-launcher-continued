@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -25,9 +25,6 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-import traceback
-from enso.commands.manager import CommandAlreadyRegisteredError
 
 # ----------------------------------------------------------------------------
 #
@@ -60,23 +57,23 @@ from enso.commands.manager import CommandAlreadyRegisteredError
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
-
 import logging
+import traceback
 
 import enso.config
-
+from enso.commands.manager import CommandAlreadyRegisteredError
 
 # ----------------------------------------------------------------------------
 # Public functions
 # ----------------------------------------------------------------------------
 
-def install( eventManager ):
+def install(eventManager):
     """
     Installs the plugin system into the given enso.events.EventManager
     instance.
     """
 
-    eventManager.registerResponder( _init, "init" )
+    eventManager.registerResponder(_init, "init")
 
 
 # ----------------------------------------------------------------------------
@@ -93,16 +90,16 @@ def _init():
         try:
             # Import the module; most of this code was taken from the
             # Python Library Reference documentation for __import__().
-            module = __import__( moduleName, {}, {}, [] )
-            components = moduleName.split( "." )
+            module = __import__(moduleName, {}, {}, [])
+            components = moduleName.split(".")
             for component in components[1:]:
-                module = getattr( module, component )
+                module = getattr(module, component)
 
             module.load()
         except CommandAlreadyRegisteredError, e:
-            logging.warn( "Command is already registered '%s'. " % moduleName)
+            logging.warn("Command is already registered '%s'. " % moduleName)
         except Exception:
-            logging.warn( "Error while loading plugin '%s':" % moduleName )
+            logging.warn("Error while loading plugin '%s':" % moduleName)
             logging.error(traceback.format_exc())
-            #raise
-        logging.info( "Loaded plugin '%s'." % moduleName )
+            # raise
+        logging.info("Loaded plugin '%s'." % moduleName)

@@ -55,6 +55,8 @@ import math
 import operator
 import datetime
 
+from dateutil.relativedelta import relativedelta
+
 from text2num import text2num
 from currconv import currency, RATES, get_home_currency
 
@@ -67,14 +69,12 @@ RE_VALID_ROMAN_NUMBER = r"\b(M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|
 RE_TIMEDELTA = r"(\d+) ?(days?|weeks?|months?|years?)"
 
 
-class timedelta(datetime.timedelta):
-    def __init__(self, days=0, seconds=0, microseconds=0, milliseconds=0,
-        minutes=0, hours=0, weeks=0, months=0, years=0):
+class timedelta(relativedelta):
+    def __init__(self, years=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0):
         super(timedelta, self).__init__(
             days=days,
             seconds=seconds,
             microseconds=microseconds,
-            milliseconds=milliseconds,
             minutes=minutes,
             hours=hours,
             weeks=weeks,
@@ -129,10 +129,15 @@ class BNF(object):
     @classmethod
     def pushUMinus( cls, strg, loc, toks ):
         _, _ = loc, strg # keep pylint happy
-        if toks and toks[0]=='-':
-            cls.expr_stack.append( 'unary -' )
-            #~ exprStack.append( '-1' )
-            #~ exprStack.append( '*' )
+        if toks:
+            if toks[0]=='-':
+                cls.expr_stack.append( 'unary -' )
+                #~ exprStack.append( '-1' )
+                #~ exprStack.append( '*' )
+            if toks[0]=='(' and toks[-1]==')':
+                cls.expr_stack.append("()")
+                #~ exprStack.append( '-1' )
+                #~ exprStack.append( '*' )
 
     @classmethod
     def pushFunc( cls, strg, loc, toks ):
@@ -192,16 +197,16 @@ class BNF(object):
             ident = Word(alphas, alphas+nums+"_$")
 
             plus  = Literal( "+" ) | CaselessLiteral( "plus" ) | CaselessLiteral( "add" )
-            minus = Literal( "-" ) | CaselessLiteral( "minus" ) | CaselessLiteral( "subtract" )
+            minus = Literal( "-" ) | CaselessLiteral( "minus" ) | CaselessLiteral( "substract" ) | CaselessLiteral( "subtract" ) | CaselessLiteral( "sub" )
             mult  = Literal( "*" ) | CaselessLiteral( "times" ) | CaselessLiteral( "multiplied by" ) | CaselessLiteral( "multiply" ) | CaselessLiteral( "mul" )
             div   = Literal( "/" ) | CaselessLiteral( "divided by" ) | CaselessLiteral( "divide" ) | CaselessLiteral( "div" )
             floor = Literal( "//" ) | CaselessLiteral( "floor" )
             mod   = Literal( "%" ) | CaselessLiteral( "modulo" ) | CaselessLiteral( "mod" )
-            lpar  = Literal( "(" ).suppress()
-            rpar  = Literal( ")" ).suppress()
+            lpar  = Literal( "(" ) #.suppress()
+            rpar  = Literal( ")" ) #.suppress()
             addop  = plus | minus
             multop = mult | floor | div | mod
-            expop = Literal( ":" ) | Literal( "**" ) | CaselessLiteral( "power" ) | CaselessLiteral( "pow" )
+            expop = Literal( "^" ) | Literal( "**" ) | CaselessLiteral( "power" ) | CaselessLiteral( "pow" )
             pi    = CaselessLiteral( "PI" )
             bitwise = CaselessLiteral( "xor" ) | CaselessLiteral( "and" ) | CaselessLiteral( "or" )
             currencyop = CaselessLiteral( "in" )
@@ -249,11 +254,13 @@ class BNF(object):
             """
             currency_name.setParseAction( cls.pushFirst )
             currency_pair.setParseAction( cls.pushFirst )
-            print currency_name
+            #print currency_name
 
             expr = Forward()
-            atom = (Optional("-") + ( now | date | today | yesterday | tomorrow | hours | minutes | days | weeks | months | years | pi | e | fnumber | roman_numerals | ident + lpar + expr + rpar ).setParseAction( cls.pushFirst )
-                 | ( lpar + expr.suppress() + rpar )).setParseAction(cls.pushUMinus)
+            atom = (Optional("-") + ( now | date | today | yesterday | tomorrow | hours | minutes
+                | days | weeks | months | years | pi | e | fnumber | roman_numerals | ident + lpar + expr + rpar ).setParseAction( cls.pushFirst )
+                 | ( lpar + expr + rpar )).setParseAction(cls.pushUMinus)
+#                 | ( lpar + expr.suppress() + rpar )).setParseAction(cls.pushUMinus)
 
             # by defining exponentiation as "atom [ ^ factor ]..." instead of "atom [ ^ atom ]...",
             # we get right-to-left exponents, instead of left-to-right, that is, 2^3^2 = 2^(3^2), not (2^3)^2.
@@ -275,9 +282,6 @@ class BNF(object):
         return cls.__bnf
 
 
-
-# map operator symbols to corresponding arithmetic operations
-epsilon = 1e-12
 
 
 roman_numeral_map = zip(
@@ -304,6 +308,9 @@ def roman_to_int(n):
     return result
 
 
+# map operator symbols to corresponding arithmetic operations
+epsilon = 1e-12
+
 opn = {
         "+" : operator.add,
         "plus" : operator.add,
@@ -311,7 +318,9 @@ opn = {
 
         "-" : operator.sub,
         "minus" : operator.sub,
+        "substract" : operator.sub,
         "subtract" : operator.sub,
+        "sub" : operator.sub,
 
         "*" : operator.mul,
         "times" : operator.mul,
@@ -388,18 +397,18 @@ def evaluateStack( s ):
         val, expr = evaluateStack( s )
         val = -val
         return val, "-%s" % expr
-    elif op in ("xor", "and", "or"):
+    elif op in set(["xor", "and", "or"]):
         op2, expr2 = evaluateStack( s )
         op1, expr1 = evaluateStack( s )
         val = opn[op]( long(op1), long(op2) )
         print op, opn[op]
         return val, "%s %s %s" % (expr1, op, expr2)
-    elif op in (
+    elif op in set([
             "+", "plus", "add",
-            "-", "minus", "subtract",
+            "-", "minus", "substract", "subtract", "sub",
             "*", "times", "multiplied by", "multiply", "mul",
-            "^", "**", "pow", "power",
-            ">>", "<<"):
+            "pow", "power","**", "^",  
+            ">>", "<<"]):
         op2, expr2 = evaluateStack( s )
         op1, expr1 = evaluateStack( s )
         if isinstance(op1, datetime.datetime):
@@ -424,10 +433,10 @@ def evaluateStack( s ):
                 return "undefined", "%s %s %s" % (expr1, op.strip(), expr2)
         val = opn[op]( op1, op2 )
         return val, "%s %s %s" % (expr1, op.strip(), expr2)
-    elif op in (
+    elif op in set([
             "/", "divide", "div", "divided by",
             "%", "modulo", "mod",
-            "//", "floor"):
+            "//", "floor"]):
         op2, expr2 = evaluateStack( s )
         op1, expr1 = evaluateStack( s )
         # Handle division by zero gracefully
@@ -488,6 +497,9 @@ def evaluateStack( s ):
     #    return 0L, 0L
     elif op.isalpha() and len(op) == 3: # in RATES.exchange_rates.keys():
         return op, op
+    elif op == "()":
+        val, expr = evaluateStack( s )
+        return val, "(%s)" % expr
     else:
         val = 0L
         try:
@@ -511,11 +523,13 @@ def evaluate(expression):
     expression = expression.replace(u"\u00D7", "*") # X symbol
     expression = expression.replace(u"\u03c0", "PI") # Greek PI symbol
 
-    print "CONVERTED:", expression, formatted_expression
-    _ = BNF.get_bnf().parseString(expression)
+    #print "CONVERTED:", expression, formatted_expression
+    res = BNF.get_bnf().parseString(expression)
     #print "STACK:", BNF.expr_stack[:]
+    #print "RES: ", res, "STACK: ", BNF.expr_stack
     val, expr = evaluateStack(BNF.expr_stack[:])
-    print expr
+    #expr = " ".join(res)
+    #print expr
 
     if isinstance(val, datetime.timedelta):
         val = "%d days %d hours %d minutes" % (
@@ -526,19 +540,20 @@ def evaluate(expression):
     return val, expr
 
 
+def test( s, expVal ):
+    BNF.expr_stack = []
+    results = BNF.get_bnf().parseString( s )
+    val = evaluateStack( BNF.expr_stack[:] )
+    #print val.__class__, expVal.__class__
+    if val == expVal:
+        #print s, "=", val, results, "=>", BNF.expr_stack
+        return expVal
+    else:
+        return s+"!!!", val, "!=", expVal, results, "=>", BNF.expr_stack
+
 if __name__ == "__main__":
 
 #    @timelimit(4)
-    def test( s, expVal ):
-        BNF.expr_stack = []
-        results = BNF.get_bnf().parseString( s )
-        val = evaluateStack( BNF.expr_stack[:] )
-        #print val.__class__, expVal.__class__
-        if val == expVal:
-            #print s, "=", val, results, "=>", BNF.expr_stack
-            pass
-        else:
-            print s+"!!!", val, "!=", expVal, results, "=>", BNF.expr_stack
 
     test( "9", 9 )
     test( "-9", -9 )
