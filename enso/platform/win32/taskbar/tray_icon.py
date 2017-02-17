@@ -27,8 +27,11 @@ class SysTrayIcon(object):
         self.default_icon = icon
         self.hover_text = hover_text
         self.notify_id = None
+        self._on_quit = None
         if on_quit:
-            self.on_quit = on_quit
+            if not callable(on_quit):
+                raise Exception("SysTrayIcon on_quit parameter must be callable")
+            self._on_quit = on_quit
         self.custom_menu_items = {}
 
         self.WM_ONLOAD = win32gui.RegisterWindowMessage("SystrayOnLoad")
@@ -154,8 +157,7 @@ class SysTrayIcon(object):
                 self.on_about(self)
         elif id == self.MENU_ITEM_ID_EXIT:
             win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
-            if self.on_quit:
-                self.on_quit(self)
+            self.on_quit()
             win32gui.DestroyWindow(self.hwnd)
             win32gui.UnregisterClass(self.class_atom, self._window_class.hInstance)
         elif id in self.custom_menu_items:
@@ -168,9 +170,13 @@ class SysTrayIcon(object):
         else:
             logging.info("Unknown command %d", id)
 
-
     def on_quit(self, systray):
-        pass
+        # Execute custom on_quit function if specified
+        if self._on_quit and callable(self._on_quit):
+            try:
+                self._on_quit(systray)
+            except Exception as e:
+                logging.error("tay_icon.on_quit() failed: %s", e)
 
     def on_about(self, systray):
         pass
