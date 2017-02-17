@@ -85,35 +85,24 @@ INVALID_CONTROL_CHARACTERS = [
 # ----------------------------------------------------------------------------
 
 # Unicode translation table to remove invalid control characters.
-_UNICODE_INVALID_CONTROL_CHARACTERS_TRANSLATION_TABLE = {}
-
-for _char in INVALID_CONTROL_CHARACTERS:
-    _UNICODE_INVALID_CONTROL_CHARACTERS_TRANSLATION_TABLE[_char] = None
-
-_TEMPCHARS = []
-for _char in range(256):
-    _TEMPCHARS.append( chr(_char) )
+_UNICODE_INVALID_CONTROL_CHARACTERS_TRANSLATION_TABLE = dict(
+    (_char, None) for _char in INVALID_CONTROL_CHARACTERS
+)
 
 # Identity transformation string for the str.translate() method.
-_STRING_IDENTITY_TRANSLATION = "".join( _TEMPCHARS )
-
-_TEMPCHARS = []
-for _char in INVALID_CONTROL_CHARACTERS:
-    _TEMPCHARS.append( chr(_char) )
+_STRING_IDENTITY_TRANSLATION = "".join(chr(_char) for _char in range(256))
 
 # Deletechars string for the str.translate() method, used to remove
 # invalid control characters.
-_STRING_INVALID_CONTROL_CHARACTERS_DELETECHARS = "".join( _TEMPCHARS )
-
-del _char
-del _TEMPCHARS
+_STRING_INVALID_CONTROL_CHARACTERS_DELETECHARS = "".join(
+    chr(_char) for _char in INVALID_CONTROL_CHARACTERS)
 
 
 # ----------------------------------------------------------------------------
 # DOM Node functions
 # ----------------------------------------------------------------------------
 
-def get_inner_text( dom_node ):
+def get_inner_text(dom_node):
     """
     Returns a unicode string that is the amalgamation of all the text
     interior to node dom_node.  Recursively grabs the inner text from
@@ -121,17 +110,17 @@ def get_inner_text( dom_node ):
     """
 
     text_strings = []
-    for node in  dom_node.childNodes:
+    for node in dom_node.childNodes:
         if node.nodeType == dom_node.TEXT_NODE \
-               or node.nodeType == dom_node.CDATA_SECTION_NODE:
-            text_strings.append( node.data )
+                or node.nodeType == dom_node.CDATA_SECTION_NODE:
+            text_strings.append(node.data)
         else:
-            text_strings.append( get_inner_text( node ) )
+            text_strings.append(get_inner_text(node))
 
-    return "".join( text_strings ).strip()
+    return "".join(text_strings).strip()
 
 
-def remove_invalid_control_chars( string ):
+def remove_invalid_control_chars(string):
     """
     Removes invalid control characters from the given string.  The
     string can be a standard Python string or a unicode object.
@@ -141,29 +130,29 @@ def remove_invalid_control_chars( string ):
     in.
     """
 
-    if isinstance( string, str ):
+    if isinstance(string, str):
         string = string.translate(
             _STRING_IDENTITY_TRANSLATION,
             _STRING_INVALID_CONTROL_CHARACTERS_DELETECHARS
-            )
-    elif isinstance( string, unicode ):
+        )
+    elif isinstance(string, unicode):
         string = string.translate(
             _UNICODE_INVALID_CONTROL_CHARACTERS_TRANSLATION_TABLE
-            )
+        )
     else:
-        raise AssertionError( "string must be a string or unicode object." )
+        raise AssertionError("string must be a string or unicode object.")
     return string
 
 
-def escape_xml( xml_data ):
+def escape_xml(xml_data):
     """
     Returns a string in which all the xml characters of xml_data have
     been escaped once (e.g., "&" -> "&amp;", and "<" -> "&lt;"), and
     also removes any invalid control characters from xml_data.
     """
 
-    xml_data = xml_data.replace( "&", "&amp;" )
-    xml_data = xml_data.replace( "<", "&lt;" )
+    xml_data = xml_data.replace("&", "&amp;")
+    xml_data = xml_data.replace("<", "&lt;")
     # This is needed to escape the sequence "]]>"
-    xml_data = xml_data.replace( ">", "&gt;" )
-    return remove_invalid_control_chars( xml_data )
+    xml_data = xml_data.replace(">", "&gt;")
+    return remove_invalid_control_chars(xml_data)
