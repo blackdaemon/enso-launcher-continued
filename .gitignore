@@ -7,11 +7,12 @@
 *.py_
 *.bak
 
+/.cache/
+/.ensorc
+/.importanizerc
 /.project
 /.pydevproject
 /.settings
 /dependencies/
 /derby.log
-/.ensorc
 /env/
-/.importanizerc
