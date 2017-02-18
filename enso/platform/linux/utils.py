@@ -33,16 +33,16 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import logging
+
 import os
 
-import gtk.gdk
+from gtk.gdk import keyval_from_name
 from Xlib.display import Display
 
 _DISPLAYS = {}
 
 
-def get_display ():
+def get_display():
     # TODO: Can multiple displays exist?
     global _DISPLAYS
     display_id = os.environ["DISPLAY"]
@@ -53,33 +53,37 @@ def get_display ():
     return _DISPLAYS[display_id]
 
 
-def get_keycode (key, display = None):
+def get_keycode(key, display=None):
     '''Helper function to get a keycode from raw key name'''
     if not display:
-        display = get_display ()
-    keysym = gtk.gdk.keyval_from_name (key)
-    keycode = display.keysym_to_keycode (keysym)
+        display = get_display()
+    keysym = keyval_from_name(key)
+    keycode = display.keysym_to_keycode(keysym)
     return keycode
 
 
-def sanitize_char (keyval):
+def sanitize_char(keyval):
     '''Sanitize a single character keyval by attempting to convert it'''
-    char = unichr (int (keyval))
-    if len (char) > 0 and ord (char) > 0 and ord (char) < 65000:
-        #print keyval, char
+    char = unichr(int(keyval))
+    if len(char) > 0 and ord(char) > 0 and ord(char) < 65000:
+        # print keyval, char
         return char
     return None
 
 
-def get_status_output(cmd):
+def get_cmd_output(cmd, cwd=None):
     """Return (status, output) of executing cmd in a shell."""
+    if isinstance(cmd, list):
+        cmd = " ".join(cmd)
+    if cwd:
+        if not os.path.isdir(cwd):
+            raise Exception("cwd is not an existing directory: %s" % cwd)
+        cmd = "cd \"%s\"; %s" % (cwd, cmd)
     pipe = os.popen('{ ' + cmd + '; } 2>&1', 'r')
     text = pipe.read()
     sts = pipe.close()
-    if sts is None: 
+    if sts is None:
         sts = 0
-    if text and text[-1:] == '\n': 
+    if text and text[-1:] == '\n':
         text = text[:-1]
     return sts, text
-    
-  

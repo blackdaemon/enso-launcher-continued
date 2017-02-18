@@ -42,7 +42,7 @@ import gtk
 from CharMaps import STANDARD_ALLOWED_KEYCODES as CASE_INSENSITIVE_KEYCODE_MAP
 from Xlib import X
 from shutilwhich import which
-from utils import get_display, get_keycode, get_status_output, sanitize_char
+from utils import get_display, get_keycode, get_cmd_output, sanitize_char
 
 from enso.utils.decorators import suppress
 
@@ -336,7 +336,7 @@ class _KeyListener (Thread):
                 # FIXME: revert on exit
                 os.system("%s -r %d" % (xset_cmd, keycode))
             if xmodmap_cmd:
-                cmd_status, cmd_stdout = get_status_output(
+                cmd_status, cmd_stdout = get_cmd_output(
                     "%s -pm" % xmodmap_cmd)
                 if cmd_status == 0 and cmd_stdout:
                     lines = cmd_stdout.splitlines()

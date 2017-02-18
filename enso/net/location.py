@@ -123,7 +123,6 @@ class Location(object):
         self.default_gateway_mac = default_gateway_mac
 
     def __repr__(self):
-        print self.default_gateway_mac
         mac = ":".join(
             self.default_gateway_mac[i:i+2]
             for i in range(0, len(self.default_gateway_mac), 2)
@@ -219,7 +218,6 @@ class LocationManager(object):
             c = conn.cursor()
             c.execute("select id,location from locations")
             for row in c.fetchall():
-                print row
                 self.locations[row['id']] = row['location']
             c.close()
         except sqlite3.OperationalError, e:

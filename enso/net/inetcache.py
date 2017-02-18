@@ -45,10 +45,10 @@ from contextlib import closing
 if sys.platform.startswith("win"):
     platform_name = "win32"
 elif any(map(sys.platform.startswith, ("linux","openbsd","freebsd","netbsd"))):
-    from enso.platform.linux.utils import get_status_output
+    from enso.platform.linux.utils import get_cmd_output
     platform_name = "linux"
 elif sys.platform == "darwin":
-    from enso.platform.linux.utils import get_status_output
+    from enso.platform.linux.utils import get_cmd_output
     platform_name = "osx"
 
 
@@ -117,7 +117,7 @@ def retrieve_online_data(retrieval_func, offline_result_func, retry_count=1, ret
         t.start()
         return t
     else:
-        return _retrieval_func()
+        return _retrieval_func(retrieval_func, offline_result_func, retry_count, retry_wait)
 
 isonline = is_online()
 print "ISONLINE:", isonline
