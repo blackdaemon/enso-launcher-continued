@@ -1,11 +1,13 @@
-import sys
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+    
 import logging
+import sys
 
 
 __impl_class_cache = {}
 
 
-def get_command_platform_impl(command_name, impl_class_name = None):
+def get_command_platform_impl(command_name, impl_class_name=None):
     """
     Returns platform specific implementation class for a given command by doing
     import from its correct platform directory.
@@ -36,7 +38,7 @@ def get_command_platform_impl(command_name, impl_class_name = None):
 
     if sys.platform.startswith("win"):
         platform_name = "win32"
-    elif any(map(sys.platform.startswith, ("linux","openbsd","freebsd","netbsd"))):
+    elif any(map(sys.platform.startswith, ("linux", "openbsd", "freebsd", "netbsd"))):
         platform_name = "linux"
     elif sys.platform == "darwin":
         platform_name = "osx"
@@ -53,9 +55,11 @@ def get_command_platform_impl(command_name, impl_class_name = None):
     if CommandImpl:
         return CommandImpl
 
-    logging.info("Importing command platform-specific implementation "
+    logging.info(
+        "Importing command platform-specific implementation "
         "\"from %s import %s\""
-        % (module_package, impl_class_name))
+        % (module_package, impl_class_name)
+    )
 
     try:
         mod = __import__(module_package, globals(), locals(), [], 0)
@@ -70,5 +74,3 @@ def get_command_platform_impl(command_name, impl_class_name = None):
     # Cache it for further import
     __impl_class_cache[__cache_id] = CommandImpl
     return CommandImpl
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
