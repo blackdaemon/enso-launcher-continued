@@ -31,7 +31,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import sys
-from os import system as runcmd 
+from os import system as runcmd
 
 import enso.platform
 
@@ -46,18 +46,18 @@ DE_LXDE = "LXDE"
 DE_UNKNOWN = None
 
 DESKTOP_ENVIRONMENT = next(
-        (env_id for (pattern, env_id) in (
-                ("^.* gnome-session$", DE_GNOME),
-                ("^.* kded4$", DE_KDE),
-                ("^.* unity-panel$", DE_UNITY),
-                ("^.* xfce4-session$", DE_XFCE),
-                ("^.* cinnamon$", DE_CINNAMON),
-                ("^.* mate-panel$", DE_MATE),
-                ("^.* lxsession$", DE_LXDE),
-            )
-            if runcmd("ps -e | grep -E '%s' > /dev/null" % pattern) == 0
-        ), DE_UNKNOWN
-    )
+    (env_id for (pattern, env_id) in (
+            ("^.* gnome-session$", DE_GNOME),
+            ("^.* kded4$", DE_KDE),
+            ("^.* unity-panel$", DE_UNITY),
+            ("^.* xfce4-session$", DE_XFCE),
+            ("^.* cinnamon$", DE_CINNAMON),
+            ("^.* mate-panel$", DE_MATE),
+            ("^.* lxsession$", DE_LXDE),
+        )
+        if runcmd("ps -e | grep -E '%s' > /dev/null" % pattern) == 0
+    ), DE_UNKNOWN
+)
 
 platforms = [
     "linux",
@@ -68,7 +68,8 @@ platforms = [
 if not any(sys.platform.startswith(p) for p in platforms):
     raise enso.platform.PlatformUnsupportedError()
 
-def provideInterface (name):
+
+def provideInterface(name):
     '''Plug into Enso core'''
     if name == "input":
         import enso.platform.linux.input
@@ -87,6 +88,6 @@ def provideInterface (name):
         return get_script_folder_name
     elif name == "system":
         import enso.platform.linux.system
-        return enso.platform.linux.system    
+        return enso.platform.linux.system
     else:
         return None

@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -48,7 +48,7 @@ from enso.utils import xml_tools
 # The Evaluate command
 # ---------------------------------------------------------------------------
 
-class EvalCommand( CommandObject ):
+class EvalCommand(CommandObject):
     """
     The 'evaluate' command.
     """
@@ -56,10 +56,10 @@ class EvalCommand( CommandObject ):
     NAME = "evaluate"
     DESCRIPTION = "Evaluates the current selection as Python code."
 
-    def __init__( self, displayMessage=None, selection=None ):
-        super( EvalCommand, self ).__init__()
-        self.setDescription( self.DESCRIPTION )
-        self.setName( self.NAME )
+    def __init__(self, displayMessage=None, selection=None):
+        super(EvalCommand, self).__init__()
+        self.setDescription(self.DESCRIPTION)
+        self.setName(self.NAME)
 
         if displayMessage is None:
             from enso import messages
@@ -71,38 +71,38 @@ class EvalCommand( CommandObject ):
         self._selection = selection
         self._displayMessage = displayMessage
 
-    def run( self, seldict=None ):
+    def run(self, seldict=None):
         if seldict is None:
             seldict = self._selection.get()
 
-        text = seldict.get( "text", u"" ).strip()
+        text = seldict.get("text", u"").strip()
 
         evalSuccessful = False
         append = False
 
-        if text.endswith( "=" ):
+        if text.endswith("="):
             text = text[:-1].strip()
             append = True
 
         if not text:
-            self._displayMessage( "<p>No code to evaluate!</p>" )
+            self._displayMessage("<p>No code to evaluate!</p>")
         else:
             try:
-                code = compile( text, "<selected text>", "eval" )
-                result = eval( code, {"__builtins__":None}, {} )
+                code = compile(text, "<selected text>", "eval")
+                result = eval(code, {"__builtins__": None}, {})
                 evalSuccessful = True
             except Exception, e:
                 self._displayMessage(
                     "<p>Error: %s</p>" % xml_tools.escape_xml(str(e))
-                    )
+                )
 
         if evalSuccessful:
-            resulttext = unicode( repr(result) )
+            resulttext = unicode(repr(result))
             if append:
                 newtext = "%s = %s" % (text, resulttext)
             else:
                 newtext = resulttext
-            self._selection.set( {"text" : newtext} )
+            self._selection.set({"text": newtext})
 
 
 # ----------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def load():
     CommandManager.get().registerCommand(
         EvalCommand.NAME,
         EvalCommand()
-        )
+    )
 
 
 # ----------------------------------------------------------------------------
@@ -157,6 +157,7 @@ def test_evaluate():
     """
 
     pass
+
 
 if __name__ == "__main__":
     import doctest

@@ -81,8 +81,9 @@ RE_REDUCESPACE = re.compile(r"\s+")
 # Utility functions
 # ----------------------------------------------------------------------------
 
+
 @memoized
-def colorHashToRgba( colorHash ):
+def colorHashToRgba(colorHash):
     """
     Converts the given HTML-style color hash (e.g., '#aabbcc') or
     HTML-with-alpha color hash (e.g. '#aabbccdd') to a quad-color (r,
@@ -111,15 +112,15 @@ def colorHashToRgba( colorHash ):
     greenHex = colorHash[2:4]
     blueHex = colorHash[4:6]
 
-    red = float( int(redHex, 16) )
-    green = float( int(greenHex, 16) )
-    blue = float( int(blueHex, 16) )
-    alpha = float( int(alphaHex, 16) )
+    red = float(int(redHex, 16))
+    green = float(int(greenHex, 16))
+    blue = float(int(blueHex, 16))
+    alpha = float(int(alphaHex, 16))
 
-    return RGBA( red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0 )
+    return RGBA(red / 255.0, green / 255.0, blue / 255.0, alpha / 255.0)
 
 
-def stringToBool( string ):
+def stringToBool(string):
     """
     Converts a string with the contents 'true' or 'false' to the
     appropriate boolean value.
@@ -143,7 +144,7 @@ def stringToBool( string ):
     elif string == "false":
         return False
     else:
-        raise ValueError( "can't convert to boolean: %s" % string )
+        raise ValueError("can't convert to boolean: %s" % string)
 
 
 # ----------------------------------------------------------------------------
@@ -174,7 +175,7 @@ STYLE_INHERITED_PROPERTIES = [
     # with an ellipsis ('...') if the Block's number of lines exceeds
     # that prescribed by the "max_lines" property.
     "ellipsify"
-    ]
+]
 
 
 # Style properties that are uninherited from a parent element to a
@@ -185,14 +186,14 @@ STYLE_UNINHERITED_PROPERTIES = [
     # replaced by hyphens.
     "margin_top",
     "margin_bottom"
-    ]
+]
 
 
 # All possibilities of styles defined by this module.
 STYLE_PROPERTIES = (
     STYLE_INHERITED_PROPERTIES +
     STYLE_UNINHERITED_PROPERTIES
-    )
+)
 
 
 # ----------------------------------------------------------------------------
@@ -206,26 +207,25 @@ class StyleRegistry:
     exists for each document that the client wants to layout.
     """
 
-    def __init__( self ):
+    def __init__(self):
         """
         Creates an empty StyleRegistry object.
         """
 
         self._styleDict = {}
 
-    def __validateKeys( self, style_dict ):
+    def __validateKeys(self, style_dict):
         """
         Makes sure that the keys of dict are the names of valid style
         properties.
         """
 
-        invalidKeys = [ key for key in style_dict.keys()
-                        if key not in STYLE_PROPERTIES ]
-        if len( invalidKeys ) > 0:
-            raise InvalidPropertyError( str(invalidKeys) )
+        invalidKeys = [key for key in style_dict.keys()
+                       if key not in STYLE_PROPERTIES]
+        if len(invalidKeys) > 0:
+            raise InvalidPropertyError(str(invalidKeys))
 
-
-    def add( self, selector, **properties ):
+    def add(self, selector, **properties):
         """
         Adds the given style selector with the given properties to the
         style registry.  If any of the properties are invalid, an
@@ -251,12 +251,12 @@ class StyleRegistry:
         """
 
         if selector in self._styleDict:
-            raise ValueError( "Style '%s' already exists." % selector )
+            raise ValueError("Style '%s' already exists." % selector)
 
-        self.__validateKeys( properties )
-        self._styleDict[ selector ] = properties
+        self.__validateKeys(properties)
+        self._styleDict[selector] = properties
 
-    def findMatch( self, selector ):
+    def findMatch(self, selector):
         """
         Given a selector, returns the style dictionary corresponding
         to it.  If no match is found, this method returns None.
@@ -276,9 +276,9 @@ class StyleRegistry:
         True
         """
 
-        return self._styleDict.get( selector, None )
+        return self._styleDict.get(selector, None)
 
-    def update( self, selector, **properties ):
+    def update(self, selector, **properties):
         """
         Updates the styles for selector to those described by
         properties.
@@ -294,11 +294,11 @@ class StyleRegistry:
 
         assert selector in self._styleDict
 
-        self.__validateKeys( properties )
-        self._styleDict[ selector ].update( properties )
+        self.__validateKeys(properties)
+        self._styleDict[selector].update(properties)
 
 
-class InvalidPropertyError( Exception ):
+class InvalidPropertyError(Exception):
     """
     Exception raised by the StyleRegistry when a style with invalid
     properties is added to the registry.
@@ -318,130 +318,130 @@ class CascadingStyleStack:
     """
 
     # This is just a set version of STYLE_UNINHERITED_PROPERTIES.
-    uninheritedProps = set( STYLE_UNINHERITED_PROPERTIES )
+    uninheritedProps = set(STYLE_UNINHERITED_PROPERTIES)
 
-    def __init__( self ):
+    def __init__(self):
         """
         Creates an empty stack.
         """
 
         self.__stack = []
 
-    def push( self, newStyle ):
+    def push(self, newStyle):
         """
         Push a new style onto the Cascading Style Stack, making it the
         current style.
         """
 
-        if len( self.__stack ) > 0:
+        if len(self.__stack) > 0:
             # "Cascade" the new style by combining it with our current
             # style, removing any uninherited properties first.
 
             currStyle = self.__stack[-1].copy()
-            props = self.uninheritedProps.intersection( currStyle.keys() )
+            props = self.uninheritedProps.intersection(currStyle.keys())
 
             for key in props:
                 del currStyle[key]
 
-            currStyle.update( newStyle )
-            self.__stack.append( currStyle )
+            currStyle.update(newStyle)
+            self.__stack.append(currStyle)
         else:
             # Set this style as our current style.
 
-            self.__stack.append( newStyle )
+            self.__stack.append(newStyle)
 
-    def pop( self ):
+    def pop(self):
         """
         Remove the current style from the Cascading Style Stack.
         """
 
         self.__stack.pop()
 
-    def _strToPoints( self, unitsStr ):
+    def _strToPoints(self, unitsStr):
         """
         Converts from a string such as '1em', '2pt', '3in', '5pc', or
         '20px' into a floating-point value measured in points.
         """
 
-        if unitsStr.endswith( "em" ):
+        if unitsStr.endswith("em"):
             currEmSizeStr = self.__stack[-1]["font_size"]
-            currEmSize = self._strToPoints( currEmSizeStr )
-            units = float( unitsStr[:-2] )
+            currEmSize = self._strToPoints(currEmSizeStr)
+            units = float(unitsStr[:-2])
             return units * currEmSize
         else:
-            return measurement.strToPoints( unitsStr )
+            return measurement.strToPoints(unitsStr)
 
-    def _propertyToPoints( self, propertyName ):
+    def _propertyToPoints(self, propertyName):
         """
         Converts the value of the given property name into a
         floating-point value measured in points.
         """
 
         propertyStr = self.__stack[-1][propertyName]
-        return self._strToPoints( propertyStr )
+        return self._strToPoints(propertyStr)
 
-    def _propertyToInt( self, propertyName ):
+    def _propertyToInt(self, propertyName):
         """
         Converts the value of the given property name into an integer
         value.
         """
 
-        return int( self.__stack[-1][propertyName] )
+        return int(self.__stack[-1][propertyName])
 
-    def _propertyToBool( self, propertyName ):
+    def _propertyToBool(self, propertyName):
         """
         Converts the value of the given property name into a boolean
         value.
         """
 
-        return stringToBool( self.__stack[-1][propertyName] )
+        return stringToBool(self.__stack[-1][propertyName])
 
-    def _propertyToColor( self, propertyName ):
+    def _propertyToColor(self, propertyName):
         """
         Converts the value of the given property name into a (r, g, b,
         a) color tuple.
         """
 
-        return colorHashToRgba( self.__stack[-1][propertyName] )
+        return colorHashToRgba(self.__stack[-1][propertyName])
 
-    def _property( self, propertyName ):
+    def _property(self, propertyName):
         """
         Returns the value of the given property name as a string.
         """
 
         return self.__stack[-1][propertyName]
 
-    def makeNewDocument( self ):
+    def makeNewDocument(self):
         """
         Makes a new document with the current style.
         """
 
         document = textlayout.Document(
-            width = self._propertyToPoints("width"),
-            marginTop = self._propertyToPoints("margin_top"),
-            marginBottom = self._propertyToPoints("margin_bottom"),
-            )
+            width=self._propertyToPoints("width"),
+            marginTop=self._propertyToPoints("margin_top"),
+            marginBottom=self._propertyToPoints("margin_bottom"),
+        )
 
         return document
 
-    def makeNewBlock( self ):
+    def makeNewBlock(self):
         """
         Makes a new block with the current style.
         """
 
         block = textlayout.Block(
-            width = self._propertyToPoints("width"),
-            lineHeight = self._propertyToPoints("line_height"),
-            marginTop = self._propertyToPoints("margin_top"),
-            marginBottom = self._propertyToPoints("margin_bottom"),
-            textAlign = self._property("text_align"),
-            maxLines = self._propertyToInt("max_lines"),
-            ellipsify = self._propertyToBool("ellipsify")
-            )
+            width=self._propertyToPoints("width"),
+            lineHeight=self._propertyToPoints("line_height"),
+            marginTop=self._propertyToPoints("margin_top"),
+            marginBottom=self._propertyToPoints("margin_bottom"),
+            textAlign=self._property("text_align"),
+            maxLines=self._propertyToInt("max_lines"),
+            ellipsify=self._propertyToBool("ellipsify")
+        )
 
         return block
 
-    def makeNewGlyphs( self, characters ):
+    def makeNewGlyphs(self, characters):
         """
         Makes new glyphs with the current style.
         """
@@ -449,20 +449,20 @@ class CascadingStyleStack:
         glyphs = []
 
         fontObj = font.Font.get(
-            self._property( "font_family" ),
-            self._propertyToPoints( "font_size" ),
-            self._property( "font_style" ) == "italic"
-            )
+            self._property("font_family"),
+            self._propertyToPoints("font_size"),
+            self._property("font_style") == "italic"
+        )
 
-        color = self._propertyToColor( "color" )
+        color = self._propertyToColor("color")
 
         for char in characters:
-            fontGlyph = fontObj.getGlyph( char )
+            fontGlyph = fontObj.getGlyph(char)
             glyph = textlayout.Glyph(
                 fontGlyph,
                 color,
-                )
-            glyphs.append( glyph )
+            )
+            glyphs.append(glyph)
 
         return glyphs
 
@@ -477,14 +477,14 @@ class XmlMarkupTagAliases:
     allows one tag name to be aliased as another tag name.
     """
 
-    def __init__( self ):
+    def __init__(self):
         """
         Creates an empty set of tag aliases.
         """
 
         self._aliases = {}
 
-    def add( self, name, baseElement ):
+    def add(self, name, baseElement):
         """
         Adds a tag alias; 'name' will now be an alias for
         'baseElement'.
@@ -507,11 +507,11 @@ class XmlMarkupTagAliases:
         """
 
         if name in self._aliases:
-            raise ValueError( "Tag alias '%s' already exists." % name )
+            raise ValueError("Tag alias '%s' already exists." % name)
 
         self._aliases[name] = baseElement
 
-    def get( self, name ):
+    def get(self, name):
         """
         Retrieves the tag that the given name is an alias for.
 
@@ -529,7 +529,7 @@ class XmlMarkupTagAliases:
 
         return self._aliases[name]
 
-    def has( self, name ):
+    def has(self, name):
         """
         Returns whether or not the given name is an alias for a tag.
 
@@ -550,25 +550,25 @@ class XmlMarkupTagAliases:
 # XML Markup Content Handler
 # ----------------------------------------------------------------------------
 
-class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
+class _XmlMarkupHandler(xml.sax.handler.ContentHandler):
     """
     XML content handler for XML text layout markup.
     """
 
-    def __init__( self, styleRegistry, tagAliases=None ):
+    def __init__(self, styleRegistry, tagAliases=None):
         """
         Initializes the content handler with the given style registry
         and tag aliases.
         """
 
-        xml.sax.handler.ContentHandler.__init__( self )
+        xml.sax.handler.ContentHandler.__init__(self)
         self.styleRegistry = styleRegistry
 
         if not tagAliases:
             tagAliases = XmlMarkupTagAliases()
         self.tagAliases = tagAliases
 
-    def startDocument( self ):
+    def startDocument(self):
         """
         Called by the XML parser at the beginning of parsing the XML
         document.
@@ -579,7 +579,7 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
         self.block = None
         self.glyphs = None
 
-    def _pushStyle( self, name, attrs ):
+    def _pushStyle(self, name, attrs):
         """
         Sets the current style to the style defined by the "style"
         attribute of the given tag.  If that style doesn't exist, we
@@ -588,50 +588,50 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
 
         styleDict = None
 
-        styleAttr = attrs.get( "style", None )
+        styleAttr = attrs.get("style", None)
         if styleAttr:
-            styleDict = self.styleRegistry.findMatch( styleAttr )
+            styleDict = self.styleRegistry.findMatch(styleAttr)
 
         if styleDict is None:
-            styleDict = self.styleRegistry.findMatch( name )
+            styleDict = self.styleRegistry.findMatch(name)
 
         if styleDict is None:
             raise ValueError, "No style found for: %s, %s" % (
                 name,
-                str( styleAttr )
-                )
+                str(styleAttr)
+            )
 
-        self.style.push( styleDict )
+        self.style.push(styleDict)
 
-    def startElement( self, name, attrs ):
+    def startElement(self, name, attrs):
         """
         Handles the beginning of an XML element.
         """
 
         if name == "document":
-            self._pushStyle( name, attrs )
+            self._pushStyle(name, attrs)
             self.document = self.style.makeNewDocument()
         elif name == "block":
             if not self.document:
                 raise XmlMarkupUnexpectedElementError(
                     "Block element encountered outside of document element."
-                    )
-            self._pushStyle( name, attrs )
+                )
+            self._pushStyle(name, attrs)
             self.block = self.style.makeNewBlock()
             self.glyphs = []
         elif name == "inline":
             if not self.block:
                 raise XmlMarkupUnexpectedElementError(
                     "Inline element encountered outside of block element."
-                    )
-            self._pushStyle( name, attrs )
-        elif self.tagAliases.has( name ):
-            baseElement = self.tagAliases.get( name )
-            self.startElement( baseElement, { "style" : name } )
+                )
+            self._pushStyle(name, attrs)
+        elif self.tagAliases.has(name):
+            baseElement = self.tagAliases.get(name)
+            self.startElement(baseElement, {"style": name})
         else:
-            raise XmlMarkupUnknownElementError( name )
+            raise XmlMarkupUnknownElementError(name)
 
-    def endElement( self, name ):
+    def endElement(self, name):
         """
         Handles the end of an XML element.
         """
@@ -640,41 +640,40 @@ class _XmlMarkupHandler( xml.sax.handler.ContentHandler ):
             self.style.pop()
             self.document.layout()
         elif name == "block":
-            ellipsisGlyph = self.style.makeNewGlyphs( u"\u2026" )[0]
-            self.block.setEllipsisGlyph( ellipsisGlyph )
+            ellipsisGlyph = self.style.makeNewGlyphs(u"\u2026")[0]
+            self.block.setEllipsisGlyph(ellipsisGlyph)
 
             self.style.pop()
-            self.block.addGlyphs( self.glyphs )
-            self.document.addBlock( self.block )
+            self.block.addGlyphs(self.glyphs)
+            self.document.addBlock(self.block)
             self.block = None
             self.glyphs = None
         elif name == "inline":
             self.style.pop()
         else:
-            baseElement = self.tagAliases.get( name )
-            self.endElement( baseElement )
+            baseElement = self.tagAliases.get(name)
+            self.endElement(baseElement)
 
-    def characters( self, content ):
+    def characters(self, content):
         """
         Handles XML character data.
         """
 
         if self.glyphs != None:
-            self.glyphs.extend( self.style.makeNewGlyphs(content) )
+            self.glyphs.extend(self.style.makeNewGlyphs(content))
         else:
             # Hopefully, the content is just whitespace...
             content = content.strip()
             if content:
-                raise XmlMarkupUnexpectedCharactersError( content )
+                raise XmlMarkupUnexpectedCharactersError(content)
 
 
-
-class _LXmlMarkupHandler( object ):
+class _LXmlMarkupHandler(object):
     """
     XML content handler for XML text layout markup.
     """
 
-    def __init__( self, styleRegistry, tagAliases=None ):
+    def __init__(self, styleRegistry, tagAliases=None):
         """
         Initializes the content handler with the given style registry
         and tag aliases.
@@ -686,8 +685,7 @@ class _LXmlMarkupHandler( object ):
             tagAliases = XmlMarkupTagAliases()
         self.tagAliases = tagAliases
 
-
-    def _pushStyle( self, name, attrs ):
+    def _pushStyle(self, name, attrs):
         """
         Sets the current style to the style defined by the "style"
         attribute of the given tag.  If that style doesn't exist, we
@@ -696,23 +694,22 @@ class _LXmlMarkupHandler( object ):
 
         styleDict = None
 
-        styleAttr = attrs.get( "style", None )
+        styleAttr = attrs.get("style", None)
         if styleAttr:
-            styleDict = self.styleRegistry.findMatch( styleAttr )
+            styleDict = self.styleRegistry.findMatch(styleAttr)
 
         if styleDict is None:
-            styleDict = self.styleRegistry.findMatch( name )
+            styleDict = self.styleRegistry.findMatch(name)
 
         if styleDict is None:
             raise ValueError, "No style found for: %s, %s" % (
                 name,
-                str( styleAttr )
-                )
+                str(styleAttr)
+            )
 
-        self.style.push( styleDict )
+        self.style.push(styleDict)
 
-
-    def start( self, name, attrs ):
+    def start(self, name, attrs):
         """
         Handles the beginning of an XML element.
         """
@@ -722,30 +719,29 @@ class _LXmlMarkupHandler( object ):
             self.document = None
             self.block = None
             self.glyphs = None
-            self._pushStyle( name, attrs )
+            self._pushStyle(name, attrs)
             self.document = self.style.makeNewDocument()
         elif name == "block":
             if not self.document:
                 raise XmlMarkupUnexpectedElementError(
                     "Block element encountered outside of document element."
-                    )
-            self._pushStyle( name, attrs )
+                )
+            self._pushStyle(name, attrs)
             self.block = self.style.makeNewBlock()
             self.glyphs = []
         elif name == "inline":
             if not self.block:
                 raise XmlMarkupUnexpectedElementError(
                     "Inline element encountered outside of block element."
-                    )
-            self._pushStyle( name, attrs )
-        elif self.tagAliases.has( name ):
-            baseElement = self.tagAliases.get( name )
-            self.start( baseElement, { "style" : name } )
+                )
+            self._pushStyle(name, attrs)
+        elif self.tagAliases.has(name):
+            baseElement = self.tagAliases.get(name)
+            self.start(baseElement, {"style": name})
         else:
-            raise XmlMarkupUnknownElementError( name )
+            raise XmlMarkupUnknownElementError(name)
 
-
-    def end( self, name ):
+    def end(self, name):
         """
         Handles the end of an XML element.
         """
@@ -754,41 +750,39 @@ class _LXmlMarkupHandler( object ):
             self.style.pop()
             self.document.layout()
         elif name == "block":
-            ellipsisGlyph = self.style.makeNewGlyphs( u"\u2026" )[0]
-            self.block.setEllipsisGlyph( ellipsisGlyph )
+            ellipsisGlyph = self.style.makeNewGlyphs(u"\u2026")[0]
+            self.block.setEllipsisGlyph(ellipsisGlyph)
 
             self.style.pop()
-            self.block.addGlyphs( self.glyphs )
-            self.document.addBlock( self.block )
+            self.block.addGlyphs(self.glyphs)
+            self.document.addBlock(self.block)
             self.block = None
             self.glyphs = None
         elif name == "inline":
             self.style.pop()
         else:
-            baseElement = self.tagAliases.get( name )
-            self.end( baseElement )
+            baseElement = self.tagAliases.get(name)
+            self.end(baseElement)
 
-
-    def data( self, content ):
+    def data(self, content):
         """
         Handles XML character data.
         """
 
         if self.glyphs != None:
-            self.glyphs.extend( self.style.makeNewGlyphs(content) )
+            self.glyphs.extend(self.style.makeNewGlyphs(content))
         else:
             # Hopefully, the content is just whitespace...
             content = content.strip()
             if content:
-                raise XmlMarkupUnexpectedCharactersError( content )
+                raise XmlMarkupUnexpectedCharactersError(content)
 
-    
     def close(self):
-        #TOTO: Reset here to clean slate?
+        # TOTO: Reset here to clean slate?
         pass
-        
-        
-class XmlMarkupUnknownElementError( Exception ):
+
+
+class XmlMarkupUnknownElementError(Exception):
     """
     Exception raised when an unknown XML text layout markup element is
     encountered.
@@ -797,7 +791,7 @@ class XmlMarkupUnknownElementError( Exception ):
     pass
 
 
-class XmlMarkupUnexpectedElementError( Exception ):
+class XmlMarkupUnexpectedElementError(Exception):
     """
     Exception raised when a recognized, but unexpected XML text layout
     markup element is encountered.
@@ -806,7 +800,7 @@ class XmlMarkupUnexpectedElementError( Exception ):
     pass
 
 
-class XmlMarkupUnexpectedCharactersError( Exception ):
+class XmlMarkupUnexpectedCharactersError(Exception):
     """
     Exception raised when characters are encountered in XML text
     layout in a place where they're not expected.
@@ -819,7 +813,7 @@ class XmlMarkupUnexpectedCharactersError( Exception ):
 # XML Markup to Document Conversion
 # ----------------------------------------------------------------------------
 
-def _sax_xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
+def _sax_xmlMarkupToDocument(text, styleRegistry, tagAliases=None):
     """
     Converts the given XML text into a textlayout.Document object that
     has been fully laid out and is ready for rendering, using the
@@ -828,26 +822,26 @@ def _sax_xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
 
     # Convert all occurrences of multiple contiguous whitespace
     # characters to a single space character.
-    text = RE_REDUCESPACE.sub( " ", text )
+    text = RE_REDUCESPACE.sub(" ", text)
 
     # Convert all occurrences of the non-breaking space character
     # entity reference into its unicode equivalent (the SAX XML parser
     # doesn't recognize this one on its own, sadly).
-    text = text.replace( "&nbsp;", NON_BREAKING_SPACE )
+    text = text.replace("&nbsp;", NON_BREAKING_SPACE)
 
-    text = text.encode( "ascii", "xmlcharrefreplace" )
+    text = text.encode("ascii", "xmlcharrefreplace")
 
-    xmlMarkupHandler = _XmlMarkupHandler( styleRegistry, tagAliases )
+    xmlMarkupHandler = _XmlMarkupHandler(styleRegistry, tagAliases)
     try:
-        xml.sax.parseString( text, xmlMarkupHandler )
+        xml.sax.parseString(text, xmlMarkupHandler)
     except SAXParseException as e:
         logging.error("Error parsing XML: '%s'; %s", text, e)
         raise
-    
+
     return xmlMarkupHandler.document
 
 
-def _lxml_xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
+def _lxml_xmlMarkupToDocument(text, styleRegistry, tagAliases=None):
     """
     Converts the given XML text into a textlayout.Document object that
     has been fully laid out and is ready for rendering, using the
@@ -856,22 +850,22 @@ def _lxml_xmlMarkupToDocument( text, styleRegistry, tagAliases=None ):
 
     # Convert all occurrences of multiple contiguous whitespace
     # characters to a single space character.
-    text = RE_REDUCESPACE.sub( " ", text )
+    text = RE_REDUCESPACE.sub(" ", text)
 
     # Convert all occurrences of the non-breaking space character
     # entity reference into its unicode equivalent (the SAX XML parser
     # doesn't recognize this one on its own, sadly).
-    text = text.replace( "&nbsp;", NON_BREAKING_SPACE )
+    text = text.replace("&nbsp;", NON_BREAKING_SPACE)
 
-    text = text.encode( "ascii", "xmlcharrefreplace" )
+    text = text.encode("ascii", "xmlcharrefreplace")
 
-    #TODO: Cache this?
-    handler = _LXmlMarkupHandler( styleRegistry, tagAliases )
+    # TODO: Cache this?
+    handler = _LXmlMarkupHandler(styleRegistry, tagAliases)
     parser = etree.XMLParser(
-        strip_cdata=False, resolve_entities=False, remove_blank_text=False, 
+        strip_cdata=False, resolve_entities=False, remove_blank_text=False,
         huge_tree=False, target=handler
     )
-    
+
     etree.fromstring(text, parser)
 
     return handler.document

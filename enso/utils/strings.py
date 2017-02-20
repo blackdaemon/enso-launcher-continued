@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -53,7 +53,7 @@ CLOSE_SINGLE_QUOTE = u"\u2019"
 # String utility functions
 # ----------------------------------------------------------------------------
 
-def smartQuote( text ):
+def smartQuote(text):
     """
     Replaces regular quotes in text with "smart quotes", i.e., left and right
     facing quotes, and returns the result as a unicode object.
@@ -65,21 +65,21 @@ def smartQuote( text ):
     before you apply the formatting operation that dumps unknown text.
     """
 
-    text = _smartDoubleQuote( text )
-    text = _smartSingleQuote( text )
+    text = _smartDoubleQuote(text)
+    text = _smartSingleQuote(text)
 
     return text
 
 
-def _smartSingleQuote( inText ):
+def _smartSingleQuote(inText):
     """
     Replaces single quotes with "smart quotes", i.e., forward
     and back facing quotes, except for single quotes that are
     parts of certain contractions.
     """
-    
+
     # Explicitly copy the text and cast it to unicode.
-    outText = unicode( inText[:] )
+    outText = unicode(inText[:])
 
     # There are two usages of single quote marks; for
     # quotations, and for contractions.
@@ -89,42 +89,42 @@ def _smartSingleQuote( inText ):
     # and clear to replace the remaining single quotes
     # with smart quotes.
 
-    cases = [ "'s", "'t", "'nt", "I'm", "'ve", "'re", ]
+    cases = ["'s", "'t", "'nt", "I'm", "'ve", "'re", ]
     for case in cases:
-        tempText = "<<|%s|>>" % case.replace( "'", "" )
-        outText = outText.replace( case, tempText )
+        tempText = "<<|%s|>>" % case.replace("'", "")
+        outText = outText.replace(case, tempText)
 
     # Now that there are no apostrophes, we can run through
     # the text, replacing each pair of single quotes with
     # opening and closing 'smart single quotes'.
-    while outText.count( "'" ) > 0:
-        outText = outText.replace( "'", OPEN_SINGLE_QUOTE, 1)
-        outText = outText.replace( "'", CLOSE_SINGLE_QUOTE, 1)
+    while outText.count("'") > 0:
+        outText = outText.replace("'", OPEN_SINGLE_QUOTE, 1)
+        outText = outText.replace("'", CLOSE_SINGLE_QUOTE, 1)
 
     # Now we have to replace the contraction escape sequences
     # with the original contractions.
     for case in cases:
-        tempText = "<<|%s|>>" % case.replace( "'", "" )
-        outText = outText.replace( tempText, case )
+        tempText = "<<|%s|>>" % case.replace("'", "")
+        outText = outText.replace(tempText, case)
 
     return outText
 
 
-def _smartDoubleQuote( inText ):
+def _smartDoubleQuote(inText):
     """
     Replaces double quotes with "smart quotes", i.e., forward
     and back facing quotes.
     """
-    
-    # Explicitly copy the text and cast it to unicode.
-    outText = unicode( inText[:] )
-    while outText.count( "\"" ) > 0:
-        outText = outText.replace( "\"", OPEN_QUOTE, 1)
-        outText = outText.replace( "\"", CLOSE_QUOTE, 1)
-    return outText
-    
 
-def stringRatio( a, b ):
+    # Explicitly copy the text and cast it to unicode.
+    outText = unicode(inText[:])
+    while outText.count("\"") > 0:
+        outText = outText.replace("\"", OPEN_QUOTE, 1)
+        outText = outText.replace("\"", CLOSE_QUOTE, 1)
+    return outText
+
+
+def stringRatio(a, b):
     """
     Calculates the string ratio of a to b.
 
@@ -137,9 +137,9 @@ def stringRatio( a, b ):
     if a == b:
         return 1.0
     elif a in b:
-        return float( len(a) ) / len(b)
+        return float(len(a)) / len(b)
     elif b in a:
-        return float( len(b) ) / len(a)
+        return float(len(b)) / len(a)
     else:
         # The following code is actually identical to this code:
         #
@@ -150,7 +150,7 @@ def stringRatio( a, b ):
         #
         # But has been copied from difflib and pasted inline here for
         # efficiency purposes.
-        
+
         la, lb = len(a), len(b)
 
         length = la + lb
@@ -159,12 +159,11 @@ def stringRatio( a, b ):
         return 1.0
 
 
-def stringRatioBestMatch( item, sequence ):
+def stringRatioBestMatch(item, sequence):
     """
     Uses a string ratio algorithm to find to the best match
     to item among the elements of sequence.
     """
 
-    ratios = [ stringRatio( item, element ) for element in sequence ]
-    return sequence[ ratios.index( min(ratios) ) ]
-
+    ratios = [stringRatio(item, element) for element in sequence]
+    return sequence[ratios.index(min(ratios))]

@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -86,9 +86,9 @@ except ImportError:
 
     # Deprecated
     ignored = suppress
-        
-        
-def finalizeWrapper( origFunc, wrappedFunc, decoratorName ):
+
+
+def finalizeWrapper(origFunc, wrappedFunc, decoratorName):
     """
     Makes some final modifications to the decorated or 'wrapped'
     version of a function by making the wrapped version's name and
@@ -105,7 +105,7 @@ def finalizeWrapper( origFunc, wrappedFunc, decoratorName ):
         myFunc( self, foo = 1 )
 
         <myFunc's docstring>
-    
+
     Returns the wrapped function.
     """
 
@@ -117,19 +117,19 @@ def finalizeWrapper( origFunc, wrappedFunc, decoratorName ):
         return origFunc
 
     # Get a prettified representation of the argument list.
-    args, varargs, varkw, defaults = inspect.getargspec( origFunc )
+    args, varargs, varkw, defaults = inspect.getargspec(origFunc)
     argspec = inspect.formatargspec(
         args,
         varargs,
         varkw,
         defaults
-        )
+    )
 
-    callspec = "%s%s" % ( origFunc.__name__, argspec )
+    callspec = "%s%s" % (origFunc.__name__, argspec)
 
     # Generate a new docstring.
     newDocString = "%s wrapper for:\n%s\n\n%s" % \
-                   ( decoratorName, callspec, origFunc.__doc__ )
+                   (decoratorName, callspec, origFunc.__doc__)
 
     # Set the appropriate attributes on the wrapped function and pass
     # it back.

@@ -1,5 +1,6 @@
 from enso.providers import ProviderUnavailableError
 
+
 class PlatformUnsupportedError(ProviderUnavailableError):
     """
     Exception that should be raised by a submodule of this package if

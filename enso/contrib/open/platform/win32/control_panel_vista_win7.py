@@ -51,6 +51,7 @@ from enso.contrib.open import shortcuts
 from enso.contrib.open.platform.win32 import registry, utils
 from enso.contrib.open.platform.win32.control_panel import ControlPanelInfo
 
+
 try:
     import regex as re
 except Exception, e:

@@ -497,7 +497,8 @@ class ParameterSuggestionList(object):
         active = self.getActiveIndex()
         for i, line in enumerate(suggestions):
             lines_xml.append(
-                (ACTIVE_LINE_XML if i == active else LINE_XML) % escape_xml(line))
+                (ACTIVE_LINE_XML if i == active else LINE_XML) % escape_xml(line)
+            )
 
         xml_data = DOCUMENT_XML % "".join(lines_xml)
 

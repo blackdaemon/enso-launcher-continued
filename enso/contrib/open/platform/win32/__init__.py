@@ -67,6 +67,7 @@ from enso.contrib.open.utils import Timer
 from enso.contrib.scriptotron.ensoapi import EnsoApi
 from enso.utils.decorators import suppress
 
+
 try:
     import regex as re
 except ImportError:

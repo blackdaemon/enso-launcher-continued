@@ -53,7 +53,7 @@ from enso.messages import MessageManager, displayMessage as display_xml_message
 
 # This may no longer be required (it was for backward compat)
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 
 
 class ScriptCommandTracker:
@@ -271,24 +271,19 @@ class ScriptTracker:
                 filesToReload[fileName] = lastMod
 
         if filesToReload:
-            """
             if not self._firstRun:
                 display_xml_message(
                     u"<p>Reloading commands, please wait...</p><caption>enso</caption>")
-            """
             # TODO: This can be enabled after issues in clearCommands are solved...
             self._reloadPyScripts(filesToReload.keys())
             #self._reloadPyScripts()
             if not self._firstRun:
                 # Force primary-message to disappear
-                #MessageManager.get().finishPrimaryMessage()
+                MessageManager.get().finishPrimaryMessage()
                 # Display mini message with result
-                """
                 display_xml_message(
                     u"<p>Commands have been reloaded.</p><caption>enso</caption>",
                     primaryMsg=False, miniMsg=True, miniWaitTime=10)
-                """
-                pass
             if self._firstRun:
                 self._firstRun = False
 

@@ -37,11 +37,11 @@ import logging
 
 class EventResponderList(object):
     """
-    Behaves like a list with limited functionality.  When the list is
+    Behaves like a dictionary with limited functionality.  When it become
     non-empty, an event handler is registered for a particular event
-    and called whenever the event occurs.  When the list is empty, the
-    event handler is unregistered and will not be called until it
-    becomes non-empty again.
+    and called whenever the event occurs.  When the it's empty,
+    the event handler is unregistered and will not be called until
+    it becomes non-empty again.
     """
 
     def __init__(self, eventManager, eventName, responderFunc):
@@ -51,12 +51,6 @@ class EventResponderList(object):
         self.__isRegistered = False
         self.__items = {}
 
-    """
-    def append(self, item):
-        self.__items.append(item)
-        self.__onItemsChanged()
-    """
-    
     def __setitem__(self, key, value):
         """
         if (not isinstance(item, slice) or
