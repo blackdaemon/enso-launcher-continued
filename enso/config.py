@@ -143,22 +143,69 @@ COLOR_SCHEMES = {
     'red': ("#ffffff", "#cc0033", "#ff0066", "#000000")
 }
 
-# Detect default system locale and use it for google search.
-# If set to False, no locale is forced.
-PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
-
-# Use Google search suggestions (default is True)
-PLUGIN_GOOGLE_OFFER_SUGGESTIONS = True
-# Use Google Images search suggestions (default is True)
-PLUGIN_GOOGLEIMAGES_OFFER_SUGGESTIONS = True
-# Use YouTube search suggestions (default is True)
-PLUGIN_YOUTUBE_OFFER_SUGGESTIONS = True
-# Use Wikipedia search suggestions (default is True)
-PLUGIN_WIKIPEDIA_OFFER_SUGGESTIONS = True
-# Use eBay search suggestions (default is True)
-PLUGIN_EBAY_OFFER_SUGGESTIONS = True
-# Use UrbanDictionary search suggestions (default is True)
-PLUGIN_URBANDICTIONARY_OFFER_SUGGESTIONS = False
+PLUGIN_WEBSEARCH_GOOGLE = {
+    "name": "Google",
+    "prefix": "google ",
+    "argument": "search terms",
+    "base_url": "http://www.google.%(tld)s/search?q=%(query)s",
+    "suggest": True,
+    "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
+            "hl=%(langcode)s&gl=en&client=firefox&ie=%(charset)s&oe=%(charset)s&q=%(query)s",
+    "is_json": True,
+    "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
+}
+PLUGIN_WEBSEARCH_GOOGLEIMAGES = {
+    "name": "Google Images",
+    "prefix": "images ",
+    "argument": "search terms",
+    "base_url": "http://images.google.%(tld)s/images?um=1&hl=%(langcode)s&rlz=1C1GGLS_en-USCZ294&safeui=off&btnG=Search+Images&q=%(query)s",
+    "suggest": True,
+    "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
+            "gl=%(langcode)s&client=img&ie=%(charset)s&oe=%(charset)s&pq=%(query)s&hl=%(langcode)s&q=%(query)s",
+    "is_json": True,
+    "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
+}
+PLUGIN_WEBSEARCH_YOUTUBE = {
+    "name": "Youtube",
+    "prefix": "youtube ",
+    "argument": "search terms",
+    "base_url": "http://www.youtube.com/results?search_type=&aq=0&nofeather=True&oq=&search_query=%(query)s",
+    "suggest": True,
+    "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
+            "hl=%(langcode)s&ds=yt&client=firefox&hjson=t&ie=%(charset)s&oe=%(charset)s&q=%(query)s",
+    "is_json": True,
+    "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
+}
+PLUGIN_WEBSEARCH_WIKIPEDIA = {
+    "name": "Wikipedia",
+    "prefix": "wikipedia ",
+    "argument": "search terms",
+    "base_url": "https://en.wikipedia.org/w/index.php?search=%(query)s&title=Special:Search",
+    "suggest": True,
+    "suggestions_url": "https://en.wikipedia.org/w/api.php?action=opensearch&format=json&search=%(query)s",
+    "is_json": True,
+    "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
+}
+PLUGIN_WEBSEARCH_EBAY = {
+    "name": "eBay",
+    "prefix": "ebay ",
+    "argument": "search terms",
+    "base_url": "http://www.ebay.co.uk/sch/i.html?_sacat=0&_from=R40&_nkw=%(query)s",
+    "suggest": True,
+    "suggestions_url": "http://autosug.ebaystatic.com/autosug?sId=0&fmt=osr&kwd=%(query)s",
+    "is_json": True,
+    "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
+}
+PLUGIN_WEBSEARCH_URBANDICTIONARY = {
+    "name": "Urban Dictionary",
+    "prefix": "urbandictionary ",
+    "argument": "search terms",
+    "base_url": "http://www.urbandictionary.com/define.php?term=%(query)s",
+    "suggest": True,
+    "suggestions_url": "http://api.urbandictionary.com/v0/autocomplete?term=%(query)s",
+    "is_json": True,
+    "result_parser": lambda json: json if json else [],
+}
 
 # Proxy used for HTTP protocol
 # Set to None to use proxy-autodetection (default Python behavior).
