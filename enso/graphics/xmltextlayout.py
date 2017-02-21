@@ -44,17 +44,16 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import re
 import logging
+import re
 import xml.sax
 import xml.sax.handler
-from xml.sax.expatreader import SAXParseException
 from collections import namedtuple
+from xml.sax.expatreader import SAXParseException
 
+from enso.graphics import font, measurement, textlayout
 from enso.utils.memoize import memoized
-from enso.graphics import measurement
-from enso.graphics import textlayout
-from enso.graphics import font
+
 
 # Install lxml for speedup
 LXML_AVAILABLE = True
@@ -200,7 +199,7 @@ STYLE_PROPERTIES = (
 # Style Registry
 # ----------------------------------------------------------------------------
 
-class StyleRegistry:
+class StyleRegistry(object):
     """
     Registry of styles used by XML text layout markup.  Note that this
     class is not a singleton; rather, one StyleRegistry instance
@@ -311,7 +310,7 @@ class InvalidPropertyError(Exception):
 # Cascading Style Stack
 # ----------------------------------------------------------------------------
 
-class CascadingStyleStack:
+class CascadingStyleStack(object):
     """
     Encapsulates the CSS-like 'cascading' style mechanism supported by
     the XML text layout markup.
@@ -471,7 +470,7 @@ class CascadingStyleStack:
 # XML Markup Tag Aliases
 # ----------------------------------------------------------------------------
 
-class XmlMarkupTagAliases:
+class XmlMarkupTagAliases(object):
     """
     Implementation of XML markup tag aliases, a simple feature that
     allows one tag name to be aliased as another tag name.

@@ -44,7 +44,7 @@ LOWER_RIGHT = 0
 UPPER_RIGHT = 1
 LOWER_LEFT = 2
 UPPER_LEFT = 3
-ALL_CORNERS = [ LOWER_RIGHT, UPPER_RIGHT, LOWER_LEFT, UPPER_LEFT ]
+ALL_CORNERS = [LOWER_RIGHT, UPPER_RIGHT, LOWER_LEFT, UPPER_LEFT]
 
 # The radius of a corner of a rounded rectangle, in points.
 CORNER_RADIUS = 5
@@ -54,7 +54,7 @@ CORNER_RADIUS = 5
 # Public Functions
 # ----------------------------------------------------------------------------
 
-def drawRoundedRect( context, rect, softenedCorners, radius=CORNER_RADIUS ):
+def drawRoundedRect(context, rect, softenedCorners, radius=CORNER_RADIUS):
     """
     Draws a rectangle where each corner in softenedCorners has
     a CORNER_RADIUS-unit radius arc instead of a corner.
@@ -68,7 +68,7 @@ def drawRoundedRect( context, rect, softenedCorners, radius=CORNER_RADIUS ):
     PI = 3.1415926535
     context.new_path()
 
-    xPos,yPos,width,height = rect
+    xPos, yPos, width, height = rect
 
     if LOWER_RIGHT in softenedCorners:
         # Included in list, want round radius
@@ -127,40 +127,39 @@ def drawRoundedRect( context, rect, softenedCorners, radius=CORNER_RADIUS ):
         upper_right_radius = 0
 
     if lower_right_radius > 0:
-        context.arc( xPos+width-lower_right_radius,
-                     yPos+height-lower_right_radius,
-                     lower_right_radius,
-                     0,
-                     .5*PI )
+        context.arc(xPos + width - lower_right_radius,
+                    yPos + height - lower_right_radius,
+                    lower_right_radius,
+                    0,
+                    .5 * PI)
     else:
-        context.move_to( xPos+width, yPos+height )
+        context.move_to(xPos + width, yPos + height)
 
-    context.line_to( xPos+lower_left_radius, yPos+height )
+    context.line_to(xPos + lower_left_radius, yPos + height)
 
     if lower_left_radius > 0:
-        context.arc( xPos+lower_left_radius,
-                     yPos+height-lower_left_radius,
-                     lower_left_radius,
-                     .5*PI,
-                     PI )
+        context.arc(xPos + lower_left_radius,
+                    yPos + height - lower_left_radius,
+                    lower_left_radius,
+                    .5 * PI,
+                    PI)
 
-    context.line_to( xPos, yPos+upper_left_radius-1 )
+    context.line_to(xPos, yPos + upper_left_radius - 1)
 
     if upper_left_radius > 0:
-        context.arc( xPos+upper_left_radius,
-                     yPos+upper_left_radius,
-                     upper_left_radius,
-                     PI,
-                     1.5*PI )
+        context.arc(xPos + upper_left_radius,
+                    yPos + upper_left_radius,
+                    upper_left_radius,
+                    PI,
+                    1.5 * PI)
 
-    context.line_to( xPos+width-upper_right_radius, yPos )
+    context.line_to(xPos + width - upper_right_radius, yPos)
 
     if upper_right_radius > 0:
-        context.arc( xPos+width-upper_right_radius,
-                     yPos+upper_right_radius,
-                     upper_right_radius,
-                     1.5*PI,
-                     2*PI )
+        context.arc(xPos + width - upper_right_radius,
+                    yPos + upper_right_radius,
+                    upper_right_radius,
+                    1.5 * PI,
+                    2 * PI)
 
-    context.line_to( xPos+width, yPos+height-lower_right_radius )
-
+    context.line_to(xPos + width, yPos + height - lower_right_radius)

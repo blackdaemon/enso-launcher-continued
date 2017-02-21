@@ -291,8 +291,8 @@ def layoutXmlLine(xml_data, styles, scale):
     # OPTIMIZATION BEGIN:
     # Caching of largest working size for given scale and xml_data
     xml_hash = hash("|".join(
-        ",".join(map(str, scale))
-        + strip_html_tags(xml_data)
+        ",".join(map(str, scale)) +
+        strip_html_tags(xml_data)
     ))
     usedSize = _size_scale_map.get(xml_hash, None)
     if usedSize:
@@ -304,7 +304,7 @@ def layoutXmlLine(xml_data, styles, scale):
                 XML_ALIASES,
             )
             document.shrinkOffset = scale[-1] - usedSize
-        except MaxLinesExceededError as e:
+        except MaxLinesExceededError:
             raise
         else:
             return document
@@ -322,7 +322,7 @@ def layoutXmlLine(xml_data, styles, scale):
             )
             usedSize = size
             break
-        except MaxLinesExceededError as e:
+        except MaxLinesExceededError:
             hasFailed = True
             # NOTE: If the error is fundamental (not size-related),
             # then it will be raised again below

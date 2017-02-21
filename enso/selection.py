@@ -61,7 +61,7 @@ import enso.providers
 # ----------------------------------------------------------------------------
 
 # Actual implementation provider for this module.
-__impl = enso.providers.getInterface( "selection" )
+__impl = enso.providers.getInterface("selection")
 
 
 # ----------------------------------------------------------------------------
@@ -76,7 +76,8 @@ def get():
 
     return __impl.get()
 
-def set( seldict ):
+
+def set(seldict):
     """
     Sets the current selection to the given seldict.  Returns True if
     at least one format of the seldict could be applied as the current
@@ -86,4 +87,4 @@ def set( seldict ):
     whatever it may be.
     """
 
-    return __impl.set( seldict )
+    return __impl.set(seldict)

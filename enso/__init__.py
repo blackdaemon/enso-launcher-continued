@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -32,35 +32,58 @@
 #
 # ----------------------------------------------------------------------------
 
+
 def run():
     """
     Initializes and runs Enso.
     """
-    
     import logging
+    import sys
     from enso.events import EventManager
     from enso.quasimode import Quasimode
     from enso import events, plugins, config, messages, quasimode, webui
+    
+    def except_hook(type, value, tback):
+        # manage unhandled exception here
+        logging.error(value)
+        tback.print_exc()
+        sys.__excepthook__(type, value, tback) # then call the default handler
 
+    sys.excepthook = except_hook
+    
     eventManager = EventManager.get()
-    Quasimode.install( eventManager )
-    plugins.install( eventManager )
+    Quasimode.install(eventManager)
+    plugins.install(eventManager)
 
     def show_welcome_message():
         msgXml = config.OPENING_MSG_XML
-        if msgXml != None:
-            messages.displayMessage( msgXml, primaryWaitTime=2000 )
+        if msgXml is not None:
+            messages.displayMessage(msgXml)  # , primaryWaitTime=2000 )
 
     webui_server = webui.start(eventManager)
-    
-    eventManager.registerResponder( show_welcome_message, "init" )
+
+    eventManager.registerResponder(show_welcome_message, "init")
 
     try:
         eventManager.run()
-    except KeyboardInterrupt, e:
-        webui_server.stop()
-    except Exception, e:
+    except SystemError as e:
         logging.error(e)
+        import traceback
+        traceback.print_exc()
+        webui_server.stop()
+    except SystemExit as e:
+        logging.error(e)
+        import traceback
+        traceback.print_exc()
+        webui_server.stop()
+    except KeyboardInterrupt:
+        webui_server.stop()
+    except Exception as e:
+        logging.error(e)
+        import traceback
+        traceback.print_exc()
+        webui_server.stop()
+    except:
         import traceback
         traceback.print_exc()
         webui_server.stop()

@@ -18,9 +18,10 @@ def refreshDesktopOffset():
     global __desktop_offset
     left, top = _graphics.getDesktopOffset()
     left = pixelsToPoints(left)
-    top = pixelsToPoints (top)
+    top = pixelsToPoints(top)
     __desktop_offset = Position(left, top)
-    
+
+
 def refreshDesktopSize():
     global __desktop_size
     width, height = _graphics.getDesktopSize()
@@ -28,24 +29,28 @@ def refreshDesktopSize():
     height = pixelsToPoints(height)
     __desktop_size = Size(width, height)
 
+
 def refreshDesktopInfo():
     refreshDesktopOffset()
     refreshDesktopSize()
+
 
 def refreshWorkareaOffset():
     global __workarea_offset
     left, top = _graphics.getWorkareaOffset()
     left = pixelsToPoints(left)
-    top = pixelsToPoints (top)
+    top = pixelsToPoints(top)
     __workarea_offset = Position(left, top)
-    
+
+
 def refreshWorkareaSize():
     global __workarea_size
     width, height = _graphics.getWorkareaSize()
     width = pixelsToPoints(width)
     height = pixelsToPoints(height)
     __workarea_size = Size(width, height)
-    
+
+
 def refreshWorkareaInfo():
     refreshWorkareaOffset()
     refreshWorkareaSize()
@@ -61,6 +66,7 @@ def getDesktopOffset(force_refresh=False):
         refreshDesktopOffset()
     return __desktop_offset
 
+
 def getDesktopSize(force_refresh=False):
     """ Return primary monitor desktop size in points. 
     WARNING: This is very expensive operation on Linux
@@ -70,6 +76,7 @@ def getDesktopSize(force_refresh=False):
     if __desktop_size is None or force_refresh:
         refreshDesktopSize()
     return __desktop_size
+
 
 def getWorkareaOffset(force_refresh=False):
     """
@@ -82,6 +89,7 @@ def getWorkareaOffset(force_refresh=False):
     if __workarea_offset is None or force_refresh:
         refreshWorkareaOffset()
     return __workarea_offset
+
 
 def getWorkareaSize(force_refresh=False):
     """
@@ -99,4 +107,3 @@ def getWorkareaSize(force_refresh=False):
 def processWindowManagerPendingEvents():
     _graphics.processWindowManagerPendingEvents()
     return None
-    

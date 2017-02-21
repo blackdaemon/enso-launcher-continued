@@ -1,3 +1,5 @@
+# vim:set tabstop=4 shiftwidth=4 expandtab
+
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
 #
@@ -121,15 +123,15 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import time
 import logging
+import time
 
 
 # ----------------------------------------------------------------------------
 # Message Object
 # ----------------------------------------------------------------------------
 
-class Message:
+class Message(object):
     """
     The Message interface for generating user information messages.
 
@@ -173,13 +175,13 @@ class Message:
       True
     """
 
-    def __init__( self,
-                  fullXml,
-                  primaryXml = None,
-                  miniXml = None,
-                  isPrimary = False,
-                  isMini = False,
-                  waitTime = None ):
+    def __init__(self,
+                 fullXml,
+                 primaryXml=None,
+                 miniXml=None,
+                 isPrimary=False,
+                 isMini=False,
+                 waitTime=None):
         """
         Initializes the message object. Subclasses should be careful
         to call this if they override the constructor.
@@ -207,8 +209,7 @@ class Message:
         self.__miniXml = miniXml
         self.__waitTime = waitTime
 
-
-    def isPrimary( self ):
+    def isPrimary(self):
         """
         If true, this Message should be displayed as a primary
         message.  Otherwise, this Message should not be a primary
@@ -217,7 +218,7 @@ class Message:
 
         return self.__isPrimary
 
-    def isMini( self ):
+    def isMini(self):
         """
         If true, this Message should be displayed as a mini message.
         Otherwise, this Message should not be a mini message.
@@ -225,7 +226,7 @@ class Message:
 
         return self.__isMini
 
-    def getFullXml( self ):
+    def getFullXml(self):
         """
         Retrieves the full XML of the entire contents of this
         message.
@@ -233,7 +234,7 @@ class Message:
 
         return self.__fullXml
 
-    def getPrimaryXml( self ):
+    def getPrimaryXml(self):
         """
         Gets an XML representation appropriate for displaying
         as a primary message.
@@ -244,7 +245,7 @@ class Message:
         else:
             return self.getFullXml()
 
-    def getMiniXml( self ):
+    def getMiniXml(self):
         """
         Gets an XML representation appropriate for displaying
         as a mini message.
@@ -255,7 +256,7 @@ class Message:
         else:
             return self.getFullXml()
 
-    def isFinished( self ):
+    def isFinished(self):
         """
         Abstract method: Implemented by sub-classes to indicate that
         the message is finished, i.e., no longer needs to persist in
@@ -267,11 +268,10 @@ class Message:
         if self.isMini():
             raise NotImplementedError()
         else:
-            raise AssertionError( "isFinished() called on non-mini message." )
+            raise AssertionError("isFinished() called on non-mini message.")
 
     def getWaitTime(self):
         return self.__waitTime
-
 
 
 class ConditionMiniMessage(Message):
@@ -281,16 +281,16 @@ class ConditionMiniMessage(Message):
 
     """
 
-    def __init__( self,
-                  primaryXml = None,
-                  miniXml = None,
-                  is_finished_func = None):
+    def __init__(self,
+                 primaryXml=None,
+                 miniXml=None,
+                 is_finished_func=None):
         Message.__init__(self,
-            fullXml = None,
-            primaryXml = primaryXml,
-            miniXml = miniXml,
-            isPrimary = (primaryXml is not None),
-            isMini = True)
+                         fullXml=None,
+                         primaryXml=primaryXml,
+                         miniXml=miniXml,
+                         isPrimary=(primaryXml is not None),
+                         isMini=True)
 
         assert is_finished_func and callable(is_finished_func),\
             "is_finished_func parameter muste be callable and must return "\
@@ -298,14 +298,14 @@ class ConditionMiniMessage(Message):
         self.__is_finished_func = is_finished_func
         self.__manager = MessageManager.get()
 
-    def isFinished( self ):
+    def isFinished(self):
         if not self.__manager.isPrimaryMessageFinished(self):
             return False
 
         try:
             if self.__is_finished_func():
                 return True
-        except Exception as e:  #IGNORE:W0703
+        except Exception as e:  # IGNORE:W0703
             logging.error(e)
             return False
 
@@ -321,22 +321,22 @@ class TimedMiniMessage(Message):
     by user (using 'hide mini messages' command).
     """
 
-    def __init__( self,
-                  primaryXml = None,
-                  miniXml = None,
-                  waitTime = None):
+    def __init__(self,
+                 primaryXml=None,
+                 miniXml=None,
+                 waitTime=None):
         Message.__init__(self,
-            fullXml = None,
-            primaryXml = primaryXml,
-            miniXml = miniXml,
-            isPrimary = (primaryXml is not None),
-            isMini = True)
+                         fullXml=None,
+                         primaryXml=primaryXml,
+                         miniXml=miniXml,
+                         isPrimary=(primaryXml is not None),
+                         isMini=True)
 
         self.__wait = waitTime
         self.__started = None
         self.__manager = MessageManager.get()
 
-    def isFinished( self ):
+    def isFinished(self):
         if self.__started is None:
             if self.__manager.isPrimaryMessageFinished(self):
                 self.__started = time.time()
@@ -355,7 +355,7 @@ class TimedMiniMessage(Message):
 # MESSAGE MANAGER
 # ----------------------------------------------------------------------------
 
-class MessageManager:
+class MessageManager(object):
     """
     Singleton class for managing the various forms of messages Enso uses.
     """
@@ -363,19 +363,19 @@ class MessageManager:
     __instance = None
 
     @classmethod
-    def get( cls ):
+    def get(cls):
         if not cls.__instance:
             from enso.messages.primarywindow import PrimaryMsgWind
             from enso.messages.miniwindows import MiniMessageQueue
             from enso.events import EventManager
 
-            cls.__instance = cls( EventManager.get(),
-                                  PrimaryMsgWind,
-                                  MiniMessageQueue )
+            cls.__instance = cls(EventManager.get(),
+                                 PrimaryMsgWind,
+                                 MiniMessageQueue)
         return cls.__instance
 
-    def __init__( self, eventManager, primaryMsgWindClass,
-                  miniMsgWindClass ):
+    def __init__(self, eventManager, primaryMsgWindClass,
+                 miniMsgWindClass):
         """
         Instantiates the message manager and any windows used to
         display messages.
@@ -405,30 +405,28 @@ class MessageManager:
         self.__miniMessageWind = self.__miniMsgWindClass(
             self,
             self.__evtManager
-            )
+        )
 
         self.__messageGraveyard = []
         self.__onDismissalFunc = None
 
-
-    def newMessage( self, msg, onDismissal=None, position=(None,None) ):
+    def newMessage(self, msg, onDismissal=None, position=(None, None)):
         """
         Adds a new message to the queue, which will get displayed and
         saved in all appropriate ways.
         """
 
-        self.__addToGraveyard( msg )
+        self.__addToGraveyard(msg)
 
         if msg.isPrimary():
-            self.__newPrimaryMessage( msg )
+            self.__newPrimaryMessage(msg)
             if onDismissal and not callable(onDismissal):
                 raise Exception("onDismissal parameter must be callable")
             self.__onDismissalFunc = onDismissal
         elif msg.isMini() and not msg.isFinished():
-            self.__newMiniMessage( msg )
+            self.__newMiniMessage(msg)
 
-
-    def onDismissal( self ):
+    def onDismissal(self):
         """
         Called by the primary message window when the primary message
         has been dismissed.  Note that the PM may still be on the
@@ -442,20 +440,23 @@ class MessageManager:
 
         oldMsg = self.__primaryMessage
         if oldMsg.isMini() and not oldMsg.isFinished():
-            self.__newMiniMessage( oldMsg )
+            self.__newMiniMessage(oldMsg)
         self.__primaryMessage = None
 
         if self.__onDismissalFunc:
-            # Run onDismissal function if CTRL key is used to dismiss the message
+            # Run onDismissal function if CTRL key is used to dismiss the
+            # message
             try:
                 # TODO: Implement this on all platforms, currently it works only on Win32
-                # Quite impossible to do in Linux (there is no API to access keyboard physical state)
+                # Quite impossible to do in Linux (there is no API to access
+                # keyboard physical state)
                 import win32con  # @UnresolvedImport
                 import win32api  # @UnresolvedImport
 
                 # If CTRL key is being held
                 if win32api.GetAsyncKeyState(win32con.VK_CONTROL) << 1:  # @UndefinedVariable
-                    # Wait for CTRL key release before executing the dismissal function
+                    # Wait for CTRL key release before executing the dismissal
+                    # function
                     while win32api.GetAsyncKeyState(win32con.VK_CONTROL) << 1:  # @UndefinedVariable
                         time.sleep(0.01)
                     try:
@@ -467,8 +468,7 @@ class MessageManager:
             finally:
                 self.__onDismissalFunc = None
 
-
-    def onMiniMessageFinished( self ):
+    def onMiniMessageFinished(self):
         """
         Called by the mini message window when a mini-message has
         completely finished doing anything it needs to do, including
@@ -477,7 +477,7 @@ class MessageManager:
 
         pass
 
-    def onPrimaryMessageFinished( self ):
+    def onPrimaryMessageFinished(self):
         """
         Called by the primary message window when it's completely
         finished doing anything it needs to do, including on-screen
@@ -487,24 +487,21 @@ class MessageManager:
         del self.__primaryMsgWind
         self.__primaryMsgWind = None
 
-
-    def getRecentMessage( self ):
+    def getRecentMessage(self):
         return self.__messageGraveyard[0] if len(self.__messageGraveyard) > 0 else None
 
-
-    def displayRecentMessage( self ):
+    def displayRecentMessage(self):
         msg = self.getRecentMessage()
         if msg:
             if msg.isPrimary():
-                self.__newPrimaryMessage( msg )
+                self.__newPrimaryMessage(msg)
             elif msg.isMini() and not msg.isFinished():
-                self.__newMiniMessage( msg )
+                self.__newMiniMessage(msg)
             return True
         else:
             return False
 
-
-    def __addToGraveyard( self, msg ):
+    def __addToGraveyard(self, msg):
         """
         Adds the msg to the message graveyard, where the user
         can access it for ever and ever.
@@ -519,16 +516,14 @@ class MessageManager:
         if len(self.__messageGraveyard) > 50:
             del self.__messageGraveyard[-1]
 
-
-    def __newMiniMessage( self, msg ):
+    def __newMiniMessage(self, msg):
         """
         Adds msg to the list of currently displayed mini messages.
         """
 
-        self.__miniMessageWind.addMessage( msg )
+        self.__miniMessageWind.addMessage(msg)
 
-
-    def __newPrimaryMessage( self, msg, on_dismissal=None ):
+    def __newPrimaryMessage(self, msg, on_dismissal=None):
         """
         Causes msg to be displayed as the current primary message.
         """
@@ -537,32 +532,29 @@ class MessageManager:
             self.__primaryMsgWind = self.__primaryMsgWindClass(
                 self,
                 self.__evtManager
-                )
+            )
 
         oldMsg = self.__primaryMessage
         if oldMsg is not None:
             if oldMsg.isMini() and not oldMsg.isFinished():
-                self.__newMiniMessage( oldMsg )
+                self.__newMiniMessage(oldMsg)
 
         self.__primaryMessage = msg
         if on_dismissal is not None:
             self.__primaryMsgWind.setOnDismissalAction(on_dismissal)
-        self.__primaryMsgWind.setMessage( msg )
-
+        self.__primaryMsgWind.setMessage(msg)
 
     def isPrimaryMessageFinished(self, msg):
         return self.__primaryMessage != msg
 
-
-    def finishMessages( self ):
+    def finishMessages(self):
         """
         Causes all mini messages to vanish immediately.
         """
 
         self.__miniMessageWind.hideAll()
 
-
-    def finishPrimaryMessage( self, skip_animation = False ):
+    def finishPrimaryMessage(self, skip_animation=False):
         if self.__primaryMessage.isPrimary():
             self.__primaryMsgWind.dismiss(skip_animation)
 
@@ -571,15 +563,15 @@ class MessageManager:
 # Convenience functions
 # ----------------------------------------------------------------------------
 
-def displayMessage( msgXml, primaryMsg=True, miniMsg=False, miniMsgXml=None,
-    primaryWaitTime=None, miniWaitTime=None, onDismissal=None ):
+def displayMessage(msgXml, primaryMsg=True, miniMsg=False, miniMsgXml=None,
+                   primaryWaitTime=None, miniWaitTime=None, onDismissal=None):
     """
     Displays a simple primary message with optional mini message.
 
     Optionally wait time argument specifies minimum time in seconds
     during which the mini-message should stay on screen and can't be dismissed
     by mouse or keyboard activity.
-    
+
     Optional onDismissal function can be specified. It will be executed when
     CTRL key is used to dismiss the message.
     """
@@ -588,19 +580,19 @@ def displayMessage( msgXml, primaryMsg=True, miniMsg=False, miniMsgXml=None,
         if miniMsgXml is None:
             miniMsgXml = msgXml
         msg = TimedMiniMessage(
-            primaryXml = (msgXml if primaryMsg else None),
-            miniXml = miniMsgXml,
-            waitTime = miniWaitTime
-            )
+            primaryXml=(msgXml if primaryMsg else None),
+            miniXml=miniMsgXml,
+            waitTime=miniWaitTime
+        )
     else:
         msg = Message(
-            isPrimary = True,
-            isMini = False,
-            fullXml = msgXml,
-            waitTime = primaryWaitTime
-            )
+            isPrimary=True,
+            isMini=False,
+            fullXml=msgXml,
+            waitTime=primaryWaitTime
+        )
 
-    MessageManager.get().newMessage( msg, onDismissal )
+    MessageManager.get().newMessage(msg, onDismissal)
 
 
 def displayRecentMessage():
@@ -610,11 +602,9 @@ def displayRecentMessage():
     return MessageManager.get().displayRecentMessage()
 
 
-def hideMessage(skip_animation = False):
+def hideMessage(skip_animation=False):
     return MessageManager.get().finishPrimaryMessage(skip_animation)
 
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
-
-# vim:set tabstop=4 shiftwidth=4 expandtab

@@ -10,7 +10,6 @@ import threading
 from optparse import OptionParser
 
 import enso.config
-import enso.version
 from enso.messages import displayMessage
 
 
@@ -23,6 +22,7 @@ ENSO_DIR = os.path.realpath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 # FIXME: Move this somewhere else
 # This hack will force IPV4 DNS lookups only.
 origGetAddrInfo = socket.getaddrinfo
+
 
 def getAddrInfoWrapper(host, port, family=0, socktype=0, proto=0, flags=0):
     return origGetAddrInfo(host, port, socket.AF_INET, socktype, proto, flags)
@@ -83,6 +83,7 @@ def process_options(argv):
 
 
 class LoggingDebugFilter(logging.Filter):
+
     def filter(self, record):
         """
         Determine if the specified record is to be logged.
@@ -98,9 +99,10 @@ class LoggingDebugFilter(logging.Filter):
         return res
 
 
-class LogLevelFilter( logging.Filter, object ):
+class LogLevelFilter(logging.Filter, object):
     """Filters (lets through) all messages with level <= LEVEL"""
     # http://stackoverflow.com/a/24956305/408556
+
     def __init__(self, name, passlevel, reject):
         super(LogLevelFilter, self).__init__(name)
         self.passlevel = passlevel
@@ -114,22 +116,19 @@ class LogLevelFilter( logging.Filter, object ):
             return passed and (record.levelno <= self.passlevel)
 
 
-
-
-def main(argv = None):
+def main(argv=None):
     opts, args = process_options(argv[1:])
 
     enso.config.CMDLINE_OPTIONS = opts
 
-
     logformat = "%(levelname)-9s%(asctime)s %(pathname)s[%(funcName)s:%(lineno)d]: %(message)s"
     loglevel = {
-        'CRITICAL' : logging.CRITICAL,
-        'ERROR' : logging.ERROR,
-        'WARNING' : logging.WARNING,
-        'INFO' : logging.INFO,
-        'DEBUG' : logging.DEBUG,
-        }.get(opts.loglevel, logging.NOTSET)
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+    }.get(opts.loglevel, logging.NOTSET)
 
     if opts.show_console:
         print "Showing console"
@@ -139,12 +138,12 @@ def main(argv = None):
         stdout_hdlr.addFilter(LogLevelFilter('', STDOUT_MAX_LEVEL, False))
         stdout_hdlr.setFormatter(logging.Formatter(logformat))
         stdout_hdlr.setLevel(MIN_LEVEL)
-        
+
         stderr_hdlr = logging.StreamHandler(sys.stderr)
         stderr_hdlr.addFilter(LogLevelFilter('', STDOUT_MAX_LEVEL, True))
         stderr_hdlr.setFormatter(logging.Formatter(logformat))
         stderr_hdlr.setLevel(MIN_LEVEL)
-        
+
         rootLogger = logging.getLogger()
         rootLogger.addHandler(stdout_hdlr)
         rootLogger.addHandler(stderr_hdlr)
@@ -152,8 +151,8 @@ def main(argv = None):
     else:
         print "Hiding console"
         print "Logging into '%s'" % os.path.join(ENSO_DIR, "enso.log")
-        sys.stdout = open("stdout.log", "w", 0) #NullDevice()
-        sys.stderr = open("stderr.log", "w", 0) #NullDevice()
+        sys.stdout = open("stdout.log", "w", 0)  # NullDevice()
+        sys.stderr = open("stderr.log", "w", 0)  # NullDevice()
         logging.basicConfig(
             filename=os.path.join(ENSO_DIR, "enso.log"),
             level=loglevel,
@@ -164,9 +163,8 @@ def main(argv = None):
         assert logging.debug("default options set:" + repr(opts)) or True
         assert logging.debug("command-line args:" + repr(args)) or True
 
-
     if not opts.ignore_ensorc:
-        ensorc_path = os.path.expanduser(os.path.join("~",".ensorc"))
+        ensorc_path = os.path.expanduser(os.path.join("~", ".ensorc"))
         if (not os.path.isfile(ensorc_path) and sys.platform.startswith("win") and
                 os.path.isfile(ensorc_path + ".lnk")):
             # Extract real .ensorc path from .ensorc.lnk file on Windows
@@ -180,7 +178,7 @@ def main(argv = None):
                     pythoncom.CLSCTX_INPROC_SERVER,  # @UndefinedVariable
                     shell.IID_IShellLink
                 )
-                link.QueryInterface(pythoncom.IID_IPersistFile).Load(
+                link.QueryInterface(pythoncom.IID_IPersistFile).Load(  # @UndefinedVariable
                     ensorc_path + ".lnk")  # @UndefinedVariable
                 path = link.GetPath(shell.SLGP_UNCPRIORITY)
                 if path and path[0]:
@@ -189,9 +187,9 @@ def main(argv = None):
                 logging.error("Error parsing .ensorc.lnk file: %s", e)
 
         if os.path.isfile(ensorc_path):
-            logging.info( "Loading '%s'." % ensorc_path )
-            contents = open( ensorc_path, "r" ).read()
-            compiledContents = compile( contents + "\n", ensorc_path, "exec" )
+            logging.info("Loading '%s'." % ensorc_path)
+            contents = open(ensorc_path, "r").read()
+            compiledContents = compile(contents + "\n", ensorc_path, "exec")
             exec compiledContents in {}, {}
         else:
             logging.warning(".ensorc file can't be read!")
@@ -208,9 +206,9 @@ def main(argv = None):
 
     # Can't display message at this phase as on Linux the gtk loop is not active yet
     # at this point and that causes screen artifacts.
-    #if not opts.quiet and opts.show_splash:
+    # if not opts.quiet and opts.show_splash:
     #    displayMessage("<p><command>Enso</command> is starting...</p>")
-    
+
     if sys.platform.startswith("win"):
         # Add tray-icon support for win32 platform
         if opts.show_tray_icon:
@@ -238,16 +236,17 @@ def main(argv = None):
         # There is no Psyco support for Python > 2.7
         import psyco  # @UnresolvedImport
         psyco.profile()
-        #psyco.log()
+        # psyco.log()
     except Exception as e:
         try:
-            from enso.thirdparty import psyco
+            from enso.thirdparty import psyco  # @UnresolvedImport
             psyco.profile()
-            #psyco.log()
+            # psyco.log()
         except Exception as e:
             logging.error(e)
         else:
-            logging.info("Using Psyco optimization; Psyco for Python 2.7 (experimental)")
+            logging.info(
+                "Using Psyco optimization; Psyco for Python 2.7 (experimental)")
     else:
         logging.info("Using Psyco optimization; Psyco for Python <= 2.6")
 
@@ -257,7 +256,7 @@ def main(argv = None):
             l.addFilter(LoggingDebugFilter())
         except:
             pass
-        
+
     # Execute main Enso loop
     enso.run()
 

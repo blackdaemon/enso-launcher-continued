@@ -51,10 +51,10 @@ from enso.utils.memoize import memoized
 # ----------------------------------------------------------------------------
 
 DEFAULT_PPI = 96.0
-
 _ppi = DEFAULT_PPI
 
-def setPixelsPerInch( ppi ):
+
+def setPixelsPerInch(ppi):
     """
     Sets the current PPI of the screen in the Measurement module. This
     alters the state of the module, in that any functions depending on
@@ -68,6 +68,7 @@ def setPixelsPerInch( ppi ):
     global _ppi
     _ppi = float(ppi)
 
+
 def getPixelsPerInch():
     """
     Returns the current PPI of the screen in the Measurement module.
@@ -80,7 +81,7 @@ def getPixelsPerInch():
 # Unit-of-Measurement Conversion Functions
 # ----------------------------------------------------------------------------
 
-def pointsToPixels( points ):
+def pointsToPixels(points):
     """
     Converts the given number of points to pixels, using the current
     PPI settings.
@@ -88,7 +89,8 @@ def pointsToPixels( points ):
 
     return points * getPixelsPerInch() / 72.0
 
-def pixelsToPoints( pixels ):
+
+def pixelsToPoints(pixels):
     """
     Converts the given number of pixels to points, using the current
     PPI settings.
@@ -96,21 +98,24 @@ def pixelsToPoints( pixels ):
 
     return pixels * 72.0 / getPixelsPerInch()
 
-def inchesToPoints( inches ):
+
+def inchesToPoints(inches):
     """
     Converts the given number of inches to points.
     """
 
     return inches * 72.0
 
-def picasToPoints( picas ):
+
+def picasToPoints(picas):
     """
     Converts the given number of picas to points.
     """
 
     return picas * 12.0
 
-def calculateScreenPpi( screenDiagonal, hres, vres ):
+
+def calculateScreenPpi(screenDiagonal, hres, vres):
     """
     Given a screen's diagonal in inches, and the horizontal &
     vertical resolution in pixels, calculates the pixels per inch of
@@ -118,10 +123,11 @@ def calculateScreenPpi( screenDiagonal, hres, vres ):
     """
 
     import math
-    diagonalInPixels = math.sqrt( hres**2 + vres**2 )
-    return int( diagonalInPixels / screenDiagonal )
+    diagonalInPixels = math.sqrt(hres**2 + vres**2)
+    return int(diagonalInPixels / screenDiagonal)
 
-def convertUserSpaceToPoints( cairoContext ):
+
+def convertUserSpaceToPoints(cairoContext):
     """
     Modifies the CTM of a Cairo Context so that all future drawing
     operations on it can be specified in units of points rather than
@@ -132,10 +138,11 @@ def convertUserSpaceToPoints( cairoContext ):
     """
 
     scaleFactor = getPixelsPerInch() / 72.0
-    cairoContext.scale( scaleFactor, scaleFactor )
+    cairoContext.scale(scaleFactor, scaleFactor)
+
 
 @memoized
-def strToPoints( unitsStr ):
+def strToPoints(unitsStr):
     """
     Converts from a string such as '2pt', '3in', '5pc', or '20px' into
     a floating-point value measured in points.
@@ -157,14 +164,14 @@ def strToPoints( unitsStr ):
       ValueError: Bad measurement string: 125em
     """
 
-    units = float( unitsStr[:-2] )
-    if unitsStr.endswith( "pt" ):
+    units = float(unitsStr[:-2])
+    if unitsStr.endswith("pt"):
         return units
-    elif unitsStr.endswith( "in" ):
-        return inchesToPoints( units )
-    elif unitsStr.endswith( "pc" ):
-        return picasToPoints( units )
-    elif unitsStr.endswith( "px" ):
-        return pixelsToPoints( units )
+    elif unitsStr.endswith("in"):
+        return inchesToPoints(units)
+    elif unitsStr.endswith("pc"):
+        return picasToPoints(units)
+    elif unitsStr.endswith("px"):
+        return pixelsToPoints(units)
     else:
-        raise ValueError( "Bad measurement string: %s" % unitsStr )
+        raise ValueError("Bad measurement string: %s" % unitsStr)

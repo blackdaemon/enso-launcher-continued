@@ -49,6 +49,6 @@ import enso.providers
 # ----------------------------------------------------------------------------
 
 # Actual implementation provider for this module.
-__systemImpl = enso.providers.getInterface( "system" )
+__systemImpl = enso.providers.getInterface("system")
 
-globals().update( __systemImpl.__dict__ )
+globals().update(__systemImpl.__dict__)

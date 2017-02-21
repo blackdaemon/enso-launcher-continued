@@ -47,35 +47,35 @@ from enso.graphics.transparentwindow import TransparentWindow
 # Generic Message Window
 # ----------------------------------------------------------------------------
 
-class MessageWindow:
+
+class MessageWindow(object):
     """
     A generic message window class, combining the TransparentWindow
     functionality with a Cairo context to create a usable message
     window class, with sizing, positioning, and drawing methods.
     """
 
-    def __init__( self, maxSize ):
+    def __init__(self, maxSize):
         """
         Initialize the message window.
         """
 
         self.__maxSize = maxSize
-        self.__currSize = ( 1, 1 )
-        self.__currPos = ( 0, 0 )
+        self.__currSize = (1, 1)
+        self.__currPos = (0, 0)
 
         self._wind = None
         self._context = None
-        
+
         # The TransparentWindow should not be instantiated here.
         # As the position/size is not yet known, TransparentWindow
         # is created with default position and size and that causes
         # ugly flickering on Linux when the window is really drawn later.
         # We should instead create TransparentWindow in lazy manner
         # shortly before it needs to be drawn.
-        #self.__setupWindow()
+        # self.__setupWindow()
 
-
-    def __setupWindow( self ):
+    def __setupWindow(self):
         """
         Creates the MessageWindow's underlying TransparentWindow and
         Cairo Context objects, once and for all.
@@ -90,25 +90,26 @@ class MessageWindow:
 
             # The following are protected to allow subclasses access
             # to them.
-            self._wind = TransparentWindow( xPos, yPos, width, height )
+            self._wind = TransparentWindow(xPos, yPos, width, height)
             self._context = self._wind.makeCairoContext()
 
-
-    def getSize( self ):
+    def getSize(self):
         return self.__currSize
-    def getMaxSize( self ):
+
+    def getMaxSize(self):
         return self.__maxSize
-    def getPos( self ):
+
+    def getPos(self):
         return self.__currPos
 
     def _getContext(self):
         self.__setupWindow()
         return self._context
-    
+
     # LONGTERM TODO: Consider replacing setSize,setPos with setBox, and
     # establish a clipping function isOnScreen for use in the contract.
 
-    def setSize( self, width, height, refresh=True ):
+    def setSize(self, width, height, refresh=True):
         """
         Sets the current size of the message window the width, height.
 
@@ -127,20 +128,18 @@ class MessageWindow:
         self.__currSize = width, height
 
         if self._wind is not None and refresh:
-            self._wind.setSize( width, height )
+            self._wind.setSize(width, height)
 
-
-    def setPos( self, xPos, yPos ):
+    def setPos(self, xPos, yPos):
         """
         Sets the current position of the window to xPos, yPos, which
         should be in points.
         """
         self.__currPos = xPos, yPos
         if self._wind is not None:
-            self._wind.setPosition( xPos, yPos )
+            self._wind.setPosition(xPos, yPos)
 
-
-    def hide( self ):
+    def hide(self):
         """
         Sets the underlying TransparentWindow's size to (1,1) so that
         the window essentially vanishes.  This effectively "hides" the
@@ -158,8 +157,7 @@ class MessageWindow:
         #self._wind.setSize( 1, 1 )
         self._wind.update()
 
-
-    def show( self ):
+    def show(self):
         """
         Sets the underlying TransparentWindow's size to the stored
         "current size" variable, essentially re-correlating the actual
@@ -169,11 +167,10 @@ class MessageWindow:
         self.__setupWindow()
 
         width, height = self.getSize()
-        self.setSize( width, height, False )
+        self.setSize(width, height, False)
         self._wind.update()
 
-
-    def clearWindow( self ):
+    def clearWindow(self):
         """
         "Clears" the underlying cairo context.
         """
@@ -185,12 +182,12 @@ class MessageWindow:
         self.__setupWindow()
 
         cr = self._context
-        cr.set_source_rgba( 0, 0, 0, 0 )
-        cr.set_operator(cairo.OPERATOR_SOURCE) #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+        cr.set_source_rgba(0, 0, 0, 0)
+        cr.set_operator(cairo.OPERATOR_SOURCE)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         cr.paint()
 
 
-def computeWidth( doc ):
+def computeWidth(doc):
     """
     Utility function for computing the 'actual' width of a text layout
     document, by taking the maximum line width.
@@ -198,9 +195,9 @@ def computeWidth( doc ):
 
     lines = []
     for b in doc.blocks:
-        lines.extend( b.lines )
+        lines.extend(b.lines)
 
     if len(lines) == 0:
         return 0
     else:
-        return max( [ l.xMax for l in lines ] )
+        return max([l.xMax for l in lines])

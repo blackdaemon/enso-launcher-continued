@@ -136,8 +136,8 @@ class Block(object):
 
     __slots__ = (
         '__dict__',
-        '__glyphs',
         '__weakref__',
+        '__glyphs',
         'ellipsify',
         'ellipsisGlyph',
         'height',
@@ -376,11 +376,11 @@ class Line(object):
     """
 
     __slots__ = (
+        '__weakref__',
+        '__dict__',
         '__alignOfs',
         '__cursorPos',
-        '__dict__',
         '__ofsPerSpace',
-        '__weakref__',
         'ascent',
         'descent',
         'distanceToBaseline',
