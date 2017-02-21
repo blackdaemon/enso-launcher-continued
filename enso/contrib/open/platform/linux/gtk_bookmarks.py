@@ -38,21 +38,17 @@ TODO:
 # Imports
 # ----------------------------------------------------------------------------
 
-# Future imports
 from __future__ import with_statement
-
-import os
 import logging
+import os
 
 import gio
 from gtk.gdk import lock as gtk_lock
-
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from enso.contrib.open import shortcuts
-from enso.platform.linux import utils 
-from enso.platform.linux.weaklib import gobject_connect_weakly
+
 
 SHORTCUT_CATEGORY = "gtk-bookmark"
 BOOKMARKS_DIR = "~"
@@ -62,7 +58,7 @@ _dir_monitor = None
 _file_changed_event_handler = None
 
 
-class _FileChangedEventHandler( FileSystemEventHandler ):
+class _FileChangedEventHandler(FileSystemEventHandler):
     
     def __init__(self):
         super(_FileChangedEventHandler, self).__init__()
@@ -95,7 +91,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         #print "Modified %s: %s" % (what, event.src_path)
 
     def call_callback(self, event):
-        print "Recently changed applications list was updated"
+        print "Recently changed gtk-bookmarks list was updated"
         if self.update_callback_func:
             try:
                 print "Calling update callback func..."
@@ -117,7 +113,7 @@ def get_bookmarks():
             items = line.strip().split(" ", 1)
             uri = items[0]
             with gtk_lock:
-                gfile = gio.File(uri)
+                gfile = gio.File(uri)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 if len(items) > 1:
                     title = items[1].rstrip()
                 else:
@@ -142,10 +138,10 @@ def register_update_callback(callback_func):
     global _dir_monitor, _file_changed_event_handler
     if _file_changed_event_handler is None:
         _file_changed_event_handler = _FileChangedEventHandler()
-    _file_changed_event_handler.update_callback_func = callback_func
+    if _file_changed_event_handler.update_callback_func != callback_func:
+        _file_changed_event_handler.update_callback_func = callback_func
     if _dir_monitor is None:
-        # Set up the directory watcher for shortcuts directory 
+        # Set up the directory watcher for shortcuts directory
         _dir_monitor = Observer()
         _dir_monitor.schedule(_file_changed_event_handler, os.path.expanduser(BOOKMARKS_DIR))
         _dir_monitor.start()
-

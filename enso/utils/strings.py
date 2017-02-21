@@ -165,7 +165,6 @@ def stringRatioBestMatch( item, sequence ):
     to item among the elements of sequence.
     """
 
-    ratios = [ stringRatio( item, element ) \
-               for element in sequence ]
-
+    ratios = [ stringRatio( item, element ) for element in sequence ]
     return sequence[ ratios.index( min(ratios) ) ]
+

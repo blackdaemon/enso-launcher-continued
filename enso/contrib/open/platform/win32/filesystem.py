@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+    
 #
 # "jaraco.windows" is written by Jason R. Coombs.  It is licensed under an
 # MIT-style permissive license:
@@ -5,28 +7,42 @@
 #
 
 from __future__ import division
-
-import os
-import logging
-from itertools import imap, ifilter, izip
-
 import ctypes
-from ctypes import wintypes
-
+import os
 from ctypes import (
-    Structure, windll, POINTER, byref, cast, create_unicode_buffer,
-    c_size_t, c_int, create_string_buffer, c_uint64, c_ushort, c_short,
+    POINTER,
+    Structure,
+    byref,
+    c_int,
+    c_short,
+    c_size_t,
     c_uint,
-    )
+    c_uint64,
+    c_ushort,
+    cast,
+    create_string_buffer,
+    create_unicode_buffer,
+    windll,
+    wintypes,
+)
 from ctypes.wintypes import (
-    BOOLEAN, LPWSTR, DWORD, LPVOID, HANDLE, FILETIME,
-    WCHAR, BOOL, HWND, WORD, UINT,
-    )
-from ctypes import (POINTER, byref, cast, create_unicode_buffer,
-    create_string_buffer, windll)
+    BOOL,
+    BOOLEAN,
+    DWORD,
+    FILETIME,
+    HANDLE,
+    HWND,
+    LPVOID,
+    LPWSTR,
+    UINT,
+    WCHAR,
+    WORD,
+)
+from itertools import ifilter, imap, izip
 
 
 MAX_PATH = 260
+
 
 class WIN32_FIND_DATA(Structure):
     _fields_ = [
@@ -34,19 +50,20 @@ class WIN32_FIND_DATA(Structure):
         ('creation_time', FILETIME),
         ('last_access_time', FILETIME),
         ('last_write_time', FILETIME),
-        ('file_size_words', DWORD*2),
-        ('reserved', DWORD*2),
-        ('filename', WCHAR*MAX_PATH),
-        ('alternate_filename', WCHAR*14),
+        ('file_size_words', DWORD * 2),
+        ('reserved', DWORD * 2),
+        ('filename', WCHAR * MAX_PATH),
+        ('alternate_filename', WCHAR * 14),
     ]
 LPWIN32_FIND_DATA = POINTER(WIN32_FIND_DATA)
+
 
 class SECURITY_ATTRIBUTES(Structure):
     _fields_ = (
         ('length', DWORD),
         ('p_security_descriptor', LPVOID),
         ('inherit_handle', BOOLEAN),
-        )
+    )
 LPSECURITY_ATTRIBUTES = POINTER(SECURITY_ATTRIBUTES)
 
 FindFirstFile = windll.kernel32.FindFirstFileW
@@ -111,10 +128,12 @@ _DeviceIoControl.argtypes = [
     wintypes.DWORD,
     LPDWORD,
     LPOVERLAPPED,
-    ]
+]
+    
 _DeviceIoControl.restype = wintypes.BOOL
 
 wchar_size = ctypes.sizeof(wintypes.WCHAR)
+
 
 class REPARSE_DATA_BUFFER(ctypes.Structure):
     _fields_ = [
@@ -126,15 +145,16 @@ class REPARSE_DATA_BUFFER(ctypes.Structure):
         ('print_name_offset', ctypes.c_ushort),
         ('print_name_length', ctypes.c_ushort),
         ('flags', ctypes.c_ulong),
-        ('path_buffer', ctypes.c_byte*1),
+        ('path_buffer', ctypes.c_byte * 1),
     ]
+    
     def get_print_name(self):
-        arr_typ = wintypes.WCHAR*(self.print_name_length//wchar_size)
+        arr_typ = wintypes.WCHAR * (self.print_name_length // wchar_size)
         data = ctypes.byref(self.path_buffer, self.print_name_offset)
         return ctypes.cast(data, ctypes.POINTER(arr_typ)).contents.value
 
     def get_substitute_name(self):
-        arr_typ = wintypes.WCHAR*(self.substitute_name_length//wchar_size)
+        arr_typ = wintypes.WCHAR * (self.substitute_name_length // wchar_size)
         data = ctypes.byref(self.path_buffer, self.substitute_name_offset)
         return ctypes.cast(data, ctypes.POINTER(arr_typ)).contents.value
 
@@ -259,7 +279,7 @@ def readlink(link):
         OPEN_EXISTING,
         FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
         None,
-        )
+    )
 
     if handle == INVALID_HANDLE_VALUE:
         raise WindowsError()
@@ -398,5 +418,3 @@ def trace_symlink_target(link):
         link = readlink(link)
         link = resolve_path(link, orig)
     return link
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

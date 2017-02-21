@@ -1,21 +1,21 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
 from __future__ import with_statement
-
-import threading
 import Queue
 import cgi
-import urllib
-import urllib2
+import logging
 import os
 import re
 import socket
+import threading
 import time
+import urllib
+import urllib2
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-import logging
 import enso.config
-from enso.messages import displayMessage as display_xml_message
-from enso.contrib.scriptotron import tracker, cmdretriever
+from enso.contrib.scriptotron import cmdretriever, tracker
 from enso.contrib.scriptotron.tracebacks import safetyNetted
+from enso.messages import displayMessage as display_xml_message
 
 
 def serve_install_js(request):
@@ -27,8 +27,10 @@ def serve_install_js(request):
     request.end_headers()
     request.wfile.write(js)
 
+
 def serve_favicon(request):
-    webdir = os.path.realpath(os.path.join(os.path.split(__file__)[0], "..", "web"))
+    webdir = os.path.realpath(
+        os.path.join(os.path.split(__file__)[0], "..", "web"))
     icopath = os.path.join(webdir, "favicon.ico")
     with open(icopath, "rb") as fp:
         ico = fp.read()
@@ -36,6 +38,7 @@ def serve_favicon(request):
     request.send_header("Content-Type", "image/x-icon")
     request.end_headers()
     request.wfile.write(ico)
+
 
 def serve_static_content(request, file):
     print "serving", file
@@ -46,7 +49,8 @@ def serve_static_content(request, file):
         request.wfile.write("404 Not Found")
         return
 
-    webdir = os.path.realpath(os.path.join(os.path.split(__file__)[0], "..", "web", "static"))
+    webdir = os.path.realpath(
+        os.path.join(os.path.split(__file__)[0], "..", "web", "static"))
     filepath = os.path.join(webdir, file)
     if not os.path.isfile(filepath):
         request.send_response(404)
@@ -71,6 +75,7 @@ def serve_static_content(request, file):
     request.end_headers()
     request.wfile.write(content)
 
+
 def serve_js(request, file):
     print "serving", file
     _, ext = os.path.splitext(file)
@@ -80,7 +85,8 @@ def serve_js(request, file):
         request.wfile.write("404 Not Found")
         return
 
-    webdir = os.path.realpath(os.path.join(os.path.split(__file__)[0], "..", "web", "js"))
+    webdir = os.path.realpath(
+        os.path.join(os.path.split(__file__)[0], "..", "web", "js"))
     filepath = os.path.join(webdir, file)
     if not os.path.isfile(filepath):
         request.send_response(404)
@@ -97,13 +103,16 @@ def serve_js(request, file):
     request.end_headers()
     request.wfile.write(content)
 
+
 class myhandler(BaseHTTPRequestHandler):
+
     def __init__(self, request, client_address, server, queue):
         self.queue = queue
         BaseHTTPRequestHandler.__init__(self, request, client_address, server)
 
     def do_GET(self):
-        webdir = os.path.realpath(os.path.join(os.path.split(__file__)[0], "..", "web"))
+        webdir = os.path.realpath(
+            os.path.join(os.path.split(__file__)[0], "..", "web"))
         if self.path == "/install.js":
             serve_install_js(self)
         elif self.path.startswith("/help/command/"):
@@ -133,13 +142,12 @@ class myhandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write("404 Not Found")
 
-
     def do_POST(self):
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,
-            environ={'REQUEST_METHOD':'POST',
-                     'CONTENT_TYPE':self.headers['Content-Type'],
+            environ={'REQUEST_METHOD': 'POST',
+                     'CONTENT_TYPE': self.headers['Content-Type'],
                      })
         action = form.getfirst("action", None)
         if action == "install_command":
@@ -166,12 +174,10 @@ class myhttpd(HTTPServer):
         HTTPServer.__init__(self, server_address, RequestHandlerClass)
         self.queue = queue
 
-
     def server_bind(self):
         HTTPServer.server_bind(self)
         self.socket.settimeout(1)
         self.run = True
-
 
     def get_request(self):
         while self.run:
@@ -183,16 +189,13 @@ class myhttpd(HTTPServer):
                 if not self.run:
                     raise socket.error
 
-
     def finish_request(self, request, client_address):
         # overridden from SocketServer.TCPServer
         logging.info("Finish request called")
         self.RequestHandlerClass(request, client_address, self, self.queue)
 
-
     def stop(self):
         self.run = False
-
 
     def serve_forever(self):
         """ Override serve_forever to handle shutdown. """
@@ -200,8 +203,8 @@ class myhttpd(HTTPServer):
             self.handle_request()
 
 
-
 class Httpd(threading.Thread):
+
     def __init__(self, queue):
         threading.Thread.__init__(self)
         self.queue = queue
@@ -221,7 +224,7 @@ class Httpd(threading.Thread):
 @safetyNetted
 def get_commands_from_object(text, filename):
     allGlobals = {}
-    code = compile( text, filename, "exec" )
+    code = compile(text, filename, "exec")
     exec code in allGlobals
     return cmdretriever.getCommandsFromObjects(allGlobals)
 
@@ -242,7 +245,7 @@ def urlopen(url, timeout=None):
 def install_command_from_url(command_url):
     try:
         resp = urlopen(command_url, timeout=15.0)
-    except Exception, e:
+    except Exception as e:
         logging.error(e)
         display_xml_message("<p>Couldn't install that command</p>")
         return
@@ -285,7 +288,8 @@ def install_command_from_url(command_url):
         lines.pop(0)
 
     cmd_folder = tracker.getScriptsFolderName()
-    command_file_path = os.path.expanduser(os.path.join(cmd_folder, command_file_name))
+    command_file_path = os.path.expanduser(
+        os.path.join(cmd_folder, command_file_name))
     short_name = os.path.splitext(command_file_name)[0]
     if os.path.exists(command_file_path):
         display_xml_message(
@@ -298,12 +302,13 @@ def install_command_from_url(command_url):
         installed_commands = [x["cmdName"] for x in commands]
         if len(installed_commands) == 1:
             install_message = (u"<command>%s</command> is now a command"
-                % installed_commands[0])
+                               % installed_commands[0])
         elif len(installed_commands) > 1:
             install_message = (u"<command>%s</command> are now commands"
-                % u"</command>, <command>".join(installed_commands))
+                               % u"</command>, <command>".join(installed_commands))
         display_xml_message(u"<p>%s</p>" % install_message)
-        # Use binary mode for writing so endlines are not converted to "\r\n" on win32
+        # Use binary mode for writing so endlines are not converted to "\r\n"
+        # on win32
         with open(command_file_path, "wb") as fp:
             fp.write(text)
     else:
@@ -311,6 +316,7 @@ def install_command_from_url(command_url):
 
 
 commandq = Queue.Queue()
+
 
 def pollqueue(ms):
     try:
@@ -329,5 +335,3 @@ def start(eventManager):
     httpd_server.start()
     eventManager.registerResponder(pollqueue, "timer")
     return httpd_server
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

@@ -18,6 +18,7 @@ rules, but we accept everything, if validly quoted or not.
 
 import shlex
 
+
 # This is the "string" type encoding escapes
 # this is unescaped before we process anything..
 escape_table = {
@@ -38,6 +39,7 @@ quoted_table = {
     '\\\\': '\\',
 }
 
+
 '''
 # reserved are those that need to be inside quotes
 # note that all the quoted are also reserved, of course
@@ -46,15 +48,15 @@ We don't use these at all
 reserved = r""" " ' \ > < ~ | & ; $ * ? # ( ) ` """.split()
 reserved.extend([' ', '\t', '\n'])
 '''
-
 def two_part_unescaper(s, reptable):
     "Scan @s two characters at a time and replace using @reptable"
     if not s:
         return s
+        
     def _inner():
         it = iter(zip(s, s[1:]))
         for cur, nex in it:
-            key = cur+nex
+            key = cur + nex
             if key in reptable:
                 yield reptable[key]
                 try:
@@ -65,6 +67,7 @@ def two_part_unescaper(s, reptable):
                 yield cur
         yield s[-1]
     return ''.join(_inner())
+
 
 def custom_shlex_split(s, comments=False, posix=True):
     """
@@ -92,9 +95,11 @@ def custom_shlex_split(s, comments=False, posix=True):
     else:
         return lex_output
 
+
 def unescape(s):
     "Primary unescape of control sequences"
     return two_part_unescaper(s, escape_table)
+
 
 def test_unescape():
     r"""
@@ -105,6 +110,7 @@ def test_unescape():
     '\t \\\\'
     """
     pass
+
 
 def parse_argv(instr):
     r"""
@@ -158,6 +164,7 @@ def parse_argv(instr):
 
     """
     return custom_shlex_split(instr)
+
 
 def parse_unesc_argv(instr):
     r"""

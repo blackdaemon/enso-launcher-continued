@@ -1,10 +1,11 @@
-import sys
-import os
 import ctypes
-import win32api
 import logging
-from ctypes import wintypes
+import os
+import sys
 from contextlib import contextmanager
+from ctypes import wintypes
+
+import win32api
 
 
 class ControlPanelInfo(object):

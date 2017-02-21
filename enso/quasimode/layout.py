@@ -41,12 +41,13 @@
 # ----------------------------------------------------------------------------
 
 import logging
-from enso import config
-from enso import graphics
+from time import clock
+
+from enso import config, graphics
 from enso.graphics import xmltextlayout
-from enso.utils.xml_tools import escape_xml
-from enso.utils.html_tools import strip_html_tags
 from enso.graphics.textlayout import MaxLinesExceededError
+from enso.utils.html_tools import strip_html_tags
+from enso.utils.xml_tools import escape_xml
 
 
 # ----------------------------------------------------------------------------
@@ -88,13 +89,13 @@ COLOR_YELLOW = "#FFFF00"
 DESCRIPTION_BACKGROUND_COLOR = COLOR_DESIGNER_GREEN + "cc"
 MAIN_BACKGROUND_COLOR = COLOR_BLACK + "d8"
 
-SMALL_SCALE = [ 12, 18, 24 ]
-LARGE_SCALE = [ 24, 28, 32, 36, 40, 44, 48 ]
+SMALL_SCALE = [12, 18, 24]
+LARGE_SCALE = [24, 28, 32, 36, 40, 44, 48]
 DESCRIPTION_SCALE = SMALL_SCALE
 AUTOCOMPLETE_SCALE = LARGE_SCALE
 SUGGESTION_SCALE = SMALL_SCALE
-DIDYOUMEANHINT_SCALE = [ 8, 14, 20 ]
-PARAMETERSUGGESTION_SCALE = [ 10, 15, 20 ]
+DIDYOUMEANHINT_SCALE = [8, 14, 20]
+PARAMETERSUGGESTION_SCALE = [10, 15, 20]
 
 if config.QUASIMODE_TRAILING_SPACE_STRING:
     TRAILING_SPACE_STRING = config.QUASIMODE_TRAILING_SPACE_STRING
@@ -108,6 +109,7 @@ else:
 # Style Registries
 # ----------------------------------------------------------------------------
 
+
 def _newLineStyleRegistry():
     """
     Creates a new style registry for laying out one of the quasimode's
@@ -117,56 +119,57 @@ def _newLineStyleRegistry():
     styles = xmltextlayout.StyleRegistry()
     styles.add(
         "document",
-        font_family = "Gentium",
-        font_style = "normal",
-        max_lines = "1",
-        )
+        font_family="Gentium",
+        font_style="normal",
+        max_lines="1",
+    )
     styles.add(
         "line",
-        text_align = "left",
-        color = COLOR_WHITE,
-        margin_top = "0pt",
-        margin_bottom = "0pt",
-        )
+        text_align="left",
+        color=COLOR_WHITE,
+        margin_top="0pt",
+        margin_bottom="0pt",
+    )
     styles.add(
         "help",
-        font_style = "italic",
-        color = "#999999",
-        )
-    styles.add( "ins" )
-    styles.add( "alt" )
-    styles.add( "endspace", color=COLOR_GRAY )
-    styles.add( "prefix", color=COLOR_YELLOW )
+        font_style="italic",
+        color="#999999",
+    )
+    styles.add("ins")
+    styles.add("alt")
+    styles.add("endspace", color=COLOR_GRAY)
+    styles.add("prefix", color=COLOR_YELLOW)
     return styles
 
 
 _AUTOCOMPLETE_STYLES = _newLineStyleRegistry()
 
-_SUGGESTION_STYLES   = _newLineStyleRegistry()
+_SUGGESTION_STYLES_A = _newLineStyleRegistry()
+_SUGGESTION_STYLES_I = _newLineStyleRegistry()
 
-_DESCRIPTION_STYLES  = _newLineStyleRegistry()
-_DESCRIPTION_STYLES.update( "ins", color = COLOR_DESIGNER_GREEN )
-_DESCRIPTION_STYLES.update( "alt", color = COLOR_BLACK )
-_DESCRIPTION_STYLES.update( "endspace", color = COLOR_GRAY )
+_DESCRIPTION_STYLES = _newLineStyleRegistry()
+_DESCRIPTION_STYLES.update("ins", color=COLOR_DESIGNER_GREEN)
+_DESCRIPTION_STYLES.update("alt", color=COLOR_BLACK)
+_DESCRIPTION_STYLES.update("endspace", color=COLOR_GRAY)
 
-_DIDYOUMEANHINT_STYLES  = _newLineStyleRegistry()
-_DIDYOUMEANHINT_STYLES.update( "ins", color = COLOR_DARK_GREEN )
-_DIDYOUMEANHINT_STYLES.update( "alt", color = COLOR_BEIGE, font_style = "italic" )
+_DIDYOUMEANHINT_STYLES = _newLineStyleRegistry()
+_DIDYOUMEANHINT_STYLES.update("ins", color=COLOR_DARK_GREEN)
+_DIDYOUMEANHINT_STYLES.update("alt", color=COLOR_BEIGE, font_style="italic")
 
-_PARAMETERSUGGESTION_STYLES  = _newLineStyleRegistry()
-_PARAMETERSUGGESTION_STYLES.update( "ins", color = COLOR_GRAY )
-_PARAMETERSUGGESTION_STYLES.update( "alt", color = COLOR_DESIGNER_GREEN )
+_PARAMETERSUGGESTION_STYLES = _newLineStyleRegistry()
+_PARAMETERSUGGESTION_STYLES.update("ins", color=COLOR_GRAY)
+_PARAMETERSUGGESTION_STYLES.update("alt", color=COLOR_DESIGNER_GREEN)
 
 XML_ALIASES = xmltextlayout.XmlMarkupTagAliases()
-XML_ALIASES.add( "line", baseElement = "block" )
-XML_ALIASES.add( "ins", baseElement = "inline" )
-XML_ALIASES.add( "alt", baseElement = "inline" )
-XML_ALIASES.add( "endspace", baseElement = "inline" )
-XML_ALIASES.add( "prefix", baseElement = "inline" )
-XML_ALIASES.add( "help", baseElement = "inline" )
+XML_ALIASES.add("line", baseElement="block")
+XML_ALIASES.add("ins", baseElement="inline")
+XML_ALIASES.add("alt", baseElement="inline")
+XML_ALIASES.add("endspace", baseElement="inline")
+XML_ALIASES.add("prefix", baseElement="inline")
+XML_ALIASES.add("help", baseElement="inline")
 
 
-def _updateStyleSizes( styles, size ):
+def _updateStyleSizes(styles, size):
     """
     Updates all size-related style elements to those suggested
     when the font is of 'size' points.
@@ -174,18 +177,19 @@ def _updateStyleSizes( styles, size ):
     styles should be a style registry.
     """
 
-    width = graphics.getDesktopSize()[0]
     styles.update(
         "document",
-        font_size = "%fpt" % size,
-        width = "%fpt" % width,
-        margin_top = "%fpt" % (TOP_MARGIN_FACTOR * size),
-        margin_bottom = "%fpt" % (BOTTOM_MARGIN_FACTOR *size),
-        line_height = "%fpt" % size,
-        )
+        font_size="%fpt" % size,
+        # NOTE: getDesktopSize() is cached value, updated only on
+        # quasimodeStart event
+        width="%fpt" % graphics.getDesktopSize()[0],
+        margin_top="%fpt" % (TOP_MARGIN_FACTOR * size),
+        margin_bottom="%fpt" % (BOTTOM_MARGIN_FACTOR * size),
+        line_height="%fpt" % size,
+    )
 
 
-def _updateSuggestionColors( styles, active ):
+def _updateSuggestionColors(styles, active):
     """
     Sets the color scheme in styles ( a style registry )
     to the correct one for active or inactive suggestions,
@@ -193,77 +197,89 @@ def _updateSuggestionColors( styles, active ):
     """
 
     if active:
-        styles.update( "line", color = COLOR_WHITE )
-        styles.update( "ins", color = COLOR_DARK_GREEN )
-        styles.update( "alt", color = COLOR_WHITE )
+        styles.update("line", color=COLOR_WHITE)
+        styles.update("ins", color=COLOR_DARK_GREEN)
+        styles.update("alt", color=COLOR_WHITE)
     else:
-        styles.update( "line", color = COLOR_DESIGNER_GREEN )
-        styles.update( "ins", color = COLOR_DARK_GREEN )
-        styles.update( "alt", color = COLOR_DESIGNER_GREEN )
+        styles.update("line", color=COLOR_DESIGNER_GREEN)
+        styles.update("ins", color=COLOR_DARK_GREEN)
+        styles.update("alt", color=COLOR_DESIGNER_GREEN)
 
 
-def _updateStyles( styles, scale, size ):
+_updateSuggestionColors(_SUGGESTION_STYLES_A, True)
+_updateSuggestionColors(_SUGGESTION_STYLES_I, False)
+
+
+def _updateStyles(styles, scale, size):
     """
     Updates size and ellipsification styling information for
     the style registry 'styles', based on 'size' (a font size
     in points) and 'scale' (a list of usable font sizes in points).
     """
-
-    _updateStyleSizes( styles, size )
+    _updateStyleSizes(styles, size)
     if size == scale[0]:
         # We're at the smallest possible size.  Ellispify if needed.
-        styles.update( "document", ellipsify = "true" )
+        styles.update("document", ellipsify="true")
     else:
-        styles.update( "document", ellipsify = "false" )
-    return styles
-
-def retrieveDescriptionStyles( size = DESCRIPTION_SCALE[-1] ):
-    """
-    LONGTERM TODO: Document this.
-    """
-
-    return _updateStyles( _DESCRIPTION_STYLES, DESCRIPTION_SCALE, size )
-
-
-def retrieveAutocompleteStyles( active = True, size = LARGE_SCALE[-1] ):
-    """
-    LONGTERM TODO: Document this.
-    """
-
-    styles =  _updateStyles( _AUTOCOMPLETE_STYLES, AUTOCOMPLETE_SCALE, size )
-    _updateSuggestionColors( styles, active )
+        styles.update("document", ellipsify="false")
     return styles
 
 
-def retrieveDidyoumeanHintStyles( size = DIDYOUMEANHINT_SCALE[-1] ):
+# FIXME: This is slow as it is static style updated each time
+# FIXME: This is function with side-effects... refactor it
+def retrieveDescriptionStyles(size=DESCRIPTION_SCALE[-1]):
     """
     LONGTERM TODO: Document this.
     """
 
-    return _updateStyles( _DIDYOUMEANHINT_STYLES, DIDYOUMEANHINT_SCALE, size )
+    return _updateStyles(_DESCRIPTION_STYLES, DESCRIPTION_SCALE, size)
 
 
-def retrieveParameterSuggestionStyles( size = PARAMETERSUGGESTION_SCALE[-1] ):
+# FIXME: This is slow as it is static style updated each time
+# FIXME: This is function with side-effects... refactor it
+def retrieveAutocompleteStyles(active=True, size=LARGE_SCALE[-1]):
     """
     LONGTERM TODO: Document this.
     """
 
-    return _updateStyles( _PARAMETERSUGGESTION_STYLES, PARAMETERSUGGESTION_SCALE, size )
-
-
-def retrieveSuggestionStyles( active = True, size = SMALL_SCALE[-1] ):
-    """
-    LONGTERM TODO: Document this.
-    """
-
-    styles = _updateStyles( _SUGGESTION_STYLES, SUGGESTION_SCALE, size )
-    _updateSuggestionColors( styles, active )
+    styles = _updateStyles(_AUTOCOMPLETE_STYLES, AUTOCOMPLETE_SCALE, size)
+    _updateSuggestionColors(styles, active)
     return styles
+
+
+# FIXME: This is slow as it is static style updated each time
+# FIXME: This is function with side-effects... refactor it
+def retrieveDidyoumeanHintStyles(size=DIDYOUMEANHINT_SCALE[-1]):
+    """
+    LONGTERM TODO: Document this.
+    """
+
+    return _updateStyles(_DIDYOUMEANHINT_STYLES, DIDYOUMEANHINT_SCALE, size)
+
+
+# FIXME: This is slow as it is static style updated each time
+# FIXME: This is function with side-effects... refactor it
+def retrieveParameterSuggestionStyles(size=PARAMETERSUGGESTION_SCALE[-1]):
+    """
+    LONGTERM TODO: Document this.
+    """
+
+    return _updateStyles(_PARAMETERSUGGESTION_STYLES, PARAMETERSUGGESTION_SCALE, size)
+
+
+# FIXME: This is slow as it is static style updated each time
+# FIXME: This is function with side-effects... refactor it
+def retrieveSuggestionStyles(active=True, size=SMALL_SCALE[-1]):
+    """
+    LONGTERM TODO: Document this.
+    """
+    return _updateStyles(_SUGGESTION_STYLES_A if active else _SUGGESTION_STYLES_I, SUGGESTION_SCALE, size)
 
 
 _size_scale_map = {}
 
-def layoutXmlLine( xml_data, styles, scale ):
+
+def layoutXmlLine(xml_data, styles, scale):
     """
     Performs a layout of a line using xml_data and styles, doing
     its best to display all of the text of xml_data at the largest
@@ -275,13 +291,13 @@ def layoutXmlLine( xml_data, styles, scale ):
     # OPTIMIZATION BEGIN:
     # Caching of largest working size for given scale and xml_data
     xml_hash = hash("|".join(
-        ",".join(map(str,scale))
+        ",".join(map(str, scale))
         + strip_html_tags(xml_data)
-        ))
+    ))
     usedSize = _size_scale_map.get(xml_hash, None)
     if usedSize:
         try:
-            _updateStyles( styles, scale, usedSize )
+            _updateStyles(styles, scale, usedSize)
             document = xmltextlayout.xmlMarkupToDocument(
                 xml_data,
                 styles,
@@ -296,14 +312,14 @@ def layoutXmlLine( xml_data, styles, scale ):
     # OPTIMIZATION END
 
     document = None
-    for size in reversed( scale ):
+    for size in reversed(scale):
         try:
-            _updateStyles( styles, scale, size )
+            _updateStyles(styles, scale, size)
             document = xmltextlayout.xmlMarkupToDocument(
                 xml_data,
                 styles,
                 XML_ALIASES,
-                )
+            )
             usedSize = size
             break
         except MaxLinesExceededError as e:
@@ -314,17 +330,17 @@ def layoutXmlLine( xml_data, styles, scale ):
             # TODO: Figure out what exact types of exceptions are
             # "non-fundamental" and catch those instead of using
             # a blanket catch like this.
-            #print xml_data
-            #logging.error(e)
+            # print xml_data
+            # logging.error(e)
 
     if document is None:
         # no size above worked; use the smallest size
-        _updateStyles( styles, scale, scale[0] )
+        _updateStyles(styles, scale, scale[0])
         document = xmltextlayout.xmlMarkupToDocument(
             xml_data,
             styles,
             XML_ALIASES,
-            )
+        )
         usedSize = scale[0]
 
     document.shrinkOffset = scale[-1] - usedSize
@@ -350,17 +366,16 @@ class QuasimodeLayout:
 
     LINE_XML = "<document><line>%s</line></document>"
 
-    def __init__( self, quasimode ):
+    def __init__(self, quasimode):
         """
         Computes and stores the layout metrics for the quasimode.
         """
-
-        self.newLines = self.__newCreateLines( quasimode )
+        self.newLines = self.__newCreateLines(quasimode)
         self.__newSmoothRags()
         self.__newRoundCorners()
         self.__setBackgroundColors()
 
-    def __newCreateLines( self, quasimode ):
+    def __newCreateLines(self, quasimode):
         """
         LONGTERM TODO: Document this.
         """
@@ -369,67 +384,66 @@ class QuasimodeLayout:
 
         suggestionList = quasimode.getSuggestionList()
         description = suggestionList.getDescription()
-        description = escape_xml( description )
+        description = escape_xml(description)
         didyoumean_hint = suggestionList.getDidyoumeanHint()
         if didyoumean_hint:
-            didyoumean_hint = escape_xml( didyoumean_hint )
+            didyoumean_hint = escape_xml(didyoumean_hint)
         suggestions = suggestionList.getSuggestions()
         activeIndex = suggestionList.getActiveIndex()
 
-        lines.append( layoutXmlLine(
-            xml_data = self.LINE_XML % description,
-            styles = retrieveDescriptionStyles(),
-            scale = DESCRIPTION_SCALE,
-            ) )
+        lines.append(layoutXmlLine(
+            xml_data=self.LINE_XML % description,
+            styles=retrieveDescriptionStyles(),
+            scale=DESCRIPTION_SCALE,
+        ))
 
         text = suggestions[0].toXml()
         if len(text) == 0:
-            text = escape_xml( suggestions[0].getSource() )
+            text = escape_xml(suggestions[0].getSource())
 
         # Highlight traling space in the input area if needed
         if text.endswith(" ") and TRAILING_SPACE_STRING:
-            text = text[:-1] + u"<endspace>%s</endspace>" % TRAILING_SPACE_STRING
+            text = text[:-1] + \
+                u"<endspace>%s</endspace>" % TRAILING_SPACE_STRING
 
-        lines.append( layoutXmlLine(
-            xml_data = self.LINE_XML % text,
-            styles = retrieveAutocompleteStyles( active = (activeIndex==0) ),
-            scale = AUTOCOMPLETE_SCALE,
-            ) )
+        lines.append(layoutXmlLine(
+            xml_data=self.LINE_XML % text,
+            styles=retrieveAutocompleteStyles(active=(activeIndex == 0)),
+            scale=AUTOCOMPLETE_SCALE,
+        ))
 
         if didyoumean_hint:
             hint_text = config.DIDYOUMEAN_HINT_TEXT % didyoumean_hint
         else:
             hint_text = ""
-        lines.append( layoutXmlLine(
-            xml_data = self.LINE_XML % hint_text,
-            styles = retrieveDidyoumeanHintStyles(),
-            scale = DIDYOUMEANHINT_SCALE,
-            ) )
 
-        for index in range( 1, len(suggestions) ):
-            isActive = (activeIndex==index)
-            lines.append( layoutXmlLine(
-                xml_data = self.LINE_XML % suggestions[index].toXml(),
-                styles = retrieveSuggestionStyles( active = isActive ),
-                scale = SUGGESTION_SCALE,
-                ) )
+        lines.append(layoutXmlLine(
+            xml_data=self.LINE_XML % hint_text,
+            styles=retrieveDidyoumeanHintStyles(),
+            scale=DIDYOUMEANHINT_SCALE,
+        ))
+
+        for index in range(1, len(suggestions)):
+            lines.append(layoutXmlLine(
+                xml_data=self.LINE_XML % suggestions[index].toXml(),
+                styles=retrieveSuggestionStyles(active=(activeIndex == index)),
+                scale=SUGGESTION_SCALE,
+            ))
 
         return lines
 
-
-    def __setBackgroundColors( self ):
+    def __setBackgroundColors(self):
         """
         LONGTERM TODO: Document this.
         """
 
         self.newLines[0].background = \
-             xmltextlayout.colorHashToRgba( DESCRIPTION_BACKGROUND_COLOR )
-        for i in range( 1, len(self.newLines) ):
+            xmltextlayout.colorHashToRgba(DESCRIPTION_BACKGROUND_COLOR)
+        for i in range(1, len(self.newLines)):
             self.newLines[i].background = \
-                xmltextlayout.colorHashToRgba( MAIN_BACKGROUND_COLOR )
+                xmltextlayout.colorHashToRgba(MAIN_BACKGROUND_COLOR)
 
-
-    def __newSmoothRags( self ):
+    def __newSmoothRags(self):
         """
         Uses the computed size metrics to smooth the rags of the
         extended suggestions.
@@ -451,30 +465,29 @@ class QuasimodeLayout:
         # continue until all adjacent windows are either equal in
         # width or have widths greater than the constant.
 
-        def _computeWidth( doc ):
+        def _computeWidth(doc):
             lines = []
             for b in doc.blocks:
-                lines.extend( b.lines )
-            if len( lines ) == 0:
+                lines.extend(b.lines)
+            if len(lines) == 0:
                 return 0
-            return max( [ l.xMax for l in lines ] )
+            return max([l.xMax for l in lines])
 
         for l in self.newLines:
-            l.ragWidth = _computeWidth( l )
+            l.ragWidth = _computeWidth(l)
 
-        for i in range( MAX_CYCLES ):
-            widths = [ l.ragWidth for l in self.newLines ]
-            for i in range( len(widths) - 1 ):
-                if abs(widths[i]-widths[i+1]) < RAG_DELTA:
+        for i in range(MAX_CYCLES):
+            widths = [l.ragWidth for l in self.newLines]
+            for i in range(len(widths) - 1):
+                if abs(widths[i] - widths[i + 1]) < RAG_DELTA:
                     # If the widths of two adjacent windows are near
                     # each other, then set both to be the width of the
                     # wider one.
-                    outsideWidth = max( widths[i], widths[i+1] )
+                    outsideWidth = max(widths[i], widths[i + 1])
                     self.newLines[i].ragWidth = outsideWidth
-                    self.newLines[i+1].ragWidth = outsideWidth
+                    self.newLines[i + 1].ragWidth = outsideWidth
 
-
-    def __newRoundCorners( self ):
+    def __newRoundCorners(self):
         """
         Sets all the appropriate corners to be rounded.
         """
@@ -492,18 +505,17 @@ class QuasimodeLayout:
 
         lines = self.newLines[:2] + self.newLines[3:]
 
-        for i in range( len(lines)-1 ):
-            if lines[i+1].ragWidth < lines[i].ragWidth:
+        for i in range(len(lines) - 1):
+            if lines[i + 1].ragWidth < lines[i].ragWidth:
                 lines[i].roundLowerRight = True
 
-        for i in range( len(lines)-1 ):
-            if lines[i].ragWidth < lines[i+1].ragWidth:
-                lines[i+1].roundUpperRight = True
+        for i in range(len(lines) - 1):
+            if lines[i].ragWidth < lines[i + 1].ragWidth:
+                lines[i + 1].roundUpperRight = True
 
         # last line has always lower-right corner rounded
         lines[-1].roundLowerRight = True
         #self.newLines = lines
-
 
     def getCurrentCommandWidth(self, quasimode):
         command = quasimode.getSuggestionList().getActiveCommand()
@@ -512,10 +524,10 @@ class QuasimodeLayout:
         if not (hasattr(command, "name") and command.name):
             return None
         layout = layoutXmlLine(
-            xml_data = self.LINE_XML % (command.name + " "),
-            styles = retrieveAutocompleteStyles( True ),
-            scale = AUTOCOMPLETE_SCALE,
-            )
+            xml_data=self.LINE_XML % (command.name + " "),
+            styles=retrieveAutocompleteStyles(True),
+            scale=AUTOCOMPLETE_SCALE,
+        )
         try:
             return layout.blocks[0].lines[0].xMax
         except:

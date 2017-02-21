@@ -64,11 +64,11 @@ if sys.platform.startswith("win"):
     platform_name = "win32"
 elif any(map(sys.platform.startswith, ("linux","openbsd","freebsd","netbsd"))):
     from socket import error as SocketError
-    from enso.platform.linux.utils import get_status_output
+    from enso.platform.linux.utils import get_cmd_output
     platform_name = "linux"
 elif sys.platform == "darwin":
     from socket import error as SocketError
-    from enso.platform.linux.utils import get_status_output
+    from enso.platform.linux.utils import get_cmd_output
     platform_name = "osx"
 
         
@@ -122,7 +122,7 @@ def get_local_ip():
 def get_external_ip():
     ip = None
     try:
-        with closing(urllib2.urlopen("https://api.ipify.org", timeout=2)) as resp:
+        with closing(urllib2.urlopen("http://api.ipify.org", timeout=2)) as resp:
             text = resp.read()
             if text:
                 ip = text
@@ -175,7 +175,7 @@ def get_mac_address(host):
                 return if_mac.upper()
         return None
         """
-        rc, out = get_status_output("arp -n %s" % host)
+        rc, out = get_cmd_output("arp -n %s" % host)
         if rc == 0 and out:
             for entry in out.splitlines():
                 r = re.search(r"^%s.*?([a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2}:[a-f0-9]{2})" % re.escape(host), entry, re.IGNORECASE)

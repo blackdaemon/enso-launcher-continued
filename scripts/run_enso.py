@@ -150,15 +150,15 @@ def main(argv = None):
             and os.path.isfile(ensorc_path+".lnk")):
             # Extract real .ensorc path from .ensorc.lnk file on Windows platform
             try:
-                import pythoncom
-                from win32com.shell import shell, shellcon
-                link = pythoncom.CoCreateInstance(
+                import pythoncom  # @UnresolvedImport
+                from win32com.shell import shell, shellcon  # @UnresolvedImport
+                link = pythoncom.CoCreateInstance(  # @UndefinedVariable
                     shell.CLSID_ShellLink,
                     None,
-                    pythoncom.CLSCTX_INPROC_SERVER,
+                    pythoncom.CLSCTX_INPROC_SERVER,  # @UndefinedVariable
                     shell.IID_IShellLink
                 )
-                link.QueryInterface(pythoncom.IID_IPersistFile).Load(ensorc_path+".lnk")
+                link.QueryInterface(pythoncom.IID_IPersistFile).Load(ensorc_path+".lnk")  # @UndefinedVariable
                 path = link.GetPath(shell.SLGP_UNCPRIORITY)
                 if path and path[0]:
                     ensorc_path = path[0]
@@ -184,7 +184,7 @@ def main(argv = None):
         logging.error("Invalid hotkey spec: %s" % opts.hotkey)
 
     # Can't display message at this phase as on Linux the gtk loop is not active yet
-    # at this point and that causes screen artefacts.
+    # at this point and that causes screen artifacts.
     #if not opts.quiet and opts.show_splash:
     #    displayMessage("<p><command>Enso</command> is starting...</p>")
     
@@ -211,14 +211,20 @@ def main(argv = None):
         # Use Psyco optimization if available
         # Last Psyco available is for Python 2.6 (Win32) and Python 2.7 (Linux, unofficial build from github)
         # There is no Psyco support for Python > 2.7
-        from enso.thirdparty import psyco
+        import psyco  # @UnresolvedImport
         psyco.profile()
         #psyco.log()
     except Exception as e:
-        print e
+        try:
+            from enso.thirdparty import psyco
+            psyco.profile()
+            #psyco.log()
+        except Exception as e:
+            logging.error(e)
+        else:
+            logging.info("Using Psyco optimization; Psyco for Python 2.7 (experimental)")
     else:
-        logging.info("Using Psyco optimization")
-        print "Using Psyco optimization"
+        logging.info("Using Psyco optimization; Psyco for Python <= 2.6")
 
     l = logging.getLogger()
     if l.isEnabledFor(logging.DEBUG):

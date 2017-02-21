@@ -35,6 +35,7 @@ from time import sleep
 
 import gtk
 import cairo
+from enso.platform.linux import utils
 
 from enso.events import EventManager
 
@@ -132,7 +133,7 @@ gtk would do, for instance.'''
         def draw_wallpaper (self, cr):
             '''Draw wallpaper below surface contents to fake transparency'''
             if not TransparentWindow._impl.__wallpaper_surface:
-                update_wallpaper_surface ()
+                update_wallpaper_surface () #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 if not TransparentWindow._impl.__wallpaper_surface:
                     return
             cr.set_operator (cairo.OPERATOR_DEST_ATOP)
@@ -149,7 +150,7 @@ as background when doing fake transparency'''
             root = screen.get_root_window ()
             id = root.property_get ("_XROOTPMAP_ID", "PIXMAP")[2][0]
             if hasattr (gtk.gdk, "gdk_pixmap_foreign_new"):
-                pixmap = gtk.gdk.gdk_pixmap_foreign_new (long (id))
+                pixmap = gtk.gdk.gdk_pixmap_foreign_new (long (id)) #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             else:
                 pixmap = gtk.gdk.pixmap_foreign_new (long (id))
             width, height = screen.get_width (), screen.get_height ()
@@ -217,8 +218,8 @@ please use a compositing manager to get proper blending.''')
 
         def setOpacity (self, opacity):
             '''Set window opacity and grab or ungrab the pointer according to
-the opacity level ; this is probably a FIXME cause it looks really ugly and
-might cause bad conflicts or race conditions in the future.'''
+            the opacity level ; this is probably a FIXME cause it looks really ugly and
+            might cause bad conflicts or race conditions in the future.'''
             self.__opacity = opacity
             # FIXME: I'm not clean
             #if self.__opacity == MAX_OPACITY:
@@ -299,12 +300,12 @@ and destroy it.'''
         '''Destroy the inner instance'''
         self.finish ()
 
+
 def getCurrentMonitor ():
     '''Helper fetching the current monitor of focus'''
-    from enso.platform.linux import utils
     display = utils.get_display ()
     input_focus = display.get_input_focus ()
-    if input_focus != None and input_focus.focus:
+    if input_focus is not None and input_focus.focus:
         window = input_focus.focus
         geom = window.get_geometry()
         width = geom.width
@@ -321,17 +322,17 @@ def getCurrentMonitor ():
             y = trans.y
     else:
         x, y = 0, 0
-        print "no focus"
-
-    return gtk.gdk.screen_get_default ().get_monitor_at_point(x, y)
+    return gtk.gdk.screen_get_default().get_monitor_at_point(x, y)
 
 def getDesktopOffset ():
     '''Helper fetching the offset so that Enso can draw on multiple desktops'''
-    left, top, _, _ = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
+    left, top, _, _ = gtk.gdk.screen_get_default().get_monitor_geometry (getCurrentMonitor ())
     return left, top
 
 def getDesktopSize ():
-    _, _, width, height = gtk.gdk.screen_get_default ().get_monitor_geometry (getCurrentMonitor ())
+    ds = gtk.gdk.screen_get_default()
+    cm = getCurrentMonitor ()
+    _, _, width, height = ds.get_monitor_geometry (cm)
     return width, height
 
 def getWorkareaOffset ():

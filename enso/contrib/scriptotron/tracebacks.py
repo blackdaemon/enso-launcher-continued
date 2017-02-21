@@ -1,6 +1,6 @@
 import sys
 import traceback
-import xml.sax.saxutils
+from xml.sax.saxutils import escape as xml_escape
 
 import enso.selection
 from enso.messages import displayMessage
@@ -21,7 +21,7 @@ def _makeExcInfoMsgText( exceptionType, exception, tb ):
         lineNo,
         funcName
         )
-    mainText = xml.sax.saxutils.escape( mainText )
+    mainText = xml_escape( mainText )
     msgText = "<p>%s</p>" \
               "<caption>Run the 'traceback' command for more " \
               "details.</caption>" % mainText

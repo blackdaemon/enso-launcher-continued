@@ -33,19 +33,17 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-# Future imports
 from __future__ import with_statement
-
-import os
 import logging
+import os
 
 import gio
 from gtk.gdk import lock as gtk_lock
-
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from enso.contrib.open import shortcuts
+
 
 SHORTCUT_CATEGORY_DESKTOP = "desktop"
 SHORTCUT_CATEGORY_LAUNCHPANEL = "launch-panel"
@@ -56,7 +54,7 @@ _dir_monitor = None
 _file_changed_event_handler = None
 
 
-class _FileChangedEventHandler( FileSystemEventHandler ):
+class _FileChangedEventHandler(FileSystemEventHandler):
     
     def __init__(self):
         super(_FileChangedEventHandler, self).__init__()
@@ -67,7 +65,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_moved(event)
         what = 'directory' if event.is_directory else 'file'
         print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
@@ -75,7 +73,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_created(event)
         what = 'directory' if event.is_directory else 'file'
         print "Created %s: %s" % (what, event.src_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
@@ -83,7 +81,7 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_deleted(event)
         what = 'directory' if event.is_directory else 'file'
         print "Deleted %s: %s" % (what, event.src_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
@@ -91,12 +89,12 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
         super(_FileChangedEventHandler, self).on_modified(event)
         what = 'directory' if event.is_directory else 'file'
         print "Modified %s: %s" % (what, event.src_path)
-        # We are interested only in created/modified/deleted files, not subdirs 
+        # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
 
     def call_callback(self, event):
-        print "Recently changed learned-shortcuts list was updated"
+        print "Recently changed desktop shortcuts list was updated"
         if self.update_callback_func:
             try:
                 print "Calling update callback func..."
@@ -105,7 +103,6 @@ class _FileChangedEventHandler( FileSystemEventHandler ):
                 logging.error(e)
         else:
             print "No calling update callback func was defined, that's fine"
-
 
 
 def get_shortcut_type(filepath):
@@ -117,7 +114,7 @@ def lookup_exec_path(exename):
     PATH = os.environ.get("PATH") or os.defpath
     for execdir in PATH.split(os.pathsep):
         exepath = os.path.join(execdir, exename)
-        if os.access(exepath, os.R_OK|os.X_OK) and os.path.isfile(exepath):
+        if os.access(exepath, os.R_OK | os.X_OK) and os.path.isfile(exepath):
             return exepath
 
 
@@ -135,8 +132,7 @@ def _get_runnable_shortcuts_from_dir(directory, category):
                 #print f
                 ds = get_app_info(f)
                 #print ds
-            except RuntimeError as e:
-                #print f, e
+            except RuntimeError:
                 continue
             try:
                 name = ds.get_name().lower()
@@ -144,10 +140,10 @@ def _get_runnable_shortcuts_from_dir(directory, category):
                 executable = ds.get_executable()
                 #print executable
                 t = get_shortcut_type(executable)
-            except AttributeError as e:
+            except AttributeError:
                 continue
             #cmdline = ds.get_commandline()
-        shortcut = shortcuts.Shortcut(name, t, f, f, category)
+        shortcut = shortcuts.Shortcut(name, t, f, category=category)
         result.append(shortcut)
     return result
 
@@ -156,10 +152,11 @@ def get_desktop_shortcuts():
     logging.info("open-command: Loading desktop shortcuts")
     s = _get_runnable_shortcuts_from_dir(DESKTOP_DIR, SHORTCUT_CATEGORY_DESKTOP)
     s.append(
-        shortcuts.Shortcut("Desktop", shortcuts.SHORTCUT_TYPE_FOLDER, DESKTOP_DIR, DESKTOP_DIR, SHORTCUT_CATEGORY_DESKTOP)
-        )
+        shortcuts.Shortcut("Desktop", shortcuts.SHORTCUT_TYPE_FOLDER, DESKTOP_DIR, category=SHORTCUT_CATEGORY_DESKTOP)
+    )
     logging.info("open-command: Loaded %d desktop shortcuts" % len(s))
     return s 
+
 
 def get_launch_panel_shortcuts():
     return _get_runnable_shortcuts_from_dir(LAUNCH_PANEL_DIR, SHORTCUT_CATEGORY_LAUNCHPANEL)
@@ -170,9 +167,10 @@ def register_update_callback(callback_func):
     global _dir_monitor, _file_changed_event_handler
     if _file_changed_event_handler is None:
         _file_changed_event_handler = _FileChangedEventHandler()
-    _file_changed_event_handler.update_callback_func = callback_func
+    if _file_changed_event_handler.update_callback_func != callback_func:
+        _file_changed_event_handler.update_callback_func = callback_func
     if _dir_monitor is None:
-        # Set up the directory watcher for shortcuts directory 
+        # Set up the directory watcher for shortcuts directory
         _dir_monitor = Observer()
         _dir_monitor.schedule(_file_changed_event_handler, DESKTOP_DIR, recursive=False)
         _dir_monitor.schedule(_file_changed_event_handler, LAUNCH_PANEL_DIR, recursive=False)

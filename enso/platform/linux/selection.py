@@ -35,18 +35,16 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from __future__ import with_statement
-
-import logging
-
-from time import sleep, time, clock
+from time import clock, time
 
 import Xlib
-import Xlib.ext.xtest
-from utils import *
-
+#import Xlib.ext.xtest
 import dbus
 import dbus.mainloop.glib
-from gio import File
+import gtk.gdk
+from gio import File  # @UnresolvedImport Keep PyLint and PyDev happy
+
+from enso.platform.linux.utils import get_display, get_keycode
 from enso.platform.linux.weaklib import DbusWeakCallback
 
 
@@ -55,18 +53,22 @@ gtk.gdk.threads_init()
 """
 Class to handle Nautilus file-selection notifications in Linux Gnome desktop
 """
+
+
 class NautilusFileSelection(object):
+
     def __init__(self):
         self.paths = []
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)    
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         callback = DbusWeakCallback(self._on_selection_change)
-        # Register signal receiver for SelectionChanged event in Nautilus windows
+        # Register signal receiver for SelectionChanged event in Nautilus
+        # windows
         callback.token = dbus.Bus().add_signal_receiver(
             callback,
             "SelectionChanged",
             dbus_interface="se.kaizer.FileSelection",
             byte_arrays=True)
-        
+
     def _on_selection_change(self, selection, window_id):
         # File selection changed (user clicked on file/directory or selected
         # a group of files/directories.
@@ -80,24 +82,27 @@ GET_TIMEOUT = 1.5
 PASTE_STATE = Xlib.X.ShiftMask
 PASTE_KEY = "^V"
 
-def get_clipboard_text_cb (clipboard, text, userdata):
+
+def get_clipboard_text_cb(clipboard, text, userdata):
     '''Callback for clipboard fetch handling'''
     global selection_text
     selection_text = text
 
-def get_focused_window (display):
+
+def get_focused_window(display):
     '''Get the currently focussed window'''
-    input_focus = display.get_input_focus ()
+    input_focus = display.get_input_focus()
     window = Xlib.X.NONE
-    if input_focus != None and input_focus.focus:
+    if input_focus is not None and input_focus.focus:
         window = input_focus.focus
     return window
 
-def make_key (keycode, state, window, display):
+
+def make_key(keycode, state, window, display):
     '''Build a data dict for a KeyPress/KeyRelease event'''
-    root = display.screen ().root
+    root = display.screen().root
     event_data = {
-        "time": int (time ()),
+        "time": int(time()),
         "root": root,
         "window": window,
         "same_screen": True,
@@ -108,59 +113,89 @@ def make_key (keycode, state, window, display):
         "event_y": 0,
         "state": state,
         "detail": keycode,
-                 }
+    }
     return event_data
 
-def fake_key_up (key, window, display):
+
+def fake_key_up(key, window, display):
     '''Fake a keyboard press event'''
-    event = Xlib.protocol.event.KeyPress (**key)
-    window.send_event (event, propagate = True)
-    display.sync ()
+    event = Xlib.protocol.event.KeyPress(
+        **key)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    window.send_event(event, propagate=True)
+    display.sync()
 
-def fake_key_down (key, window, display):
+
+def fake_key_down(key, window, display):
     '''Fake a keyboard release event'''
-    event = Xlib.protocol.event.KeyRelease (**key)
-    window.send_event (event, propagate = True)
-    display.sync ()
+    event = Xlib.protocol.event.KeyRelease(
+        **key)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    window.send_event(event, propagate=True)
+    display.sync()
 
-def fake_key_updown (key, window, display):
+
+def fake_key_updown(key, window, display):
     '''Fake a keyboard press/release events pair'''
-    fake_key_up (key, window, display)
-    fake_key_down (key, window, display)
+    fake_key_up(key, window, display)
+    fake_key_down(key, window, display)
 
-def fake_paste (display = None):
+
+def fake_paste(display=None):
     '''Fake a "paste" keyboard event'''
     if not display:
-        display = get_display ()
-    window = get_focused_window (display)
+        display = get_display()
+    window = get_focused_window(display)
     state = PASTE_STATE
     k = PASTE_KEY
     ctrl = False
     if k.startswith("^"):
         k = k[1:]
         ctrl = True
-    keycode = get_keycode (key = k, display = display)
-    key = make_key (keycode, state, window, display)
-    ctrl_keycode = get_keycode (key = "Control_L", display = display)
-    ctrl_key = make_key (ctrl_keycode, state, window, display)
-    if ctrl: 
+    keycode = get_keycode(key=k, display=display)
+    key = make_key(keycode, state, window, display)
+    ctrl_keycode = get_keycode(key="Control_L", display=display)
+    ctrl_key = make_key(ctrl_keycode, state, window, display)
+    if ctrl:
         Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
     Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
     display.sync()
 
-    
-def get ():
+
+def fake_ctrl_l(display=None):
+    '''Fake a "Ctrl+L" keyboard event'''
+    if not display:
+        display = get_display()
+    window = get_focused_window(display)
+    state = PASTE_STATE
+    k = "^L"
+    ctrl = False
+    if k.startswith("^"):
+        k = k[1:]
+        ctrl = True
+    keycode = get_keycode(key=k, display=display)
+    key = make_key(keycode, state, window, display)
+    ctrl_keycode = get_keycode(key="Control_L", display=display)
+    ctrl_key = make_key(ctrl_keycode, state, window, display)
+    if ctrl:
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
+    if ctrl:
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
+    display.sync()
+
+
+def get():
     '''Fetch text from X PRIMARY selection'''
     global selection_text, nautilus_file_selection
-    
+
     selection_text = None
-    clipboard = gtk.clipboard_get (gtk.gdk.SELECTION_PRIMARY)
-    clipboard.request_text (get_clipboard_text_cb)
+    clipboard = gtk.clipboard_get(gtk.gdk.SELECTION_PRIMARY)
+    clipboard.request_text(get_clipboard_text_cb)
     # Iterate until we actually received something, or we timed out waiting
-    start = clock ()
-    while not selection_text and (clock () - start) < GET_TIMEOUT:
+    start = clock()
+    while not selection_text and (clock() - start) < GET_TIMEOUT:
         gtk.main_iteration(False)
     if not selection_text:
         selection_text = ""
@@ -168,28 +203,28 @@ def get ():
     # Get file list from Nautilus window (if available)
     focus = get_focused_window(get_display())
     wmclass = focus.get_wm_class()
-    if wmclass is None: #or wmname is None:
+    if wmclass is None:  # or wmname is None:
         focus = focus.query_tree().parent
         wmclass = focus.get_wm_class()
-    wmname = focus.get_wm_name()
-    #print wmclass, wmname
-    #TODO: Implement file selection from other Linux file managers
+    #wmname = focus.get_wm_name()
+    # print wmclass, wmname
+    # TODO: Implement file selection from other Linux file managers
     if nautilus_file_selection and nautilus_file_selection.paths and wmclass[0] == 'nautilus':
         files = nautilus_file_selection.paths
     selection = {
-                    "text": selection_text,
-                    "files": files,
-                }
+        "text": selection_text,
+        "files": files,
+    }
     return selection
 
-def set (seldict):
+
+def set(seldict):
     '''Paste data into X CLIPBOARD selection'''
     if "text" in seldict:
-        clipboard = gtk.clipboard_get (selection = "CLIPBOARD")
-        clipboard.set_text (seldict["text"])
-        primary = gtk.clipboard_get (selection = "PRIMARY")
-        primary.set_text (seldict["text"])
+        clipboard = gtk.clipboard_get(selection="CLIPBOARD")
+        clipboard.set_text(seldict["text"])
+        primary = gtk.clipboard_get(selection="PRIMARY")
+        primary.set_text(seldict["text"])
         fake_paste()
         return True
     return False
-

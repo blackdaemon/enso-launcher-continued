@@ -30,10 +30,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import with_statement
-import win32api
-import win32con
 import os
 from contextlib import contextmanager
+
+import win32api
+import win32con
+
 
 try:
     import regex as re

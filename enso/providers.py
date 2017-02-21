@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -108,22 +108,22 @@ def _initDefaultProviders():
         try:
             # Import the module; most of this code was taken from the
             # Python Library Reference documentation for __import__().
-            module = __import__( moduleName, {}, {}, [] )
-            components = moduleName.split( "." )
+            module = __import__(moduleName, {}, {}, [])
+            components = moduleName.split(".")
             for component in components[1:]:
-                module = getattr( module, component )
+                module = getattr(module, component)
 
-            _providers.append( module )
-            logging.info( "Added provider %s." % moduleName )
+            _providers.append(module)
+            logging.info("Added provider %s." % moduleName)
         except ProviderUnavailableError:
-            logging.info( "Skipping provider %s." % moduleName )
+            logging.info("Skipping provider %s." % moduleName)
 
 
 # ----------------------------------------------------------------------------
 # Public functions
 # ----------------------------------------------------------------------------
 
-def getInterface( name ):
+def getInterface(name):
     """
     Finds and returns an implementation that provides an interface
     with the given name.  If no interface exists that provides the
@@ -136,20 +136,21 @@ def getInterface( name ):
         return _interfaces[name]
     else:
         for provider in _providers:
-            interface = provider.provideInterface( name )
+            interface = provider.provideInterface(name)
             if interface:
-                logging.info( "Obtained interface '%s' from provider '%s'."
-                              % (name, provider.__name__) )
+                logging.info("Obtained interface '%s' from provider '%s'."
+                             % (name, provider.__name__))
                 _interfaces[name] = interface
                 return interface
         else:
-            raise ProviderNotFoundError( name )
+            raise ProviderNotFoundError(name)
 
 # ----------------------------------------------------------------------------
 # Exceptions
 # ----------------------------------------------------------------------------
 
-class ProviderUnavailableError( Exception ):
+
+class ProviderUnavailableError(Exception):
     """
     Exception raised when a provider is unavailable for use, even
     though its implementation exists; this may be because, for
@@ -160,7 +161,8 @@ class ProviderUnavailableError( Exception ):
 
     pass
 
-class ProviderNotFoundError( Exception ):
+
+class ProviderNotFoundError(Exception):
     """
     Exception raised when an implementation for a particular interface
     is not found.

@@ -98,7 +98,8 @@ from collections import namedtuple
 # Command Objects
 # ----------------------------------------------------------------------------
 
-class _CommandImpl( object ):
+
+class _CommandImpl(object):
     """
     A "command implementation" is either a CommandObject (for commands
     that take no arguments) or a CommandFactory (for commands that
@@ -117,10 +118,10 @@ class _CommandImpl( object ):
             191: "/" # Instead of ? (helps access / without Shift on laptop keyboards)
         }
     """
-    
+
     __metaclass__ = ABCMeta
-    
-    def __init__( self ):
+
+    def __init__(self):
         """
         Initializes the command implementation object.
         """
@@ -131,21 +132,20 @@ class _CommandImpl( object ):
     # LONGTERM TODO: Consider using Python's property() function
     # for providing access to these data members.
 
-    def setDescription( self, descr ):
+    def setDescription(self, descr):
         self.__description = descr
 
-    def getDescription( self ):
+    def getDescription(self):
         return self.__description
 
-
-    def setHelp( self, helpText ):
+    def setHelp(self, helpText):
         self.__helpText = helpText
 
-    def getHelp( self ):
+    def getHelp(self):
         return self.__helpText
 
 
-class CommandObject( _CommandImpl ):
+class CommandObject(_CommandImpl):
     """
     An object with a run() method which implements the action of a
     command.  It also has various getters and setters for certain
@@ -153,24 +153,23 @@ class CommandObject( _CommandImpl ):
     """
 
     __metaclass__ = ABCMeta
-    
-    def __init__( self ):
+
+    def __init__(self):
         """
         Initializes the command object.
         """
 
-        _CommandImpl.__init__( self )
+        _CommandImpl.__init__(self)
 
         self.__name = None
 
-
-    def getName( self ):
+    def getName(self):
         return self.__name
 
-    def setName( self, name ):
+    def setName(self, name):
         self.__name = name
 
-    def run( self ):
+    def run(self):
         """
         Abstract Method: Should execute the command.
 
@@ -187,7 +186,7 @@ class CommandObject( _CommandImpl ):
         pass
 
 
-class AbstractCommandFactory( _CommandImpl ):
+class AbstractCommandFactory(_CommandImpl):
     """
     A "CommandFactory" is an object which can take some text, and
     return the best matched CommandObject from among some collection
@@ -203,21 +202,21 @@ class AbstractCommandFactory( _CommandImpl ):
     autocompletions, because it may be determined that the user should
     always enter an exact number.
     """
-    
+
     __metaclass__ = ABCMeta
-    
-    override = ('retrieveSuggestions', 'autoComplete', 'getCommandObj', 'getCommandList')
+
+    override = ('retrieveSuggestions', 'autoComplete',
+                'getCommandObj', 'getCommandList')
 
     @abstractmethod
-    def getCommandList( self ):
+    def getCommandList(self):
         """
         Returns a list of all available command names (a list of strings).
         """
         return None
 
-
     @abstractmethod
-    def retrieveSuggestions( self, userText ):
+    def retrieveSuggestions(self, userText):
         """
         Returns a list containing the VERY LATEST suggestions (in the
         form of Suggestion objects) available that match the userText
@@ -226,18 +225,16 @@ class AbstractCommandFactory( _CommandImpl ):
         """
         return None
 
-
     @abstractmethod
-    def autoComplete( self, userText ):
+    def autoComplete(self, userText):
         """
         If this factory can produce a match to userText, then returns
         an AutoCompletion object.  Otherwise, returns None.
         """
         return None
 
-
     @abstractmethod
-    def getCommandObj( self, commandName ):
+    def getCommandObj(self, commandName):
         """
         Should return a CommandObject matching commandName, or else
         None.
@@ -266,62 +263,60 @@ class CommandExpression:
     at the end of the string.
     """
 
-    def __init__( self, stringExpression ):
+    def __init__(self, stringExpression):
         """
         Instantiates the expression object.
         """
 
-        expr, prefix, arg = self.__computeExpression( stringExpression )
+        expr, prefix, arg = self.__computeExpression(stringExpression)
         self.__string = expr
         self.__prefix = prefix
         self.__arg = arg
 
-
-    def __str__( self ):
+    def __str__(self):
         return self.getString()
 
-    def getString( self ):
+    def getString(self):
         return self.__string
 
-    def getPrefix( self ):
+    def getPrefix(self):
         return self.__prefix
 
-    def getArg( self ):
+    def getArg(self):
         return self.__arg
 
-    def hasArgument( self ):
+    def hasArgument(self):
         return len(self.__arg) > 0
 
-    def __computeExpression( self, expr ):
+    def __computeExpression(self, expr):
         """
         Calculates and stores all approriate information for
         expr.
         """
 
-        bracket1 = expr.find( "{" )
-        bracket2 = expr.find( "}" )
+        bracket1 = expr.find("{")
+        bracket2 = expr.find("}")
 
         why = "Malformed command expression: %s" % expr
         # The end bracket must be at the end, or not found at all.
-        assert ( bracket2 == len(expr)-1 ) or \
-               ( bracket2 == -1 ), why
+        assert (bracket2 == len(expr) - 1) or \
+               (bracket2 == -1), why
         # Either both brackets are found, or neither are found.
-        assert ( bracket1 == -1 or not bracket2 == -1 ), why
+        assert (bracket1 == -1 or not bracket2 == -1), why
 
         string = expr
         # The argument is everything after the first bracket, up to
         # but not including the second bracket:
         if bracket1 > -1:
-            arg = expr[bracket1+1:bracket2]
+            arg = expr[bracket1 + 1:bracket2]
             prefix = expr[:bracket1]
         else:
             arg = ""
             prefix = expr
-        
+
         return namedtuple('ComputedExpression', 'string prefix arg')(string, prefix, arg)
 
-
-    def matches( self, userText ):
+    def matches(self, userText):
         """
         Determines whether userText matches this command expression;
         note that this does not necessarily guarantee that userText
@@ -333,10 +328,7 @@ class CommandExpression:
         Returns False otherwise.
         """
 
-        if len(userText)<len(self.__prefix):
-            return self.__prefix.startswith( userText )
+        if len(userText) < len(self.__prefix):
+            return self.__prefix.startswith(userText)
         else:
-            return userText.startswith( self.__prefix )
-        return True
-
-
+            return userText.startswith(self.__prefix)

@@ -41,7 +41,6 @@
 # ----------------------------------------------------------------------------
 
 from enso import cairo
-from enso import graphics
 from enso.graphics.transparentwindow import TransparentWindow
 
 # ----------------------------------------------------------------------------
@@ -187,7 +186,7 @@ class MessageWindow:
 
         cr = self._context
         cr.set_source_rgba( 0, 0, 0, 0 )
-        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_operator(cairo.OPERATOR_SOURCE) #IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         cr.paint()
 
 

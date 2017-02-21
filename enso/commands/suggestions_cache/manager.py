@@ -41,38 +41,37 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import logging
 import os
 import time
-import logging
+from ctypes import c_ulong
 from glob import glob
+from os import makedirs
+from os.path import exists as path_exists, getmtime, isfile, join as path_join
 
-from os import makedirs 
-from os.path import join as path_join
-from os.path import exists as path_exists
-from os.path import isfile, getmtime
-
-from enso import config
-from enso.utils.memoize import memodict
-from enso.events import EventManager
 import enso.providers
+from enso.events import EventManager
+from enso.utils.memoize import lru_cache
 
 
 DISK_CACHING = True
 MAX_CACHE_AGE = 60 * 60 * 12
 
 # The directory path for cached google results
-CACHE_DIR = path_join(enso.providers.getInterface("system").get_enso_cache_dir(), "suggestions")
+CACHE_DIR = path_join(
+    enso.providers.getInterface("system").get_enso_cache_dir(), "suggestions")
 
 CACHE_SESSIONS = {}
 
 
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR, 0o744)
-        
+
+
 def maybe_clean_cache():
     """Delete all .cache files in the cache directory that are older than 12 hours."""
     now = time.time()
-    for fname in glob(path_join(CACHE_DIR, "*", "*.cache")):
+    for fname in glob(path_join(CACHE_DIR, "*", "*", "*.cache")):
         if now > getmtime(fname) + MAX_CACHE_AGE:
             os.remove(fname)
 
@@ -80,39 +79,41 @@ def maybe_clean_cache():
 maybe_clean_cache()
 
 
-from ctypes import c_ulong
+def sdbm_l_hash(L):
+    h = 0
+    for c in L:
+        h = c_ulong(ord(c) + (h << 6) + (h << 16) - h).value
+    return h
 
-def ulong(i): 
-    return c_ulong(i).value  # numpy would be better if available
 
-def sdbm_l(L):
-    return reduce(lambda h,c: ulong(ord(c) + (h << 6) + (h << 16) - h), L, 0)
-  
-  
 def cached_file_name(search_params):
     #sha = hashlib.sha256()
     # Make a unique file name based on the values of the google search parameters.
-    #sha.update(search_params.encode())
-    return '%s.%s' % (str(sdbm_l(search_params)), "cache")
+    # sha.update(search_params.encode())
+    return '%s.%s' % (str(sdbm_l_hash(search_params)), "cache")
 
 
-@memodict
+@lru_cache()
 def ensure_cache_dir_exists(cache_id):
     assert isinstance(cache_id, basestring) and cache_id.isalnum()
     complete_cache_dir = path_join(CACHE_DIR, cache_id)
     if not path_exists(complete_cache_dir):
         makedirs(complete_cache_dir, 0o744)
+    for i in range(10):
+        cache_subdir = path_join(complete_cache_dir, str(i))
+        if not path_exists(cache_subdir):
+            makedirs(cache_subdir, 0o744)
     return complete_cache_dir
 
 
-def write_list_to_cache_file(fname, lst):           
+def write_list_to_cache_file(fname, lst):
     with open(fname, "wbt") as f:
         f.write(u"\n".join(lst).encode("UTF-8"))
 
 
-def read_list_from_cache_file(fname):           
-    with open(fname, "rb", 1024*1024) as f:
-        txt = f.read(1024*1024).decode("UTF-8")
+def read_list_from_cache_file(fname):
+    with open(fname, "rb", 1024 * 1024) as f:
+        txt = f.read(1024 * 1024).decode("UTF-8")
         return txt.splitlines()
 
 
@@ -120,80 +121,82 @@ def read_list_from_cache_file(fname):
 # The cache
 # ----------------------------------------------------------------------------
 
-class Cache( object ):
+class Cache(object):
+
     def __init__(self, cache_id):
         self.cache_id = cache_id
         self.__cache = {}
 
     def get_object(self, key, default=None):
         if key in self.__cache:
-            #print "Getting memory cached object for '%s'" % (key)
+            # print "Getting memory cached object for '%s'" % (key)
             return self.__cache[key]
-            
+
         if not DISK_CACHING:
             return default
-        
-        #return self._caches.get(key, [])
-        cache_dir = ensure_cache_dir_exists(self.cache_id)      
-        
-        fname = path_join(cache_dir, cached_file_name(key))
+
+        # return self._caches.get(key, [])
+        cache_dir = ensure_cache_dir_exists(self.cache_id)
+
+        fname = cached_file_name(key)
+        fname = path_join(cache_dir, fname[0], fname)
         if not isfile(fname):
-            #print "No cached object for '%s'" % (key)
+            # print "No cached object for '%s'" % (key)
             return default
-    
+
         try:
             # If the cached file is older than 12 hours, return False and thus
             # make a new fresh request.
             modtime = getmtime(fname)
             if (time.time() - modtime) / 60 / 60 > 12:
-                #print "No cached object for '%s'" % (key)
+                # print "No cached object for '%s'" % (key)
                 return default
 
             result = read_list_from_cache_file(fname)
 
-            #print result
+            # print result
             self.__cache[key] = result
-            #print "Getting file cached for '%s'" % (key)
+            # print "Getting file cached for '%s'" % (key)
             return result
         except Exception as err:
             print key, err
-            
-        #print "No cached object for '%s'" % (key)
+
+        # print "No cached object for '%s'" % (key)
         return default
 
-        
     def set_object(self, key, value):
-        #print "Caching object for '%s' in memory" % (key)
+        # print "Caching object for '%s' in memory" % (key)
         self.__cache[key] = value
-
 
     def persist(self):
         if len(self.__cache) == 0:
             return
-    
+
         if not DISK_CACHING:
             return
-        
+
         # Flush memory cache to disk and purge memory cache
         cache_dir = ensure_cache_dir_exists(self.cache_id)
-        #print "Persisting cache '%s' into %s (%d items)" % (self.cache_id, cache_dir, len(self.__cache))
-        for key, value in self.__cache.items()[:]:      
-            fname = path_join(cache_dir, cached_file_name(key))
+        # print "Persisting cache '%s' into %s (%d items)" % (self.cache_id,
+        # cache_dir, len(self.__cache))
+        for key, value in self.__cache.items()[:]:
+            fname = cached_file_name(key)
+            fname = path_join(cache_dir, fname[0], fname)
             # Already saved
             try:
                 if not path_exists(fname):
                     write_list_to_cache_file(fname, value)
             except Exception as e:
                 logging.error(e)
-            else:            
+            else:
                 del self.__cache[key]
 
 
 # ----------------------------------------------------------------------------
 # The cache manager
 # ----------------------------------------------------------------------------
-    
-class CacheManager( object ):
+
+class CacheManager(object):
     """
     Provides an interface to register and retrieve all commands.
 
@@ -204,42 +207,40 @@ class CacheManager( object ):
     __instance = None
 
     @classmethod
-    def get( cls ):
+    def get(cls):
         if not cls.__instance:
             cls.__instance = cls()
         return cls.__instance
 
-
-    def __init__( self ):
+    def __init__(self):
         """
         Initializes the command manager.
         """
         self._current_session_id = None
         self.__caches = {}
         self.__eventManager = EventManager.get()
-        self.__eventManager.registerResponder( self._onEndQuasimode, "endQuasimode" )
-
+        self.__eventManager.registerResponder(
+            self._onEndQuasimode, "endQuasimode")
 
     def set_data(self, key, data, cache_id, session_id=None):
         assert isinstance(key, basestring)
         assert isinstance(cache_id, basestring) and cache_id.isalnum()
         assert session_id is None or isinstance(session_id, basestring)
         assert isinstance(data, list)
-        
-        self.__caches.setdefault(cache_id, Cache(cache_id)).set_object(key, data)
-        
-        
+
+        self.__caches.setdefault(
+            cache_id, Cache(cache_id)).set_object(key, data)
+
     def get_data(self, key, cache_id, session_id=None):
         assert isinstance(key, basestring)
         assert isinstance(cache_id, basestring) and cache_id.isalnum()
         assert session_id is None or isinstance(session_id, basestring)
-        
+
         return self.__caches.setdefault(cache_id, Cache(cache_id)).get_object(key, [])
 
-        
     def get_session_cache(self, session_id):
         assert session_id is None or isinstance(session_id, basestring)
-        
+
         if self._current_session_id and session_id != self._current_session_id:
             self._schedule_cache_disposal(self._current_session_id)
             self._current_session_id = session_id
@@ -249,11 +250,9 @@ class CacheManager( object ):
             self._caches[session_id] = cache
         return cache
 
-        
     def _schedule_cache_disposal(self, session_id):
         pass
 
-        
     def _onEndQuasimode(self):
         # Flush memory cache to disk on quasimode end
         for cache in self.__caches.itervalues():

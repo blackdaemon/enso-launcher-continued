@@ -60,15 +60,19 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import time
 import atexit
-import logging
+import time
 
-from enso.quasimode.linewindows import TextWindow
-from enso.quasimode.layout import QuasimodeLayout
-from enso.quasimode.layout import HEIGHT_FACTOR
-from enso.quasimode.layout import DESCRIPTION_SCALE, AUTOCOMPLETE_SCALE, SUGGESTION_SCALE, DIDYOUMEANHINT_SCALE
 from enso import config
+from enso.quasimode.layout import (
+    AUTOCOMPLETE_SCALE,
+    DESCRIPTION_SCALE,
+    DIDYOUMEANHINT_SCALE,
+    HEIGHT_FACTOR,
+    SUGGESTION_SCALE,
+    QuasimodeLayout,
+)
+from enso.quasimode.linewindows import TextWindow
 
 
 # ----------------------------------------------------------------------------
@@ -87,7 +91,7 @@ class QuasimodeWindow:
     # wrap" if there are more suggestions than will fit on one screen,
     # the help text should have a max length with ellipsis
 
-    def __init__( self ):
+    def __init__(self):
         """
         Instantiates the quasimode window, creating all the necessary
         windows.
@@ -97,42 +101,41 @@ class QuasimodeWindow:
         # that window is.  Use a "top" variable to know how far down
         # the screen the top of the next window should start.
 
-        height = DESCRIPTION_SCALE[-1]*HEIGHT_FACTOR
+        height = DESCRIPTION_SCALE[-1] * HEIGHT_FACTOR
         self.__descriptionWindow = TextWindow(
-            height = height,
-            position = [ 0, 0 ],
-            )
+            height=height,
+            position=[0, 0],
+        )
         top = height
 
-        height = AUTOCOMPLETE_SCALE[-1]*HEIGHT_FACTOR
+        height = AUTOCOMPLETE_SCALE[-1] * HEIGHT_FACTOR
         self.__userTextWindow = TextWindow(
-            height = height,
-            position = [ 0, top ],
-            )
+            height=height,
+            position=[0, top],
+        )
         top += height
 
-        height = DIDYOUMEANHINT_SCALE[-1]*HEIGHT_FACTOR
+        height = DIDYOUMEANHINT_SCALE[-1] * HEIGHT_FACTOR
         self.__didyoumeanHintWindow = TextWindow(
-            height = height,
-            position = [ 50, top ],
-            )
+            height=height,
+            position=[50, top],
+        )
 
         self.__suggestionWindows = []
-        for i in range( config.QUASIMODE_MAX_SUGGESTIONS ):
-            height = SUGGESTION_SCALE[-1]*HEIGHT_FACTOR
-            self.__suggestionWindows.append( TextWindow(
-                height = height,
-                position = [ 0, top ],
-                ) )
+        for _ in range(config.QUASIMODE_MAX_SUGGESTIONS):
+            height = SUGGESTION_SCALE[-1] * HEIGHT_FACTOR
+            self.__suggestionWindows.append(TextWindow(
+                height=height,
+                position=[0, top],
+            ))
             top += height
 
         # The time, in float seconds since the epoch, when the last
         # drawing of the quasimode display started.
         self.__drawStart = 0
         atexit.register(self.__finalize)
-        
 
-    def hide( self ):
+    def hide(self):
         self.__descriptionWindow.hide()
         self.__userTextWindow.hide()
         if self.__didyoumeanHintWindow:
@@ -141,8 +144,7 @@ class QuasimodeWindow:
         for window in self.__suggestionWindows:
             window.hide()
 
-
-    def update( self, quasimode, isFullRedraw ):
+    def update(self, quasimode, isFullRedraw):
         """
         Fetches updated information from the quasimode, lays out and
         draws the quasimode window.
@@ -159,13 +161,13 @@ class QuasimodeWindow:
 
         # Instantiate a layout object, effectively laying out the
         # quasimode display.
-        layout = QuasimodeLayout( quasimode )
+        layout = QuasimodeLayout(quasimode)
 
         self.__drawStart = time.time()
 
         newLines = layout.newLines
 
-        self.__descriptionWindow.draw( newLines[0] )
+        self.__descriptionWindow.draw(newLines[0])
 
         suggestions = quasimode.getSuggestionList().getSuggestions()
         # TODO: Remake this so the line bear information about type, then
@@ -173,44 +175,44 @@ class QuasimodeWindow:
         # to juggle with list index here
         suggestions_start = 3
         if suggestions[0].isEmpty() \
-           and len( suggestions[0].getSource() ) == 0:
+           and len(suggestions[0].getSource()) == 0:
             self.__userTextWindow.hide()
             self.__didyoumeanHintWindow.hide()
         else:
-            self.__userTextWindow.draw( newLines[1] )
+            self.__userTextWindow.draw(newLines[1])
             didyoumean_hint = quasimode.getSuggestionList().getDidyoumeanHint()
             if didyoumean_hint:
-                if len(newLines)-suggestions_start > 0:
+                if len(newLines) - suggestions_start > 0:
                     # If there is at least one suggestion, draw it first as we want
                     # to overlay it with the did-you-mean hint window
-                    self.__suggestionWindows[0].draw(newLines[suggestions_start])
+                    self.__suggestionWindows[0].draw(
+                        newLines[suggestions_start])
                     suggestions_start += 1
                 w = layout.getCurrentCommandWidth(quasimode)
                 if w:
                     _, y = self.__didyoumeanHintWindow.getPosition()
                     self.__didyoumeanHintWindow.setPosition(w, y)
-                self.__didyoumeanHintWindow.draw( newLines[2] )
+                self.__didyoumeanHintWindow.draw(newLines[2])
             else:
                 self.__didyoumeanHintWindow.hide()
         suggestionLines = newLines[suggestions_start:]
 
         # We now need to hide all line windows.
-        for i in range( len( suggestionLines ),
-                        len( self.__suggestionWindows ) ):
+        for i in range(len(suggestionLines),
+                       len(self.__suggestionWindows)):
             self.__suggestionWindows[i].hide()
 
         self.__suggestionsLeft = _makeSuggestionIterator(
             suggestionLines,
             self.__suggestionWindows
-            )
+        )
 
         if isFullRedraw:
             # Draw suggestions
-            while self.continueDrawing( ignoreTimeElapsed = True ):
+            while self.continueDrawing(ignoreTimeElapsed=True):
                 pass
 
-
-    def continueDrawing( self, ignoreTimeElapsed=False ):
+    def continueDrawing(self, ignoreTimeElapsed=False):
         """
         Continues drawing any parts of the quasimode display that
         haven't yet been drawn, such as the suggestion list.
@@ -224,11 +226,10 @@ class QuasimodeWindow:
         This function should only be called after update() has been
         called.
         """
-
         if self.__suggestionsLeft:
             timeElapsed = time.time() - self.__drawStart
-            if ( (not ignoreTimeElapsed) and
-                 (timeElapsed < config.QUASIMODE_SUGGESTION_DELAY) ):
+            if ((not ignoreTimeElapsed) and
+                    (timeElapsed < config.QUASIMODE_SUGGESTION_DELAY)):
                 return False
             try:
                 suggestionDrawer = self.__suggestionsLeft.next()
@@ -238,8 +239,7 @@ class QuasimodeWindow:
                 self.__suggestionsLeft = None
         return False
 
-
-    def __finalize( self ):
+    def __finalize(self):
         del self.__descriptionWindow
         self.__descriptionWindow = None
         del self.__userTextWindow
@@ -257,15 +257,15 @@ class _SuggestionDrawer:
     suggestion.
     """
 
-    def __init__( self, line, suggestionWindow ):
+    def __init__(self, line, suggestionWindow):
         self.__suggestionWindow = suggestionWindow
         self.__line = line
 
-    def draw( self ):
-        self.__suggestionWindow.draw( self.__line )
+    def draw(self):
+        self.__suggestionWindow.draw(self.__line)
 
 
-def _makeSuggestionIterator( lines, suggestionWindows ):
+def _makeSuggestionIterator(lines, suggestionWindows):
     """
     Returns a generator that provides _SuggestionDrawer objects for
     each suggestion in the given suggestion lines, allowing each
@@ -273,6 +273,6 @@ def _makeSuggestionIterator( lines, suggestionWindows ):
     later time.
     """
 
-    for i in range( len(lines) ):
-        yield _SuggestionDrawer( lines[i],
-                                 suggestionWindows[i] )
+    for i in range(len(lines)):
+        yield _SuggestionDrawer(lines[i],
+                                suggestionWindows[i])

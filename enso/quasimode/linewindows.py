@@ -41,14 +41,17 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import logging
 from collections import namedtuple
 
-from enso import cairo
-from enso import graphics
-from enso.graphics.measurement import pointsToPixels, pixelsToPoints
-from enso.graphics.measurement import convertUserSpaceToPoints
-from enso.graphics.transparentwindow import TransparentWindow
+from enso import cairo, graphics
 from enso.graphics import rounded_rect
+from enso.graphics.measurement import (
+    convertUserSpaceToPoints,
+    pixelsToPoints,
+    pointsToPixels,
+)
+from enso.graphics.transparentwindow import TransparentWindow
 from enso.quasimode import layout
 
 
@@ -58,6 +61,7 @@ from enso.quasimode import layout
 
 Position = namedtuple('Point', 'x y')
 
+
 class TextWindow:
     """
     Encapsulates the drawing of a single line of text, with optional
@@ -65,7 +69,7 @@ class TextWindow:
     default width (margins + text width).
     """
 
-    def __init__( self, height, position ):
+    def __init__(self, height, position):
         """
         Creates the underlying TransparentWindow and Cairo context.
 
@@ -74,8 +78,7 @@ class TextWindow:
 
         self.__setupWindow(height, position)
 
-
-    def __setupWindow( self, height=None, position=None ):
+    def __setupWindow(self, height=None, position=None):
         # Use the maximum width that we can, i.e., the desktop width.
         if height is not None:
             self.__height = height
@@ -85,19 +88,17 @@ class TextWindow:
         left, top = graphics.getDesktopOffset()
         try:
             self.__window = TransparentWindow(self.__xPos + left, self.__yPos,
-                self.__width, self.__height )
-        except Exception, e:
-            print e
+                                              self.__width, self.__height)
+        except Exception as e:
+            logging.error(e)
         self.__context = self.__window.makeCairoContext()
         self.__is_visible = True
 
-
-    def getHeight( self ):
+    def getHeight(self):
         """
         LONGTERM TODO: Document this.
         """
         return self.__window.getHeight()
-
 
     def getPosition(self):
         """
@@ -105,15 +106,13 @@ class TextWindow:
         """
         return Position(self.__window.getX(), self.__window.getY())
 
-
     def setPosition(self, x, y):
         """
         TODO: Document this.
         """
         self.__window.setPosition(x, y)
 
-
-    def draw( self, document ):
+    def draw(self, document):
         """
         Draws the text described by document.
 
@@ -131,48 +130,47 @@ class TextWindow:
         # Clear the areas where the corners of the rounded rectangle will be.
 
         cr.save()
-        cr.set_source_rgba( 0, 0, 0, 0 )
-        cr.set_operator( cairo.OPERATOR_SOURCE )
-        cr.rectangle( width - rounded_rect.CORNER_RADIUS,
-                      height - rounded_rect.CORNER_RADIUS,
-                      rounded_rect.CORNER_RADIUS,
-                      rounded_rect.CORNER_RADIUS )
-        cr.rectangle( width - rounded_rect.CORNER_RADIUS,
-                      0,
-                      rounded_rect.CORNER_RADIUS,
-                      rounded_rect.CORNER_RADIUS )
+        cr.set_source_rgba(0, 0, 0, 0)
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.rectangle(width - rounded_rect.CORNER_RADIUS,
+                     height - rounded_rect.CORNER_RADIUS,
+                     rounded_rect.CORNER_RADIUS,
+                     rounded_rect.CORNER_RADIUS)
+        cr.rectangle(width - rounded_rect.CORNER_RADIUS,
+                     0,
+                     rounded_rect.CORNER_RADIUS,
+                     rounded_rect.CORNER_RADIUS)
         cr.paint()
 
         # Draw the background rounded rectangle.
         corners = []
         if document.roundUpperRight:
-            corners.append( rounded_rect.UPPER_RIGHT )
+            corners.append(rounded_rect.UPPER_RIGHT)
         if document.roundLowerRight:
-            corners.append( rounded_rect.LOWER_RIGHT )
+            corners.append(rounded_rect.LOWER_RIGHT)
         if document.roundLowerLeft:
-            corners.append( rounded_rect.LOWER_LEFT )
+            corners.append(rounded_rect.LOWER_LEFT)
 
-        cr.set_source_rgba( *document.background )
-        rounded_rect.drawRoundedRect( context = cr,
-                                      rect = ( 0, 0, width, height ),
-                                      softenedCorners = corners )
+        cr.set_source_rgba(*document.background)
+        rounded_rect.drawRoundedRect(context=cr,
+                                     rect=(0, 0, width, height),
+                                     softenedCorners=corners)
         cr.fill_preserve()
         cr.restore()
 
         # Next, draw the text.
-        document.draw( layout.L_MARGIN,
-                       document.shrinkOffset,
-                       self.__context )
+        document.draw(layout.L_MARGIN,
+                      document.shrinkOffset,
+                      self.__context)
 
-        width = min( self.__window.getMaxWidth(), width )
-        height = min( self.__window.getMaxHeight(), height )
+        width = min(self.__window.getMaxWidth(), width)
+        height = min(self.__window.getMaxHeight(), height)
 
-        self.__window.setSize( width, height )
+        self.__window.setSize(width, height)
         self.__window.update()
         self.__is_visible = True
 
-
-    def hide( self ):
+    def hide(self):
         """
         Clears the window's surface (making it disappear).
         """
@@ -182,19 +180,18 @@ class TextWindow:
         # LONGTERM TODO: Clearing the surface, i.e., painting it
         # clear, seems like a potential performance bottleneck.
 
-        self.__window.setSize( 1, 1 )
+        self.__window.setSize(1, 1)
 
         # Frankly, I don't know why this works, but after this
         # function, the resulting window is totally clear. I find it
         # odd, since the alpha value is not being set.  It is a
         # wierdness of Cairo. -- Andrew
 
-        self.__context.set_operator (cairo.OPERATOR_CLEAR)
-        self.__context.paint ()
-        self.__context.set_operator (cairo.OPERATOR_OVER)
+        self.__context.set_operator(cairo.OPERATOR_CLEAR)
+        self.__context.paint()
+        self.__context.set_operator(cairo.OPERATOR_OVER)
 
         self.__window.update()
         self.__window.hide()
 
         self.__is_visible = False
-

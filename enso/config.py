@@ -1,3 +1,6 @@
+from enso._version_local import VERSION as VERSION_LOCAL
+from enso._version_remote import VERSION as VERSION_REMOTE
+
 # Configuration settings for Enso.  Eventually this will take
 # localization into account too (or we can make a separate module for
 # such strings).
@@ -33,7 +36,7 @@ QUASIMODE_MIN_AUTOCOMPLETE_CHARS = 2
 
 # Highlight trailing space in the input area.
 # To disable the feature set this to None.
-QUASIMODE_TRAILING_SPACE_STRING = u"\u00b7" # MIDDLE DOT
+QUASIMODE_TRAILING_SPACE_STRING = u"\u00b7"  # MIDDLE DOT
 
 # Quasimode-key double-tap delay (seconds)
 QUASIMODE_DOUBLETAP_DELAY = 0.5
@@ -51,8 +54,7 @@ QUASIMODE_SUGGEST_OPEN_COMMAND_IF_NO_OTHER_MATCH = False
 PRIORITIZE_OPEN_COMMAND = True
 
 # The message displayed when the user types some text that is not a command.
-BAD_COMMAND_MSG = "<p><command>%s</command> is not a command.</p>"\
-                  "%s"
+BAD_COMMAND_MSG = "<p><command>%s</command> is not a command.</p>%s"
 
 # Minimum number of characters that should have been typed into the
 # quasimode for a bad command message to be shown.
@@ -61,7 +63,7 @@ BAD_COMMAND_MSG_MIN_CHARS = 2
 # Try to run the program if no matching command found.
 # Typing 'msconfig' would run msconfig utility even that it's not in the list
 # of learned commands or not directly accessible from desktop/startmenu
-NO_COMMAND_FALLBACK = "" # "run %s"
+NO_COMMAND_FALLBACK = ""  # "run %s"
 
 # The captions for the above message, indicating commands that are related
 # to the command the user typed.
@@ -78,14 +80,20 @@ QUASIMODE_NO_COMMAND_HELP = "There is no matching command. " \
     "Use backspace to delete characters."
 
 # Message XML for the Splash message shown when Enso first loads.
-OPENING_MSG_XML = "<p>Welcome to <command>Enso</command>!</p>" + \
-    "<caption>Copyright &#169; 2008 Humanized, Inc.</caption>"
+OPENING_MSG_XML = "<p>Welcome to <command>Enso</command>!</p>" \
+    "<caption>Copyright &#169; 2008 Humanized, Inc.</caption>" \
+    "<p>Version: %s</p>" \
+    "<p>https://github.com/blackdaemon/enso-launcher-continued</p>" \
+    % ("%s</p><p>%s" % (VERSION_LOCAL, VERSION_REMOTE) if VERSION_LOCAL else "</p><p>%s" % VERSION_REMOTE)
 
 # Message XML for the About message.
 ABOUT_MSG_XML = u"<p><command>Enso</command> Community Edition</p>" \
     "<caption> </caption>" \
     "<p>Copyright &#169; 2008 <b>Humanized, Inc.</b></p>" \
-    "<p>Copyright &#169; 2008-2010 <b>Enso community</b></p>"
+    "<p>Parts developed by Pavel Vitis pavelvitis@gmail.com</p>" \
+    "<p>Version: %s</p>" \
+    "<p>https://github.com/blackdaemon/enso-launcher-continued</p>" \
+    % ("%s</p><p>%s" % (VERSION_LOCAL, VERSION_REMOTE) if VERSION_LOCAL else "</p><p>%s" % VERSION_REMOTE)
 
 # Message XML displayed when the mouse hovers over a mini message.
 MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
@@ -94,7 +102,7 @@ MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
 
 DIDYOUMEAN_HINT_TEXT = u"<ins>Did you mean \u201c</ins><alt>%s</alt><ins>\u201d?</ins>" \
     "&nbsp;&nbsp;<alt>Press tab to fix</alt>"
-    
+
 # Optional custom font. If not used, Arial is used on Windows and Helvetica on Linux
 # FONT_NAME = {"normal" : "Square 721 Condensed BT CZ", "italic" : "Square 721 Condensed BT CZ"}
 
@@ -114,36 +122,43 @@ PROVIDERS.extend(DEFAULT_PLATFORMS)
 # extend Enso.  The plugins are loaded in the order that they
 # are specified in this list.
 PLUGINS = [
-           "enso.contrib.help",
-           "enso.contrib.google",
-           "enso.contrib.evaluate",
-           "enso.contrib.minimessages",
-           "enso.contrib.recentresults",
-           "enso.contrib.calc",
-           "enso.contrib.open",
-           "enso.contrib.scriptotron",
-           ]
+    "enso.contrib.help",
+    "enso.contrib.websearch",
+    "enso.contrib.evaluate",
+    "enso.contrib.minimessages",
+    "enso.contrib.recentresults",
+    "enso.contrib.calc",
+    "enso.contrib.open",
+    "enso.contrib.scriptotron",
+]
 
-FONT_NAME = {"normal" : "Gentium", "italic" : "Gentium Italic"}
+FONT_NAME = {"normal": "Gentium", "italic": "Gentium Italic"}
 
 COLOR_SCHEMES = {
-    'default' : ("#ffffff", "#9fbe57", "#7f9845", "#000000"),
-    'green' : ("#ffffff", "#9fbe57", "#7f9845", "#000000"),
-    'orange' : ("#ffffff", "#be9f57", "#987f45", "#000000"),
-    'magenta' : ("#ffffff", "#be579f", "#98457f", "#000000"),
-    'cyan' : ("#ffffff", "#99cccc", "#99aaaa", "#000000"),
-    'red' : ("#ffffff", "#cc0033", "#ff0066", "#000000")
+    'default': ("#ffffff", "#9fbe57", "#7f9845", "#000000"),
+    'green': ("#ffffff", "#9fbe57", "#7f9845", "#000000"),
+    'orange': ("#ffffff", "#be9f57", "#987f45", "#000000"),
+    'magenta': ("#ffffff", "#be579f", "#98457f", "#000000"),
+    'cyan': ("#ffffff", "#99cccc", "#99aaaa", "#000000"),
+    'red': ("#ffffff", "#cc0033", "#ff0066", "#000000")
 }
 
 # Detect default system locale and use it for google search.
 # If set to False, no locale is forced.
 PLUGIN_GOOGLE_USE_DEFAULT_LOCALE = True
-# Use Google search suggestions
+
+# Use Google search suggestions (default is True)
 PLUGIN_GOOGLE_OFFER_SUGGESTIONS = True
-# Use Google Images search suggestions
-PLUGIN_GOOGLE_IMAGES_OFFER_SUGGESTIONS = True
-# Use YouTube search suggestions
+# Use Google Images search suggestions (default is True)
+PLUGIN_GOOGLEIMAGES_OFFER_SUGGESTIONS = True
+# Use YouTube search suggestions (default is True)
 PLUGIN_YOUTUBE_OFFER_SUGGESTIONS = True
+# Use Wikipedia search suggestions (default is True)
+PLUGIN_WIKIPEDIA_OFFER_SUGGESTIONS = True
+# Use eBay search suggestions (default is True)
+PLUGIN_EBAY_OFFER_SUGGESTIONS = True
+# Use UrbanDictionary search suggestions (default is True)
+PLUGIN_URBANDICTIONARY_OFFER_SUGGESTIONS = False
 
 # Proxy used for HTTP protocol
 # Set to None to use proxy-autodetection (default Python behavior).

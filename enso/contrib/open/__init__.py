@@ -87,23 +87,21 @@ TODO:
 from __future__ import with_statement
 
 # Imports
-import os
 import logging
+import os
 import sys
 from xml.sax.saxutils import escape as xml_escape
 
 # Enso imports
+import enso.contrib.platform
 from enso.commands import CommandManager, CommandObject
 from enso.commands.factories import ArbitraryPostfixFactory, GenericPrefixFactory
-from enso.contrib.scriptotron.tracebacks import safetyNetted
-from enso.utils.memoize import memoized
-from enso.events import EventManager
+from enso.contrib.open import shortcuts, utils
 from enso.contrib.scriptotron.ensoapi import EnsoApi
-
-from enso.contrib.open import utils
-from enso.contrib.open import shortcuts
-
-import enso.contrib.platform
+from enso.contrib.scriptotron.tracebacks import safetyNetted
+from enso.events import EventManager
+from enso.messages import displayMessage as display_xml_message
+from enso.utils.memoize import memoized
 
 logger = logging.getLogger('enso.contrib.open')
 
@@ -112,92 +110,90 @@ open_command_impl = None
 recent_command_impl = None
 ensoapi = EnsoApi()
 
-#def xml_escape(data):
-#    """ Escape &, <, and > in a string of data """
-#    # must do ampersand first
-#    return data.replace("&", "&amp;").replace(">", "&gt;").replace("<", "&lt;")
-
 
 # ----------------------------------------------------------------------------
 # Utility functions
 # ---------------------------------------------------------------------------
-
-def display_xml_message(msg):
-    import enso.messages
-    enso.messages.displayMessage("<p>%s</p>" % msg)
 
 
 # ----------------------------------------------------------------------------
 # LearnAsOpen command
 # ---------------------------------------------------------------------------
 
-class LearnAsOpenCommand( CommandObject ):
+class LearnAsOpenCommand(CommandObject):
     """ Learns to open a document or application as {name} """
 
-    def __init__( self, postfix = None ):
-        super( LearnAsOpenCommand, self ).__init__()
+    def __init__(self, postfix=None):
+        super(LearnAsOpenCommand, self).__init__()
         self.name = postfix
 
     @safetyNetted
-    def run( self ):
-        with utils.Timer("get_selection"):
-            seldict = ensoapi.get_selection()
+    def run(self):
+        seldict = ensoapi.get_selection()
         if seldict.get('files'):
             #TODO: Handle opening of multiple files
-            file = seldict['files'][0]
+            filename = seldict['files'][0]
         elif seldict.get('text'):
-            file = seldict['text'].strip()
+            filename = seldict['text'].strip()
         else:
             ensoapi.display_message(u"No file is selected")
             return
 
         if self.name is None:
-            from enso.contrib.open.platform.win32.utils import get_exe_name
-            product_name = get_exe_name(file)
-            if product_name:
-                self.name = product_name.lower()
+            try:
+                from enso.contrib.open.platform.win32.utils import get_exe_name
+            except ImportError:
+                pass
             else:
-                ensoapi.display_message(u"You must provide name")
-                return
-
-        if (not os.path.isfile(file)
-            and not os.path.isdir(file)
-            and not open_command_impl._is_url(file)):
-            ensoapi.display_message(
-                u"Selection represents no existing file, folder or URL.")
+                product_name = get_exe_name(filename)
+                if product_name:
+                    self.name = product_name.lower()
+        if self.name is None:
+            ensoapi.display_message(u"You must provide name")
             return
 
-        shortcut = open_command_impl.add_shortcut(self.name, file)
+        if (not os.path.isfile(filename) and
+                not os.path.isdir(filename) and
+                not open_command_impl._is_url(filename)):
+            ensoapi.display_message(
+                u"Selection is neither file, folder nor URL.")
+            return
+
+        shortcut = open_command_impl.add_shortcut(self.name, filename)
         if shortcut:
-            display_xml_message(u"<command>open %s</command> is now a command"
-                % xml_escape(self.name))
+            display_xml_message(
+                u"<p><command>open %s</command> is now a command</p>"
+                % xml_escape(self.name)
+            )
         else:
             display_xml_message(
-                u"<command>open %s</command> already exists. Please choose another name."
-                % xml_escape(self.name))
+                u"<p><command>open %s</command> already exists. Please choose another name.</p>"
+                % xml_escape(self.name)
+            )
             return
-
 
 
 # ----------------------------------------------------------------------------
 # Open command
 # ---------------------------------------------------------------------------
 
-class OpenCommand( CommandObject ):
+class OpenCommand(CommandObject):
     """ Opens application, file or folder referred by given name """
 
-    def __init__( self, postfix = None ):
-        super( OpenCommand, self ).__init__()
+    def __init__(self, postfix=None):
+        super(OpenCommand, self).__init__()
         self.target = postfix
 
     @safetyNetted
-    def run( self ):
+    def run(self):
         #TODO: Implement opening current selection if no postfix provided?
         if not self.target:
             return
 
-        display_xml_message(u"Opening <command>%s</command>..."
-            % xml_escape(self.target))
+        display_xml_message(
+            u"<p>Opening <command>%s</command>...</p>"
+            % xml_escape(self.target)
+        )
 
         open_command_impl.run_shortcut(self.target)
 
@@ -206,22 +202,22 @@ class OpenCommand( CommandObject ):
 # OpenWith command
 # ---------------------------------------------------------------------------
 
-class OpenWithCommand( CommandObject ):
+class OpenWithCommand(CommandObject):
     """ Opens your currently selected file(s) or folder with the specified application """
 
-    def __init__( self, postfix = None ):
-        super( OpenWithCommand, self ).__init__()
+    def __init__(self, postfix=None):
+        super(OpenWithCommand, self).__init__()
         self.target = postfix
 
     @safetyNetted
-    def run( self ):
+    def run(self):
         seldict = ensoapi.get_selection()
         if seldict.get('files'):
             files = seldict['files']
         elif seldict.get('text'):
             text = seldict['text'].strip("\r\n\t\0 ").replace("\r", "\n").replace("\n\n", "\n")
-            files = (file for file in text.split("\n"))
-            files = [file for file in files if os.path.isfile(file) or os.path.isdir(file)]
+            files = (file_name for file_name in text.split("\n"))
+            files = [file_name for file_name in files if os.path.isfile(file_name) or os.path.isdir(file_name)]
         else:
             files = []
 
@@ -232,49 +228,52 @@ class OpenWithCommand( CommandObject ):
         open_command_impl.open_with_shortcut(self.target, files)
 
 
-
-
 # ----------------------------------------------------------------------------
 # UnlearnOpen command
 # ---------------------------------------------------------------------------
 
-class UnlearnOpenCommand( CommandObject ):
-    u""" Unlearn \u201copen {name}\u201d command """
+class UnlearnOpenCommand(CommandObject):
+    """
+    Unlearn "open {name}" command
+    """
 
-    def __init__( self, postfix = None ):
-        super( UnlearnOpenCommand, self ).__init__()
+    def __init__(self, postfix=None):
+        super(UnlearnOpenCommand, self).__init__()
         self.target = postfix
 
     @safetyNetted
-    def run( self ):
-        open_command_impl.remove_shortcut(self.target)
-
-        display_xml_message(u"Unlearned <command>open %s</command>" % self.target)
+    def run(self):
+        try:
+            open_command_impl.remove_shortcut(self.target)
+        except Exception:
+            display_xml_message(u"<p>This shortcut can't be unlearned</p>")
+        else:
+            display_xml_message(u"<p>Unlearned <command>open %s</command></p>" % self.target)
 
 
 # ----------------------------------------------------------------------------
 # UndoUnlearnOpen command
 # ---------------------------------------------------------------------------
 
-class UndoUnlearnOpenCommand( CommandObject ):
+class UndoUnlearnOpenCommand(CommandObject):
     """
     The "undo unlearn open" command.
     """
 
     NAME = "undo unlearn open"
-    DESCRIPTION = "Undoes your last \u201cunlearn open\u201d command."
+    DESCRIPTION = u"Undoes your last \u201cunlearn open\u201d command."
 
-    def __init__( self ):
-        super( UndoUnlearnOpenCommand, self ).__init__()
-        self.setDescription( self.DESCRIPTION )
-        self.setName( self.NAME )
+    def __init__(self):
+        super(UndoUnlearnOpenCommand, self).__init__()
+        self.setDescription(self.DESCRIPTION)
+        self.setName(self.NAME)
 
     @safetyNetted
-    def run( self ):
+    def run(self):
         sh = open_command_impl.undo_remove_shortcut()
         if sh:
             display_xml_message(
-                u"Undo successful. <command>open %s</command> is now a command"
+                u"<p>Undo successful. <command>open %s</command> is now a command</p>"
                 % sh.name)
         else:
             ensoapi.display_message(u"There is nothing to undo")
@@ -284,21 +283,23 @@ class UndoUnlearnOpenCommand( CommandObject ):
 # Recent command
 # ---------------------------------------------------------------------------
 
-class RecentCommand( CommandObject ):
+class RecentCommand(CommandObject):
     """ Opens recent application, file or folder referred by given name """
 
-    def __init__( self, postfix = None ):
-        super( RecentCommand, self ).__init__()
+    def __init__(self, postfix=None):
+        super(RecentCommand, self).__init__()
         self.target = postfix
 
     @safetyNetted
-    def run( self ):
+    def run(self):
         #TODO: Implement opening current selection if no postfix provided?
         if not self.target:
             return
 
-        display_xml_message(u"Opening <command>%s</command>..."
-            % xml_escape(self.target))
+        display_xml_message(
+            u"<p>Opening <command>%s</command>...</p>"
+            % xml_escape(self.target)
+        )
 
         recent_command_impl.run_shortcut(self.target)
 
@@ -307,7 +308,7 @@ class RecentCommand( CommandObject ):
 # Command factories
 # ---------------------------------------------------------------------------
 
-class LearnAsOpenCommandFactory( ArbitraryPostfixFactory ):
+class LearnAsOpenCommandFactory(ArbitraryPostfixFactory):
     """
     Generates a "learn as open {name}" command.
     """
@@ -317,22 +318,22 @@ class LearnAsOpenCommandFactory( ArbitraryPostfixFactory ):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Learn to open a document or application as {name}"
 
-    def __init__( self ):
+    def __init__(self):
         """
         Instantiantes the command factory.
 
         Must be called by overriden constructors.
         """
 
-        ArbitraryPostfixFactory.__init__( self )
+        ArbitraryPostfixFactory.__init__(self)
 
-    def _generateCommandObj( self, postfix ):
-        cmd = LearnAsOpenCommand( postfix )
+    def _generateCommandObj(self, postfix):
+        cmd = LearnAsOpenCommand(postfix)
         cmd.setDescription(self.DESCRIPTION)
         return cmd
 
 
-class OpenCommandFactory( GenericPrefixFactory ):
+class OpenCommandFactory(GenericPrefixFactory):
     """
     Generates a "open {name}" command.
     """
@@ -343,8 +344,8 @@ class OpenCommandFactory( GenericPrefixFactory ):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Continue typing to open an application or document"
 
-    def _generateCommandObj( self, parameter = None ):
-        cmd = OpenCommand( parameter )
+    def _generateCommandObj(self, parameter=None):
+        cmd = OpenCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
         return cmd
 
@@ -360,7 +361,7 @@ class OpenCommandFactory( GenericPrefixFactory ):
             self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
-class OpenWithCommandFactory( GenericPrefixFactory ):
+class OpenWithCommandFactory(GenericPrefixFactory):
     """
     Generates a "open with {name}" command.
     """
@@ -371,8 +372,8 @@ class OpenWithCommandFactory( GenericPrefixFactory ):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Opens your currently selected file(s) or folder with the specified application"
 
-    def _generateCommandObj( self, parameter = None ):
-        cmd = OpenWithCommand( parameter )
+    def _generateCommandObj(self, parameter=None):
+        cmd = OpenWithCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
         return cmd
 
@@ -390,7 +391,7 @@ class OpenWithCommandFactory( GenericPrefixFactory ):
             self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
-class UnlearnOpenCommandFactory( GenericPrefixFactory ):
+class UnlearnOpenCommandFactory(GenericPrefixFactory):
     """
     Generates a "unlearn open {name}" command.
     """
@@ -401,8 +402,8 @@ class UnlearnOpenCommandFactory( GenericPrefixFactory ):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = u" Unlearn \u201copen {name}\u201d command "
 
-    def _generateCommandObj( self, parameter = None ):
-        cmd = UnlearnOpenCommand( parameter )
+    def _generateCommandObj(self, parameter=None):
+        cmd = UnlearnOpenCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
         return cmd
 
@@ -418,7 +419,7 @@ class UnlearnOpenCommandFactory( GenericPrefixFactory ):
             self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
-class RecentCommandFactory( GenericPrefixFactory ):
+class RecentCommandFactory(GenericPrefixFactory):
     """
     Generates a "recent {name}" command.
     """
@@ -429,8 +430,8 @@ class RecentCommandFactory( GenericPrefixFactory ):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Continue typing to open recent application or document"
 
-    def _generateCommandObj( self, parameter = None ):
-        cmd = RecentCommand( parameter )
+    def _generateCommandObj(self, parameter=None):
+        cmd = RecentCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
         return cmd
 
@@ -459,36 +460,37 @@ def load():
         recent_command_impl = enso.contrib.platform.get_command_platform_impl("open", "RecentCommandImpl")()
     except:
         recent_command_impl = None
-    
+
     # Register commands
     try:
         CommandManager.get().registerCommand(
             OpenCommandFactory.NAME,
             OpenCommandFactory()
-            )
+        )
         CommandManager.get().registerCommand(
             OpenWithCommandFactory.NAME,
             OpenWithCommandFactory()
-            )
+        )
         CommandManager.get().registerCommand(
             LearnAsOpenCommandFactory.NAME,
             LearnAsOpenCommandFactory()
-            )
+        )
         CommandManager.get().registerCommand(
             UnlearnOpenCommandFactory.NAME,
             UnlearnOpenCommandFactory()
-            )
+        )
         CommandManager.get().registerCommand(
             UndoUnlearnOpenCommand.NAME,
             UndoUnlearnOpenCommand()
-            )
+        )
         if recent_command_impl:
             CommandManager.get().registerCommand(
                 RecentCommandFactory.NAME,
                 RecentCommandFactory()
-                )
+            )
     except Exception, e:
         logger.critical(repr(e))
+
 
 # ----------------------------------------------------------------------------
 # Doctests

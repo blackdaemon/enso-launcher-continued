@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+    
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -29,60 +31,72 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import time
-import os
 import logging
+import os
+import time
 
-SHORTCUT_TYPE_EXECUTABLE = 'x' # .exe, .com, .cmd, .bat, .py
+
+SHORTCUT_TYPE_EXECUTABLE = 'x'  # .exe, .com, .cmd, .bat, .py
 SHORTCUT_TYPE_FOLDER = 'f'
 SHORTCUT_TYPE_URL = 'u'
-SHORTCUT_TYPE_CONTROL_PANEL = 'c' # control-panel applets and .msc
-SHORTCUT_TYPE_DOCUMENT = 'd' # All other shortcuts
-SHORTCUT_TYPE_VIRTUAL = 'v' # Virtual folders/links in Vista/Win7
+SHORTCUT_TYPE_CONTROL_PANEL = 'c'  # control-panel applets and .msc
+SHORTCUT_TYPE_DOCUMENT = 'd'  # All other shortcuts
+SHORTCUT_TYPE_VIRTUAL = 'v'  # Virtual folders/links in Vista/Win7
 
 SHORTCUT_FLAG_CANTUNLEARN = 1
 
 
 _SHORTCUT_TYPES = (
-    SHORTCUT_TYPE_EXECUTABLE
-    ,SHORTCUT_TYPE_FOLDER
-    ,SHORTCUT_TYPE_URL
-    ,SHORTCUT_TYPE_CONTROL_PANEL
-    ,SHORTCUT_TYPE_DOCUMENT
-    ,SHORTCUT_TYPE_VIRTUAL
-    )
+    SHORTCUT_TYPE_EXECUTABLE,
+    SHORTCUT_TYPE_FOLDER,
+    SHORTCUT_TYPE_URL,
+    SHORTCUT_TYPE_CONTROL_PANEL,
+    SHORTCUT_TYPE_DOCUMENT,
+    SHORTCUT_TYPE_VIRTUAL,
+)
 _SHORTCUT_TYPES_WITH_MANDATORY_TARGET = (
-    SHORTCUT_TYPE_EXECUTABLE
-    ,SHORTCUT_TYPE_URL
-    ,SHORTCUT_TYPE_DOCUMENT
+    SHORTCUT_TYPE_EXECUTABLE,
+    SHORTCUT_TYPE_URL,
+    SHORTCUT_TYPE_DOCUMENT
+)
+
+
+class Shortcut(object):
+    __slots__ = (
+        '__weakref__',
+        'category',
+        'flags',
+        'name',
+        'shortcut_filename',
+        'target',
+        'type',
     )
-
-
-class Shortcut( object ):
-    def __init__(self, name, type, target, shortcut_filename=None, category=None):
+    
+    def __init__(self, name, target_type, target, shortcut_filename=None, category=None):
         assert name, "Name must not be empty"
-        assert type in _SHORTCUT_TYPES, "Type must be valid type: %s (name=%s)" % (type, name)
-        assert target if type in _SHORTCUT_TYPES_WITH_MANDATORY_TARGET else True, \
-            "Target can't be empty for given type: %s (name=%s)" % (type, name)
-        #assert shortcut_filename if type not in (SHORTCUT_TYPE_CONTROL_PANEL, SHORTCUT_TYPE_FOLDER, SHORTCUT_TYPE_VIRTUAL) else True, \
+        assert target_type in _SHORTCUT_TYPES, "Type must be valid type: %s (name=%s)" % (target_type, name)
+        assert target if target_type in _SHORTCUT_TYPES_WITH_MANDATORY_TARGET else True, \
+            "Target can't be empty for given type: %s (name=%s)" % (target_type, name)
+        # assert shortcut_filename if type not in (SHORTCUT_TYPE_CONTROL_PANEL, SHORTCUT_TYPE_FOLDER, SHORTCUT_TYPE_VIRTUAL) else True, \
         #    "Shortcut_filename must not be empty if type is not 'c' or 'f' (name=%s)" % name
 
         self.name = name
-        self.type = type
+        self.type = target_type
         self.target = target
         self.shortcut_filename = shortcut_filename
         self.category = category
 
-        #TODO:Implement special shortcuts (not learned, not unlearnable) as a subclasses
+        # TODO:Implement special shortcuts (not learned, not unlearnable) as a subclasses
         self.flags = 0
-        if not shortcut_filename or type in SHORTCUT_TYPE_CONTROL_PANEL:
+        if not shortcut_filename or target_type in SHORTCUT_TYPE_CONTROL_PANEL:
             self.flags |= SHORTCUT_FLAG_CANTUNLEARN
 
     def __str__(self):
         return "Shortcut '%s' of type %s and category '%s' saved at '%s' having target '%s'" % (
             self.name, self.type, self.category, self.shortcut_filename, self.target)
 
-class ShortcutsDict( dict ):
+
+class ShortcutsDict(dict):
     """
     Dictionary object that provides additional attribute 'updated_on'
     holding timestamp of last dict update.
@@ -125,14 +139,13 @@ class ShortcutsDict( dict ):
         delitem = super(ShortcutsDict, self).__delitem__
         directory = os.path.normpath(directory).lower()
         for key, shortcut in super(ShortcutsDict, self).items():
-            if not shortcut.type in (SHORTCUT_TYPE_EXECUTABLE, SHORTCUT_TYPE_DOCUMENT, SHORTCUT_TYPE_FOLDER):
+            if shortcut.type not in (SHORTCUT_TYPE_EXECUTABLE, SHORTCUT_TYPE_DOCUMENT, SHORTCUT_TYPE_FOLDER):
                 continue
             if shortcut.shortcut_filename:
                 shortcut_directory = shortcut.shortcut_filename.lower()
             else:
                 shortcut_directory = shortcut.target
             if shortcut_directory.startswith(directory):
-                #print key, "-->", shortcut.shortcut_filename
                 if key not in new_dict:
                     delitem(key)
         try:
@@ -145,9 +158,8 @@ class ShortcutsDict( dict ):
         for key, shortcut in super(ShortcutsDict, self).items():
             if shortcut.category != category:
                 continue
-            if not shortcut.type in (SHORTCUT_TYPE_EXECUTABLE, SHORTCUT_TYPE_DOCUMENT, SHORTCUT_TYPE_FOLDER, SHORTCUT_TYPE_URL):
+            if shortcut.type not in (SHORTCUT_TYPE_EXECUTABLE, SHORTCUT_TYPE_DOCUMENT, SHORTCUT_TYPE_FOLDER, SHORTCUT_TYPE_URL):
                 continue
-            #print key, "-->", shortcut.shortcut_filename
             if key not in new_dict:
                 delitem(key)
         try:
@@ -225,7 +237,7 @@ class ShortcutsDict(object):
         return self.keys()
 """
 
-class ShortcutsManager( object ):
+class ShortcutsManager(object):
 
     instance = None
 
@@ -237,6 +249,3 @@ class ShortcutsManager( object ):
 
     def __init__(self):
         pass
-
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

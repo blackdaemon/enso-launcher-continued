@@ -33,10 +33,12 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import ctypes
 import os
+
 import win32api
 import win32con
-import ctypes
+
 
 try:
     import regex as re

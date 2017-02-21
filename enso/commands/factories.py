@@ -303,13 +303,15 @@ class GenericPrefixFactory( AbstractCommandFactory ):
 
         # Take first hit by default...
         match, match_location = matches[0]
+        """
+        #FIXME: Is this really needed here? It does not work properly (try to type 'open o', it will result into 'open open'
         # ..but prefer 'open' command if it's in the list
         if (userText.startswith("o") and config.PRIORITIZE_OPEN_COMMAND and
             any(m[0].startswith("open ") for m in matches)):
             # Special handling for 'open' command:
             # Put it before other commands starting with "o".
             match = "open"
-
+        """
         # TODO: This is incorrect. It matches the first one, not the correct one
         #matchLocation = re.search( pattern, match, re.I ).start()
 
@@ -356,9 +358,10 @@ class GenericPrefixFactory( AbstractCommandFactory ):
         matches = [
             (m.group(0), m.start(1)-m.start(0))
             for m in re_pattern_finditer(self.__searchString)
-            if m and m.groups() and m.group(0)
+            if m.groups() and m.group(0)
             ]
-        matches.sort()
+        if matches:
+            matches.sort()
         return matches
 
 

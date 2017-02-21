@@ -31,8 +31,33 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import sys
+from os import system as runcmd 
 
 import enso.platform
+
+
+DE_GNOME = "GNOME"
+DE_KDE = "KDE"
+DE_UNITY = "Unity"
+DE_XFCE = "XFCE"
+DE_CINNAMON = "Cinnamon"
+DE_MATE = "MATE"
+DE_LXDE = "LXDE"
+DE_UNKNOWN = None
+
+DESKTOP_ENVIRONMENT = next(
+        (env_id for (pattern, env_id) in (
+                ("^.* gnome-session$", DE_GNOME),
+                ("^.* kded4$", DE_KDE),
+                ("^.* unity-panel$", DE_UNITY),
+                ("^.* xfce4-session$", DE_XFCE),
+                ("^.* cinnamon$", DE_CINNAMON),
+                ("^.* mate-panel$", DE_MATE),
+                ("^.* lxsession$", DE_LXDE),
+            )
+            if runcmd("ps -e | grep -E '%s' > /dev/null" % pattern) == 0
+        ), DE_UNKNOWN
+    )
 
 platforms = [
     "linux",
@@ -40,7 +65,7 @@ platforms = [
     "freebsd",
     "netbsd",
 ]
-if not True in map (lambda s: sys.platform.startswith (s), platforms):
+if not any(sys.platform.startswith(p) for p in platforms):
     raise enso.platform.PlatformUnsupportedError()
 
 def provideInterface (name):

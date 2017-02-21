@@ -62,7 +62,7 @@ def _expanduser( path ):
     # Microsoft approved way of getting the personal directory path:
     # Use this as it always returns unicode string in contrary to standard
     # method using environ['USERPRPFILE'] that contains national-encoded string
-    from win32com.shell import shell, shellcon
+    from win32com.shell import shell, shellcon # @UnresolvedImport
     userhome = shell.SHGetFolderPath(0, shellcon.CSIDL_PROFILE, 0, 0)
 
     if i != 1: #~user

@@ -29,13 +29,12 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import os
 import logging
-import pythoncom
-
-from win32com.shell import shell, shellcon
-
+import os
 from abc import ABCMeta, abstractmethod
+
+import pythoncom
+from win32com.shell import shell, shellcon
 
 
 class _AbstractPyShortcut( object ):

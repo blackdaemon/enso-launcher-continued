@@ -305,7 +305,7 @@ class ConditionMiniMessage(Message):
         try:
             if self.__is_finished_func():
                 return True
-        except Exception, e:#IGNORE:W0703
+        except Exception as e:  #IGNORE:W0703
             logging.error(e)
             return False
 
@@ -411,7 +411,7 @@ class MessageManager:
         self.__onDismissalFunc = None
 
 
-    def newMessage( self, msg, onDismissal=None ):
+    def newMessage( self, msg, onDismissal=None, position=(None,None) ):
         """
         Adds a new message to the queue, which will get displayed and
         saved in all appropriate ways.
@@ -421,6 +421,8 @@ class MessageManager:
 
         if msg.isPrimary():
             self.__newPrimaryMessage( msg )
+            if onDismissal and not callable(onDismissal):
+                raise Exception("onDismissal parameter must be callable")
             self.__onDismissalFunc = onDismissal
         elif msg.isMini() and not msg.isFinished():
             self.__newMiniMessage( msg )
@@ -447,17 +449,18 @@ class MessageManager:
             # Run onDismissal function if CTRL key is used to dismiss the message
             try:
                 # TODO: Implement this on all platforms, currently it works only on Win32
-                import win32con
-                import win32api
+                # Quite impossible to do in Linux (there is no API to access keyboard physical state)
+                import win32con  # @UnresolvedImport
+                import win32api  # @UnresolvedImport
 
                 # If CTRL key is being held
-                if win32api.GetAsyncKeyState(win32con.VK_CONTROL) << 1:
+                if win32api.GetAsyncKeyState(win32con.VK_CONTROL) << 1:  # @UndefinedVariable
                     # Wait for CTRL key release before executing the dismissal function
-                    while win32api.GetAsyncKeyState(win32con.VK_CONTROL) << 1:
+                    while win32api.GetAsyncKeyState(win32con.VK_CONTROL) << 1:  # @UndefinedVariable
                         time.sleep(0.01)
                     try:
                         self.__onDismissalFunc()
-                    except Exception, e:
+                    except Exception as e:
                         logging.error(e)
             except:
                 pass

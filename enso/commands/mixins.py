@@ -48,29 +48,28 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+import datetime
+import logging
 import threading
 import urllib2
-import logging
 import urllib3
-import warnings
-
 from abc import ABCMeta, abstractmethod
-
-from enso.commands.factories import ArbitraryPostfixFactory
-from enso.utils.decorators import suppress
+from Queue import Queue, Empty
 
 from enso import config
-from Queue import Queue, Empty
-import datetime
-
-from enso.events import EventManager
+from enso.commands.factories import ArbitraryPostfixFactory
 from enso.contrib.scriptotron import EnsoApi
+from enso.events import EventManager
+
+from enso.utils.decorators import suppress
+
+urllib3.disable_warnings()
 
 # ----------------------------------------------------------------------------
 # Constants and global variables
 # ----------------------------------------------------------------------------
 
-DEFAULT_SUGGESTIONS_POLLING_INTERVAL = 500
+DEFAULT_SUGGESTIONS_POLLING_INTERVAL = 300
 
 # Do not allow to go below this
 _MINIMAL_SUGGESTIONS_POLLING_INTERVAL = 100
@@ -110,13 +109,13 @@ urllib2.install_opener(
         urllib2.ProxyHandler({})
     )
 )
-    
+
     
 # ----------------------------------------------------------------------------
 # PersistentHTTPConnection
 # ----------------------------------------------------------------------------
 
-class PersistentHTTPConnection( object ):
+class PersistentHTTPConnection(object):
     """
     Peristent HTTP1.1 connection object.
     
@@ -143,7 +142,7 @@ class PersistentHTTPConnection( object ):
                 headers = dict(self.url_or_request.header_items())
             # Force compression if not set by the caller
             # urllib3 auto-decompress the response data based on Content-Encoding header
-            if not "Accept-Encoding" in headers and not "accept-encoding" in headers:
+            if "Accept-Encoding" not in headers and "accept-encoding" not in headers:
                 headers["Accept-Encoding"] = "gzip, deflate"
             try:
                 # TODO: use proxy_from_url if proxy handling is needed
@@ -152,7 +151,7 @@ class PersistentHTTPConnection( object ):
                 logging.error("Error getting persistent HTTP connection: %s", str(e))
             else:
                 #print "persistent-connection endQuasimode responder registered"
-                self.__eventManager.registerResponder( self._onEndQuasimode, "endQuasimode" )
+                self.__eventManager.registerResponder(self._onEndQuasimode, "endQuasimode")
         return self._connection_pool
 
     def is_valid(self):
@@ -167,7 +166,7 @@ class PersistentHTTPConnection( object ):
     def num_requests(self):
         return self._connection_pool.num_requests if self._connection_pool else 0
 
-    def _onEndQuasimode( self ):
+    def _onEndQuasimode(self):
         """
         Close any HTTP1.1 persistent connections and invalidate connection pool
         on quasimode-end event
@@ -186,7 +185,7 @@ class PersistentHTTPConnection( object ):
 # CommandParameterWebSuggestionsMixin
 # ----------------------------------------------------------------------------
  
-class CommandParameterWebSuggestionsMixin( object ):
+class CommandParameterWebSuggestionsMixin(object):
     """
     CommandParameterWebSuggestionsMixin provides web-query based suggestions
     ability for an Enso command object.
@@ -210,7 +209,7 @@ class CommandParameterWebSuggestionsMixin( object ):
     
     __metaclass__ = ABCMeta
     
-    class _Impl( object ):
+    class _Impl(object):
         def __init__(self, caller):
             self.caller = caller
             self.polling_interval = max(DEFAULT_SUGGESTIONS_POLLING_INTERVAL, _MINIMAL_SUGGESTIONS_POLLING_INTERVAL)
@@ -226,11 +225,9 @@ class CommandParameterWebSuggestionsMixin( object ):
         
             self.__eventManager = EventManager.get()
 
-        
         def setPollingInterval(self, interval_in_ms):
             self.polling_interval = interval_in_ms 
 
-        
         def onParameterModified(self, keyCode, oldText, newText, quasimodeId=0.0):
             """
             This method is called automatically whenever the command parameter text
@@ -271,14 +268,13 @@ class CommandParameterWebSuggestionsMixin( object ):
     
             self._update_queue.put_nowait(newText)
     
-
-        def onEndQuasimode( self ):
+        def onEndQuasimode(self):
             """
             Stop suggestion thread on "endQuasimode" event
             """
             self.__eventManager.removeResponder(self.onEndQuasimode)
             self.__stopSuggestionThread()
-                     
+
         def __startSuggestionThread(self):
             """
             Start suggestion thread if not yet started.
@@ -290,7 +286,7 @@ class CommandParameterWebSuggestionsMixin( object ):
                 self.__suggestion_thread = threading.Thread(target=self.__suggestion_thread_func)
                 #self.__suggestion_thread.setDaemon(True)
                 self.__suggestion_thread.start()
-                self.__eventManager.registerResponder( self.onEndQuasimode, "endQuasimode" )
+                self.__eventManager.registerResponder(self.onEndQuasimode, "endQuasimode")
     
         def __stopSuggestionThread(self):
             """
@@ -300,7 +296,6 @@ class CommandParameterWebSuggestionsMixin( object ):
             self.__stop_suggestion_thread = True
             # Provoke queue update with empty task so that suggestion thread unblocks
             self._update_queue.put_nowait(None)
-            
             
         def __suggestion_thread_func(self):
             """
@@ -316,7 +311,7 @@ class CommandParameterWebSuggestionsMixin( object ):
             text = None
             self.__stop_suggestion_thread = False
     
-            try:        
+            try:
                 while not self.__stop_suggestion_thread:
                     if not text:
                         try:
@@ -325,10 +320,10 @@ class CommandParameterWebSuggestionsMixin( object ):
                             text = self._update_queue.get(block=True)
                         finally:
                             self._update_queue.task_done()
-                    # Act only on valid text. 
+                    # Act only on valid text.
                     # text == None is issued only on thread stop request in order to wakeup the initial blocking queue.get()
                     if text is not None:
-                        #print "GOT TEXT: '%s'" % text
+                        # print "GOT TEXT: '%s'" % text
                         if text is not None and text != last_typed_text:
                         #if text != self.__last_text_for_suggestions:
                             # Get the suggestions from webservice
@@ -350,7 +345,7 @@ class CommandParameterWebSuggestionsMixin( object ):
                             #print "TO WAIT: ", time_to_wait
                             if time_to_wait > 0:
                                 with suppress(Empty):
-                                    text = self._update_queue.get(block=True, timeout=time_to_wait/1000)
+                                    text = self._update_queue.get(block=True, timeout=time_to_wait / 1000)
                                     self._update_queue.task_done()
                             tdiff = datetime.datetime.now() - started
                             elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0
@@ -360,14 +355,13 @@ class CommandParameterWebSuggestionsMixin( object ):
             finally:
                 #print "Suggestion thread stopped"
                 self.__suggestion_thread = None
-    
-    
+
         def __suggest(self, text):
             """
             Get the suggestions list based on text from webservice
             """
             try:
-                url_or_request = self.caller.getSuggestionsUrl( text )
+                url_or_request = self.caller.getSuggestionsUrl(text)
                 if not url_or_request:
                     return None
                 assert isinstance(url_or_request, basestring) or isinstance(url_or_request, urllib2.Request)
@@ -410,13 +404,9 @@ class CommandParameterWebSuggestionsMixin( object ):
                 if self._persistent_connection is None:
                     self._persistent_connection = PersistentHTTPConnection(url_or_request)
                 conn = self._persistent_connection.get()
-                #print conn, conn.num_connections, conn.num_requests
                 resp = conn.urlopen('GET', url, release_conn=True)
-                #print resp.headers
-                data = resp.data #resp.read(decode_content=False)
-                #print data
-                #resp.release_conn()
-            except Exception, e:
+                data = resp.data
+            except Exception as e:
                 logging.error("Suggest query failed: %s; url: %s", e, url_or_request)
                 self.caller.onSuggestQueryError(url_or_request, e)
             else:
@@ -431,8 +421,7 @@ class CommandParameterWebSuggestionsMixin( object ):
                 cache_manager.set_data(text, suggestions, cache_id, session_id=str(self.quasimodeId))
             
             return suggestions
-    
-            
+
     override = ('getSuggestionsUrl', 'decodeSuggestions', 'onSuggestQueryError')
 
     def __init__(self):
@@ -443,9 +432,8 @@ class CommandParameterWebSuggestionsMixin( object ):
         
         self.__impl = CommandParameterWebSuggestionsMixin._Impl(self)
 
-
     @abstractmethod
-    def getSuggestionsUrl( self, text ):
+    def getSuggestionsUrl(self, text):
         """
         Override this method.
 
@@ -463,9 +451,8 @@ class CommandParameterWebSuggestionsMixin( object ):
         """
         pass
 
-
     @abstractmethod
-    def decodeSuggestions( self, data, headers=None ):
+    def decodeSuggestions(self, data, headers=None):
         """
         Override this method.
 
@@ -483,11 +470,9 @@ class CommandParameterWebSuggestionsMixin( object ):
         """
         pass
 
-
     @abstractmethod
-    def onSuggestQueryError( self, url_or_request, exception ):
+    def onSuggestQueryError(self, url_or_request, exception):
         pass
-
 
     def onParameterModified(self, keyCode, oldText, newText, quasimodeId=0.0):
         """
@@ -496,13 +481,15 @@ class CommandParameterWebSuggestionsMixin( object ):
         (These calls are performed from quasimode module on every command that
         implements this method)
 
-        It will initialize the suggestion-thread if and feed it with changed text.
+        It will initialize the suggestion-thread and feed it with changed text.
         """
+        self.quasimodeId = quasimodeId
         self.__impl.onParameterModified(keyCode, oldText, newText, quasimodeId)
-
 
     def setSuggestionsPollingInterval(self, interval_in_ms):
         if interval_in_ms < _MINIMAL_SUGGESTIONS_POLLING_INTERVAL:
-            raise Exception("The polling interval can't go below %d ms (%d)!" 
-                % (_MINIMAL_SUGGESTIONS_POLLING_INTERVAL, interval_in_ms))
+            raise Exception(
+                "The polling interval can't go below %d ms (%d)!"
+                % (_MINIMAL_SUGGESTIONS_POLLING_INTERVAL, interval_in_ms)
+            )
         self.__impl.setPollingInterval(interval_in_ms)

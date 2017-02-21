@@ -1,26 +1,28 @@
 from __future__ import with_statement
-
+import ctypes
+import glob
+import logging
 import os
 import re
-import logging
-import glob
 import unicodedata
-import ctypes
+from ctypes import wintypes
+from xml.etree import cElementTree as ElementTree
+
+import _winreg as winreg
+import pythoncom
 import win32api
 import win32con
-from ctypes import wintypes
-import pythoncom
-import _winreg as winreg
 from win32com.shell import shell, shellcon
-import xml.etree.cElementTree as ElementTree
+
+from enso.contrib.open import shortcuts
+from enso.contrib.open.platform.win32 import registry
+from enso.contrib.open.utils import splitcmdline
+from enso.platform.win32.registry.WindowsRegistry import _expand_path_variables
+
 
 # TODO: This import should be changed as soon as registry support gets merged
 # into working branch
-from enso.contrib.open.utils import splitcmdline
-from enso.contrib.open.platform.win32 import registry
 
-from enso.contrib.open import shortcuts
-from enso.platform.win32.registry.WindowsRegistry import _expand_path_variables
 
 
 class ControlPanelInfo(object):

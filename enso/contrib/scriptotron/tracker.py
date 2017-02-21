@@ -37,115 +37,125 @@ import os
 import time
 import types
 
-from enso.commands.manager import CommandAlreadyRegisteredError
-from enso.contrib.scriptotron.tracebacks import TracebackCommand
-from enso.contrib.scriptotron.tracebacks import safetyNetted
-from enso.contrib.scriptotron.events import EventResponderList
-from enso.contrib.scriptotron import adapters
-from enso.contrib.scriptotron import cmdretriever
-from enso.contrib.scriptotron import ensoapi
-from enso.contrib.scriptotron import concurrency
-from enso.messages import displayMessage as display_xml_message
-from enso.messages import MessageManager
-
 import enso.config
 import enso.system
+from enso.commands.manager import CommandAlreadyRegisteredError
+from enso.contrib.scriptotron import (
+    adapters,
+    cmdretriever,
+    concurrency,
+    ensoapi,
+)
+from enso.contrib.scriptotron.events import EventResponderList
+from enso.contrib.scriptotron.tracebacks import TracebackCommand, safetyNetted
+from enso.messages import MessageManager, displayMessage as display_xml_message
+
 
 # This may no longer be required (it was for backward compat)
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 
-    
+
 class ScriptCommandTracker:
-    def __init__( self, commandManager, eventManager ):
+
+    def __init__(self, commandManager, eventManager):
         self._cmdExprs = []
         self._cmdMgr = commandManager
-        self._genMgr = concurrency.GeneratorManager( eventManager )
+        self._genMgr = concurrency.GeneratorManager(eventManager)
         self._quasimodeStartEvents = EventResponderList(
             eventManager,
             "startQuasimode",
             self._onQuasimodeStart
-            )
+        )
         self._textModifiedEvents = EventResponderList(
             eventManager,
             "textModified",
             self._onTextModified
-            )
+        )
 
     @safetyNetted
-    def _callHandler( self, handler, *args, **kwargs ):
+    def _callHandler(self, handler, *args, **kwargs):
         assert logging.debug("calling handler %s", handler.__name__) or True
         result = handler(*args, **kwargs)
-        if isinstance( result, types.GeneratorType ):
-            self._genMgr.add( result )
+        if isinstance(result, types.GeneratorType):
+            self._genMgr.add(result)
 
-    def _onQuasimodeStart( self ):
+    def _onQuasimodeStart(self):
         perf = []
         for cmdName, handler in self._quasimodeStartEvents:
+            _ = cmdName
             started = time.time()
-            self._callHandler( handler )
+            self._callHandler(handler)
             elapsed = time.time() - started
             perf.append((handler, [], [], elapsed))
         return perf
 
-    def _onTextModified( self, keyCode, oldText, newText, quasimodeId=0 ):
+    def _onTextModified(self, keyCode, oldText, newText, quasimodeId=0):
         perf = []
         for cmdName, handler in self._textModifiedEvents:
-            if not newText.startswith(cmdName+" "):
+            if not newText.startswith(cmdName + " "):
                 continue
-            oldText = oldText[len(cmdName)+1:]
-            newText = newText[len(cmdName)+1:]
+            oldText = oldText[len(cmdName) + 1:]
+            newText = newText[len(cmdName) + 1:]
             started = time.time()
             try:
-                self._callHandler( handler, keyCode, oldText, newText, quasimodeId=quasimodeId )
-            except Exception as e:
-                logging.error("onTextModified handler is missing quasimodeId parameter: %s" % cmdName)
-                self._callHandler( handler, keyCode, oldText, newText )
+                self._callHandler(
+                    handler, keyCode, oldText, newText, quasimodeId=quasimodeId)
+            except Exception:
+                logging.error(
+                    "onTextModified handler is missing quasimodeId parameter: %s" % cmdName)
+                self._callHandler(handler, keyCode, oldText, newText)
             elapsed = time.time() - started
             perf.append((handler, [], [], elapsed))
         return perf
 
-    def _registerCommand( self, cmdObj, cmdExpr ):
+    def _registerCommand(self, cmdObj, cmdExpr):
         try:
-            self._cmdMgr.registerCommand( cmdExpr, cmdObj )
-            self._cmdExprs.append( cmdExpr )
+            self._cmdMgr.registerCommand(cmdExpr, cmdObj)
+            self._cmdExprs.append(cmdExpr)
         except CommandAlreadyRegisteredError:
-            logging.warn( "Command already registered: %s" % cmdExpr )
+            logging.warn("Command already registered: %s" % cmdExpr)
 
-    def registerNewCommands( self, commandInfoList ):
+    def registerNewCommands(self, commandInfoList):
         for info in commandInfoList:
-            if hasattr( info["func"], "on_quasimode_start" ):
-                self._quasimodeStartEvents.append( (info["cmdName"], info["func"].on_quasimode_start) )
-            if hasattr( info["func"], "on_text_modified" ):
-                self._textModifiedEvents.append( (info["cmdName"], info["func"].on_text_modified) )
+            if hasattr(info["func"], "on_quasimode_start"):
+                self._quasimodeStartEvents[info["cmdName"]] = info["func"].on_quasimode_start
+            if hasattr(info["func"], "on_text_modified"):
+                self._textModifiedEvents[info["cmdName"]] = info["func"].on_text_modified
             cmd = adapters.makeCommandFromInfo(
                 info,
                 ensoapi.EnsoApi(),
                 self._genMgr
-                )
-            self._registerCommand( cmd, info["cmdExpr"] )
+            )
+            self._registerCommand(cmd, info["cmdExpr"])
 
-    def clearCommands( self, commandInfoList = None ):
+    def clearCommands(self, commandInfoList=None):
         if commandInfoList:
             for info in commandInfoList:
-                cmdExpr = info["cmdExpr"]
-                self._cmdMgr.unregisterCommand(cmdExpr)
-                del self._cmdExprs[self._cmdExprs.index(cmdExpr)]
-                #TODO: remove responder from _quasimodeStartEvents
-                #TODO: remove generator from _genMgr
+                if hasattr(info["func"], "on_quasimode_start"):
+                    del self._quasimodeStartEvents[info["cmdName"]]
+                if hasattr(info["func"], "on_text_modified"):
+                    del self._textModifiedEvents[info["cmdName"]]
+                self._cmdMgr.unregisterCommand(info["cmdExpr"])
+                del self._cmdExprs[self._cmdExprs.index(info["cmdExpr"])]
+                # FIXME: remove generator from _genMgr
         else:
             for cmdExpr in self._cmdExprs:
-                self._cmdMgr.unregisterCommand( cmdExpr )
+                try:
+                    self._cmdMgr.unregisterCommand(cmdExpr)
+                except RuntimeError as e:
+                    print e, cmdExpr
             self._cmdExprs = []
             self._quasimodeStartEvents[:] = []
             self._genMgr.reset()
-            
+
 
 class ScriptTracker:
-    def __init__( self, eventManager, commandManager ):
+
+    def __init__(self, eventManager, commandManager):
         self._firstRun = True
-        self._scriptCmdTracker = ScriptCommandTracker( commandManager,
-                                                       eventManager )
+        self._scriptCmdTracker = ScriptCommandTracker(commandManager,
+                                                      eventManager)
         self._scriptFilename = SCRIPTS_FILE_NAME
         self._scriptFolder = getScriptsFolderName()
         self._lastMods = {}
@@ -157,41 +167,42 @@ class ScriptTracker:
         eventManager.registerResponder(
             self._updateScripts,
             "startQuasimode"
-            )
+        )
 
-        commandManager.registerCommand( TracebackCommand.NAME,
-                                        TracebackCommand() )
+        commandManager.registerCommand(TracebackCommand.NAME,
+                                       TracebackCommand())
 
     @classmethod
-    def install( cls, eventManager, commandManager ):
-        cls( eventManager, commandManager )
+    def install(cls, eventManager, commandManager):
+        cls(eventManager, commandManager)
 
+    @staticmethod
     @safetyNetted
-    def _getGlobalsFromSourceCode( self, text, filename ):
+    def _getGlobalsFromSourceCode(text, filename):
         allGlobals = {}
-        code = compile( text + "\n", filename, "exec" )
+        code = compile(text + "\n", filename, "exec")
         exec code in allGlobals
         return allGlobals
-    
-    def _getCommandFiles( self ):
+
+    def _getCommandFiles(self):
         try:
             commandFiles = [
-              os.path.join(self._scriptFolder,x)
-              for x in os.listdir(self._scriptFolder)
-              if x.endswith(".py")
+                os.path.join(self._scriptFolder, x)
+                for x in os.listdir(self._scriptFolder)
+                if x.endswith(".py")
             ]
         except:
             commandFiles = []
         return commandFiles
 
-    def _reloadPyScripts( self, files = None ):
+    def _reloadPyScripts(self, files=None):
         if files:
-            for file in files:
-                cmd_infos = self._commandsInFile.get(file, None)
+            for file_name in files:
+                cmd_infos = self._commandsInFile.get(file_name, None)
                 if cmd_infos:
-                    self._scriptCmdTracker.clearCommands( cmd_infos )
+                    self._scriptCmdTracker.clearCommands(cmd_infos)
         else:
-            self._scriptCmdTracker.clearCommands( )
+            self._scriptCmdTracker.clearCommands()
         commandFiles = [self._scriptFilename]
         if files:
             commandFiles = commandFiles + files
@@ -201,29 +212,33 @@ class ScriptTracker:
 
         assert logging.debug(commandFiles) or True
 
-        for f in commandFiles:
+        for file_name in commandFiles:
             try:
-                text = open( f, "r" ).read().replace('\r\n', '\n')+"\n"
-            except Exception, e:
-                if f == SCRIPTS_FILE_NAME:
-                    logging.warn("Legacy script file %s not found" % os.path.basename(SCRIPTS_FILE_NAME))
+                with open(file_name, "r") as fd:
+                    text = fd.read().replace('\r\n', '\n') + "\n"
+            except IOError as e:
+                if file_name == SCRIPTS_FILE_NAME:
+                    logging.info("Legacy script file %s not found" % SCRIPTS_FILE_NAME)
                 else:
                     logging.error(e)
+                continue
+            except Exception as e:
+                logging.error(e)
                 continue
 
             allGlobals = self._getGlobalsFromSourceCode(
                 text,
-                f
-                )
+                file_name
+            )
 
             if allGlobals is not None:
-                infos = cmdretriever.getCommandsFromObjects( allGlobals )
-                self._scriptCmdTracker.registerNewCommands( infos )
-                self._registerDependencies( allGlobals )
-                self._commandsInFile[f] = infos
+                infos = cmdretriever.getCommandsFromObjects(allGlobals)
+                self._scriptCmdTracker.registerNewCommands(infos)
+                self._registerDependencies(allGlobals)
+                self._commandsInFile[file_name] = infos
 
-    def _registerDependencies( self, allGlobals = None ):
-        baseDeps = [ self._scriptFilename ] + self._getCommandFiles()
+    def _registerDependencies(self, allGlobals=None):
+        baseDeps = [self._scriptFilename] + self._getCommandFiles()
 
         if allGlobals:
             # Find any other files that the script may have executed
@@ -231,16 +246,16 @@ class ScriptTracker:
             extraDeps = [
                 obj.func_code.co_filename
                 for obj in allGlobals.values()
-                if ( (hasattr(obj, "__module__")) and
-                     (obj.__module__ is None) and 
-                     (hasattr(obj, "func_code")) )
-                ]
+                if ((hasattr(obj, "__module__")) and
+                    (obj.__module__ is None) and
+                    (hasattr(obj, "func_code")))
+            ]
         else:
             extraDeps = []
 
-        self._fileDependencies = list( set(baseDeps + extraDeps) )
+        self._fileDependencies = list(set(baseDeps + extraDeps))
 
-    def _updateScripts( self ):
+    def _updateScripts(self):
         filesToReload = {}
         for fileName in self._fileDependencies:
             if os.path.isfile(fileName):
@@ -256,29 +271,35 @@ class ScriptTracker:
                 filesToReload[fileName] = lastMod
 
         if filesToReload:
+            """
             if not self._firstRun:
-                display_xml_message(u"<p>Reloading commands, please wait...</p><caption>enso</caption>")
-            #TODO: This can be enabled after issues in clearCommands are solved...
-            #self._reloadPyScripts(filesToReload.keys())
-            self._reloadPyScripts()
+                display_xml_message(
+                    u"<p>Reloading commands, please wait...</p><caption>enso</caption>")
+            """
+            # TODO: This can be enabled after issues in clearCommands are solved...
+            self._reloadPyScripts(filesToReload.keys())
+            #self._reloadPyScripts()
             if not self._firstRun:
                 # Force primary-message to disappear
-                MessageManager.get().finishPrimaryMessage()
+                #MessageManager.get().finishPrimaryMessage()
                 # Display mini message with result
+                """
                 display_xml_message(
                     u"<p>Commands have been reloaded.</p><caption>enso</caption>",
                     primaryMsg=False, miniMsg=True, miniWaitTime=10)
+                """
+                pass
             if self._firstRun:
                 self._firstRun = False
 
 
 def getScriptsFolderName():
     if hasattr(enso.config, "SCRIPTS_FOLDER_NAME"):
-        if os.path.isdir(enso.config.SCRIPTS_FOLDER_NAME):#IGNORE:E1101
-            return enso.config.SCRIPTS_FOLDER_NAME#IGNORE:E1101
+        if os.path.isdir(enso.config.SCRIPTS_FOLDER_NAME):  # IGNORE:E1101
+            return enso.config.SCRIPTS_FOLDER_NAME  # IGNORE:E1101
         else:
             raise Exception("enso.config.SCRIPTS_FOLDER_NAME is not valid folder: \"%s\""
-                            % enso.config.SCRIPTS_FOLDER_NAME)#IGNORE:E1101
+                            % enso.config.SCRIPTS_FOLDER_NAME)  # IGNORE:E1101
     else:
         if not os.path.isdir(_SCRIPTS_FOLDER_NAME):
             os.makedirs(_SCRIPTS_FOLDER_NAME)

@@ -43,7 +43,7 @@
 
 import sys
 import os
-from win32com.shell import shell, shellcon
+from win32com.shell import shell, shellcon  # @UnresolvedImport
 
 
 # ----------------------------------------------------------------------------

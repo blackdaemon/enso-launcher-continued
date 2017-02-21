@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -34,37 +36,48 @@
 # ----------------------------------------------------------------------------
 
 # Future imports
-from __future__ import with_statement
-from __future__ import division
-
-# ----------------------------------------------------------------------------
-# Imports
-# ----------------------------------------------------------------------------
-
-# Imports
-import os
-import logging
+from __future__ import division, with_statement
 import glob
+import logging
+import os
 import subprocess
 
-import gtk
 import gio
+import gtk
+import xdg
 from gtk.gdk import lock as gtk_lock
 
-from enso.contrib.open import interfaces
-from enso.contrib.open import shortcuts
-from enso.contrib.open.interfaces import AbstractOpenCommand, ShortcutAlreadyExistsError
+from enso.contrib.open import interfaces, shortcuts
+from enso.contrib.open.interfaces import (
+    AbstractOpenCommand,
+    ShortcutAlreadyExistsError,
+)
+from enso.contrib.open.platform.linux import (
+    applications,
+    desktop,
+    gtk_bookmarks,
+    learned_shortcuts,
+)
+from enso.contrib.open.platform.linux.desktop_launch import (
+    create_desktop_info,
+    launch_app_info,
+    spawn_app,
+)
+from enso.contrib.open.platform.linux.utils import get_file_type
 from enso.contrib.open.shortcuts import ShortcutsDict
 from enso.contrib.open.utils import Timer
+from enso.utils.decorators import suppress
 
-#from enso.contrib.open.platform.linux import recent
-from enso.contrib.open.platform.linux import learned_shortcuts
-from enso.contrib.open.platform.linux import applications
-from enso.contrib.open.platform.linux import gtk_bookmarks
-from enso.contrib.open.platform.linux import desktop
-#from enso.contrib.open.platform.linux.windows import DesktopWindowsDirectory, windows_list
 
-from desktop_launch import launch_app_info
+# ----------------------------------------------------------------------------
+# Imports
+# ----------------------------------------------------------------------------
+
+# Imports
+
+
+# from enso.contrib.open.platform.linux import recent
+# from enso.contrib.open.platform.linux.windows import DesktopWindowsDirectory, windows_list
 
 """
 def limit_windows_by_title_fuzzy_search(title, win_list, first_hit=False):
@@ -96,14 +109,14 @@ def limit_windows_by_title_fuzzy_search(title, win_list, first_hit=False):
     return new_list 
 """
 
-class OpenCommandImpl( AbstractOpenCommand ):
 
-    def __init__(self, use_categories = True):
-        #self.shortcut_dict = None
+class OpenCommandImpl(AbstractOpenCommand):
+
+    def __init__(self, use_categories=True):
+        # self.shortcut_dict = None
         self.use_categories = use_categories
         super(OpenCommandImpl, self).__init__()
 
-            
     def _get_learn_as_dir(self):
         return learned_shortcuts.LEARN_AS_DIR
 
@@ -147,33 +160,127 @@ class OpenCommandImpl( AbstractOpenCommand ):
     def _is_application(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
 
-    def _save_shortcut(self, shortcut_name, file):
-        shortcut_file_path = os.path.join(self._get_learn_as_dir(), shortcut_name)
+    def _save_shortcut(self, shortcut_name, text):
+        target = text
+        file_type = self._get_shortcut_type(target)
 
-        if os.path.isfile(shortcut_file_path):
-            raise ShortcutAlreadyExistsError()
+        if file_type == shortcuts.SHORTCUT_TYPE_EXECUTABLE:
+            shortcut_file_path = os.path.join(
+                self._get_learn_as_dir(),
+                shortcut_name + (".desktop")
+            )
+            if os.path.isfile(shortcut_file_path):
+                raise ShortcutAlreadyExistsError()
+            dsk = xdg.DesktopEntry.DesktopEntry(shortcut_file_path)
+            dsk.set("Version", "1.0")
+            dsk.set("Name", shortcut_name)
+            dsk.set("Type", "Application")
+            dsk.set("Icon", "application-x-executable")
+            dsk.set("Exec", target)
+            dsk.set("Terminal", "0")
+            dsk.set("Path", os.path.abspath(os.path.dirname(target)))
+            dsk.write(trusted=True)
+            with suppress():
+                subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
+        elif file_type == shortcuts.SHORTCUT_TYPE_FOLDER:
+            shortcut_file_path = os.path.join(
+                self._get_learn_as_dir(),
+                shortcut_name + (".desktop")
+            )
+            if os.path.isfile(shortcut_file_path):
+                raise ShortcutAlreadyExistsError()
+            dsk = xdg.DesktopEntry.DesktopEntry(shortcut_file_path)
+            dsk.set("Version", "1.0")
+            dsk.set("Name", shortcut_name)
+            dsk.set("Type", "Application")
+            dsk.set("Icon", "gtk-directory")
+            dsk.set("Exec", "xdg-open \"%s\"" % os.path.abspath(target))
+            dsk.set("Terminal", "0")
+            dsk.set("Path", os.path.abspath(target))
+            file_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE
+            dsk.write(trusted=True)
+            with suppress():
+                subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
+        elif file_type == shortcuts.SHORTCUT_TYPE_URL:
+            shortcut_file_path = os.path.join(
+                self._get_learn_as_dir(),
+                shortcut_name + (".desktop")
+            )
+            if os.path.isfile(shortcut_file_path):
+                raise ShortcutAlreadyExistsError()
+            dsk = xdg.DesktopEntry.DesktopEntry(shortcut_file_path)
+            dsk.set("Version", "1.0")
+            dsk.set("Name", shortcut_name)
+            dsk.set("Icon", "applications-internet")
+            dsk.set("URL", target)
+            dsk.set("Type", "Link")
+            dsk.write(trusted=True)
+            with suppress():
+                subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
+        else:
+            """
+            #FIXME: This is probably not a good idea to create Application type .desktop entry for a document
+            shortcut_file_path = os.path.join(
+                self._get_learn_as_dir(),
+                shortcut_name + (".desktop")
+                )
+            if os.path.isfile(shortcut_file_path):
+                raise ShortcutAlreadyExistsError()
+            dsk = xdg.DesktopEntry.DesktopEntry(shortcut_file_path)
+            dsk.set("Version", "1.0")
+            dsk.set("Name", shortcut_name)
+            dsk.set("Type", "Application")
+            dsk.set("Icon", "gtk-directory")
+            dsk.set("Exec", "xdg-open \"%s\"" % os.path.abspath(target))
+            dsk.set("Terminal", "0")
+            dsk.set("Path", os.path.abspath(target))
+            file_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE
+            dsk.write(trusted=True)
+            with suppress():
+                subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
+            """
+            # This would be better, but problem is that on load, it's determined ax executable instead of a document.
+            shortcut_file_path = os.path.join(
+                self._get_learn_as_dir(),
+                shortcut_name
+            )
+            if os.path.isfile(shortcut_file_path):
+                raise ShortcutAlreadyExistsError()
+            os.symlink(target, shortcut_file_path)
 
+        return shortcuts.Shortcut(
+            shortcut_name, file_type, shortcut_file_path, shortcut_file_path, category=learned_shortcuts.SHORTCUT_CATEGORY
+        )
+        
+        """
         os.symlink(file, shortcut_file_path)
 
         return shortcuts.Shortcut(
             shortcut_name, self._get_shortcut_type(file), shortcut_file_path)
-
+        """
+        
     def _remove_shortcut(self, shortcut):
-        if not os.path.isfile(shortcut.file):
-            return
-        os.remove(shortcut.file)
+        if not os.path.isfile(shortcut.shortcut_filename):
+            return False
+        try:
+            os.remove(shortcut.shortcut_filename)
+        except Exception as e:
+            logging.error(e)
+            return False
+        else:
+            return True
 
-    def _get_shortcut_type(self, file):
-        raise NotImplementedError()
-
+    def _get_shortcut_type(self, text):
+        return get_file_type(text)
+        
     def _run_shortcut(self, shortcut):
         if shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE:
             try:
                 # Desktop and launch-panel shortcuts should have precedence over applications, so try to
                 # get .desktop shortcut first...
                 app = None
-                if os.path.splitext(shortcut.target)[1] == ".desktop" and os.path.isfile(shortcut.target):
-                    #with gtk_lock:
+                if os.path.isfile(shortcut.target) and os.path.splitext(shortcut.target)[1] == ".desktop":
+                    # with gtk_lock:
                     app = gio.unix.desktop_app_info_new_from_filename(shortcut.target)
                 # ...and then stored application object if .desktop does not exists
                 if not app:
@@ -192,18 +299,17 @@ class OpenCommandImpl( AbstractOpenCommand ):
                         print e
                     print shortcut.category
                     """
-                    launch_app_info(app)
-                    #app.launch([], gtk.gdk.AppLaunchContext())
+                    launch_app_info(app, timestamp=gtk.get_current_event_time(), desktop_file=shortcut.target)
+                    # app.launch([], gtk.gdk.AppLaunchContext())
             except Exception, e:
                 logging.error(e)
         else:
             try:
-                program = "/usr/bin/open"
-                params = shortcut.target
-                command_run = subprocess.call([program, params])
-                if command_run != 0:
-                    program = "gnome-open"
-                    command_run = subprocess.call([program, params])
+                _ = subprocess.Popen(["xdg-open", shortcut.target])
+                # FIXME: How to figure out that Popen failed?
+                if False:
+                    # FIXME: subprocess.call is waiting for process to finish, that is not what we want
+                    _ = subprocess.Popen(["/usr/bin/open", shortcut.target])
             except Exception, e:
                 logging.error(e)
                 try:
@@ -211,32 +317,30 @@ class OpenCommandImpl( AbstractOpenCommand ):
                 except Exception, e:
                     logging.error(e)
 
-
     def _open_with_shortcut(self, shortcut, files):
-        assert shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE 
+        assert shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
 
         try:
             # Desktop and launch-panel shortcuts should have precedence over applications, so try to
             # get .desktop shortcut first...
             app = None
-            if os.path.splitext(shortcut.target)[1] == ".desktop" and os.path.isfile(shortcut.target):
-                #with gtk_lock:
+            if os.path.isfile(shortcut.target) and os.path.splitext(shortcut.target)[1] == ".desktop":
+                # with gtk_lock:
                 app = gio.unix.desktop_app_info_new_from_filename(shortcut.target)
             # ...and then stored application object if .desktop does not exists
             if not app:
                 app = applications.applications_dict.get(shortcut.name, None)
             if app:
-                gfiles = [gio.File(filepath) for filepath in files]
+                gfiles = [gio.File(filepath) for filepath in files]  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 launch_app_info(app, gfiles=gfiles)
-                #app.launch([], gtk.gdk.AppLaunchContext())
+                # app.launch([], gtk.gdk.AppLaunchContext())
         except Exception, e:
             logging.error(e)
 
 
+class RecentCommandImpl(OpenCommandImpl):
 
-class RecentCommandImpl( OpenCommandImpl ):
-
-    def __init__(self, use_categories = True):
+    def __init__(self, use_categories=True):
         super(RecentCommandImpl, self).__init__(use_categories)
 
     def _reload_shortcuts(self, shortcuts_dict):
@@ -252,8 +356,5 @@ class RecentCommandImpl( OpenCommandImpl ):
         """
         logging.warn("The functionality of listing the recent items in 'open' command has been disabled due to performance issues in Linux GTK recent-files manager.")
         
-    def _get_shortcut_type(self, file):
+    def _get_shortcut_type(self, target):
         raise NotImplementedError()
-
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

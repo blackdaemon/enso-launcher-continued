@@ -43,7 +43,7 @@
 import xml.sax
 import xml.sax.handler
 
-import Environment
+import Environment  # @UnresolvedImport
 import Measurement
 import TextLayout
 import Font
@@ -62,7 +62,6 @@ NON_BREAKING_SPACE = u"\u00a0"
 # Utility functions
 # ----------------------------------------------------------------------------
 
-@memoized
 def colorHashToRgba( colorHash ):
     """
     Converts the given HTML-style color hash (e.g., '#aabbcc') or
@@ -259,7 +258,6 @@ class StyleRegistry:
         
         return self._styleDict.get( selector, None )
 
-    @contractify
     def update( self, selector, **properties ):
         """
         Updates the styles for selector to those described by

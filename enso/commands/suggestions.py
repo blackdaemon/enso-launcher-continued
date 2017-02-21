@@ -45,14 +45,17 @@ try:
 except ImportError:
     import re
 
-import enso.utils.strings
+from enso.utils.strings import stringRatio
 
-# This is used in loop so better to import the function directly to avoid lookup penalty
+# This is used in loop so better to import the function directly to avoid
+# lookup penalty
+
 from enso.utils.xml_tools import escape_xml
 
 # ----------------------------------------------------------------------------
 # Suggestion Objects
 # ----------------------------------------------------------------------------
+
 
 class Suggestion:
     """
@@ -67,14 +70,22 @@ class Suggestion:
     which are altered).
     """
 
-    def __init__( self, originalText, suggestedText, helpText = None, prefix_end=None, start=None, end=None, suggestedPrefix=None ):
+    def __init__(
+            self,
+            originalText,
+            suggestedText,
+            helpText=None,
+            prefix_end=None,
+            start=None,
+            end=None,
+            suggestedPrefix=None):
         """
         Initializes the Suggestion: suggestedText is the suggestion
         for originalText.
         """
 
-        assert isinstance( originalText, basestring )
-        assert isinstance( suggestedText, basestring )
+        assert isinstance(originalText, basestring)
+        assert isinstance(suggestedText, basestring)
 
         # The "source" or "original" text is the text that the user
         # typed.
@@ -105,7 +116,7 @@ class Suggestion:
         # and cache it.
         self._nearness = self.__getNearness()
 
-    def getHelpText( self ):
+    def getHelpText(self):
         return self.__helpText
 
     """
@@ -131,7 +142,7 @@ class Suggestion:
         return self.__completion
     """
 
-    def toText( self ):
+    def toText(self):
         """
         Returns the simple string representation of the suggestion, i.e.,
         the exact suggested text.
@@ -145,7 +156,7 @@ class Suggestion:
 
         return self.__suggestion
 
-    def getSource( self ):
+    def getSource(self):
         """
         Returns the "source" string, i.e., the string for which this
         object is a suggestion.
@@ -159,13 +170,13 @@ class Suggestion:
 
         return self.__source
 
-    def getSuggestedPrefix( self ):
+    def getSuggestedPrefix(self):
         """
         """
 
         return self.__suggestedPrefix
 
-    def __getNearness( self ):
+    def __getNearness(self):
         """
         Returns a number between 0 and 1 indicating how near the
         original string this suggestion is; 0 means totally different,
@@ -175,35 +186,34 @@ class Suggestion:
         this method may be overridden to implement custom notions of
         "nearness".
         """
-        result = enso.utils.strings.stringRatio( self.__source,
-                                                 self.__suggestion )
+        result = stringRatio(self.__source, self.__suggestion)
         assert (result >= 0) and (result <= 1),\
             "string-ratio is not between 0 and 1: %0.1f" % result
         return result
 
-    def __eq__( self, other ):
+    def __eq__(self, other):
         """
         Considers two suggestions to be equal if they suggest the same
         string.
         """
 
-        if not isinstance( other, Suggestion ):
+        if not isinstance(other, Suggestion):
             # The other object isn't a Suggestion, so they can't
             # possibly be equal.
             return False
         else:
             return self.toText() == other.toText()
 
-    def __ne__( self, other ):
+    def __ne__(self, other):
         """
         Considers two suggestions to be unequal if they do not suggest the
         same text.
         """
 
         # Simply return the inverse of __eq__
-        return not self.__eq__( other )
+        return not self.__eq__(other)
 
-    def __cmp__( self, other ):
+    def __cmp__(self, other):
         """
         Compares two suggestions on the basis of nearness.
         """
@@ -216,23 +226,23 @@ class Suggestion:
         # is far.
 
         # Original:
-        #return - cmp( self._nearness, other._nearness )
+        # return - cmp( self._nearness, other._nearness )
 
-        if self._nearness < other._nearness: #IGNORE:W0212
+        if self._nearness < other._nearness:  # IGNORE:W0212
             return 1
-        elif self._nearness > other._nearness: #IGNORE:W0212
+        elif self._nearness > other._nearness:  # IGNORE:W0212
             return -1
         else:
             # If the nearness is equal, return alphabetical order
-            return cmp(self.__suggestion, other.__suggestion) #IGNORE:W0212
-    
-    def __str__( self ):
+            return cmp(self.__suggestion, other.__suggestion)  # IGNORE:W0212
+
+    def __str__(self):
         return self.toText()
-    
+
     def isEmpty(self):
         return not self.toText()
-        
-    def toXml( self ):
+
+    def toXml(self):
         """
         Transforms the suggestion into a simple XML string.  There are
         three tags:
@@ -304,31 +314,39 @@ class Suggestion:
         # This class is read-only; the only "setters" are through the
         # constructor.  If we have previously computed the xml value,
         # return that cached value.
-        if self.__xml == None:
+
+        if self.__xml is None:
             self.__transform()
 
         return self.__xml
 
-
-    def __transform( self ):
+    def __transform(self):
         if self.__start is not None:
             #s = escape_xml(self.__suggestion)
-            xmlText = "%s<ins>%s</ins>%s<ins>%s</ins>" % (
-                escape_xml(self.__suggestion[:self.__prefix_end]),
-                escape_xml(self.__suggestion[self.__prefix_end:self.__prefix_end+self.__start]),
-                escape_xml(self.__suggestion[self.__prefix_end+self.__start:self.__prefix_end+self.__end]),
-                escape_xml(self.__suggestion[self.__prefix_end+self.__end:])
-            )
-            if self.__suggestedPrefix and xmlText.startswith(self.__suggestedPrefix):
-                xmlText = "<prefix>%s</prefix>%s" % (escape_xml(self.__suggestedPrefix), xmlText[len(self.__suggestedPrefix):])
+            xmlText = "%s<ins>%s</ins>%s<ins>%s</ins>" % (escape_xml(
+                self.__suggestion[
+                    :self.__prefix_end]),
+                escape_xml(
+                self.__suggestion[
+                    self.__prefix_end:self.__prefix_end + self.__start]),
+                escape_xml(
+                    self.__suggestion[
+                        self.__prefix_end + self.__start:self.__prefix_end + self.__end]),
+                escape_xml(
+                self.__suggestion[
+                    self.__prefix_end + self.__end:]))
+            if self.__suggestedPrefix and xmlText.startswith(
+                    self.__suggestedPrefix):
+                xmlText = "<prefix>%s</prefix>%s" % (escape_xml(
+                    self.__suggestedPrefix), xmlText[len(self.__suggestedPrefix):])
             # Finally, add help text, if it exists.
             if self.__helpText is not None:
-                xmlText = "%s<help>%s</help>" % (xmlText, escape_xml(self.__helpText))
+                xmlText = "%s<help>%s</help>" % (xmlText,
+                                                 escape_xml(self.__helpText))
             self.__xml = xmlText
             return
         else:
             pass
-
 
         # We are going to "use up" both the source string and the
         # suggestion
@@ -340,7 +358,6 @@ class Suggestion:
 
         # The "to the next word" completion.
         completion = ""
-
 
         # If we cannot match an initial substring of unusedSource,
         # then we are going to peel off characters one-by-one into
@@ -359,17 +376,20 @@ class Suggestion:
 
             # Loop from the full length of unusedSource down to one
             # character
-            for i in range( len(unusedSource), 0, -1 ):
+            for i in range(len(unusedSource), 0, -1):
                 # The initial substring we are trying to locate.
                 target = unusedSource[:i]
 
                 # BEGIN TARGET-FOUND CONDITION
                 if target in unusedSuggestion:
                     # Search normally from begining
-                    index = unusedSuggestion.find( target )
+                    index = unusedSuggestion.find(target)
                     # Search on word boundaries. This is different from \b in
-                    # that it considers also the underscore character as a word boundary.
-                    m = re.match(r".*[^0-9a-zA-Z](%s)" % re.escape(target), unusedSuggestion, re.I)
+                    # that it considers also the underscore character as a word
+                    # boundary.
+                    m = re.match(
+                        r".*[^0-9a-zA-Z](%s)" %
+                        re.escape(target), unusedSuggestion, re.I)
                     if m and m.groups() and m.start(1) > index:
                         # Prefer word boundary match
                         index = m.start(1)
@@ -387,16 +407,16 @@ class Suggestion:
                             xml_format = "<ins>%s</ins>"
                         xmlText += xml_format % escape_xml(
                             unusedSuggestion[:index]
-                            )
+                        )
                         # NOTE: Do not add inserted characters to the
                         # 'next word' completion.
                     # Whether or not there were characters between
                     # the start of the unused suggestion and "here",
                     # any unmatched chars are now defunct.
                     unmatchedChars = ""
-                    xmlText += escape_xml( target )
+                    xmlText += escape_xml(target)
                     completion += target
-                    unusedSuggestion = unusedSuggestion[index+len(target):]
+                    unusedSuggestion = unusedSuggestion[index + len(target):]
                     unusedSource = unusedSource[i:]
                     # The target was found and unusedSource was
                     # modified; we exit the for-loop (to be entered
@@ -415,21 +435,21 @@ class Suggestion:
                 unusedSource = unusedSource[1:]
 
             assert len( unusedSource ) < len( oldUnusedSource ), \
-                   "Potential infinite loop condition; failed to reduce"\
-                   " the length of the unused portion of the source string"\
-                   " in toXml()"
+                "Potential infinite loop condition; failed to reduce"\
+                " the length of the unused portion of the source string"\
+                " in toXml()"
         # END SOURCE-STRING LOOP
 
         # The source-string loop above only guarantees to use up the
         # source string; there may be an unused portion of the
         # suggestion left.  We append it to the xml string as an
         # insertion (or alteration, if appropriate).
-        if len( unusedSuggestion ) > 0:
-            if len( unmatchedChars ) > 0:
+        if len(unusedSuggestion) > 0:
+            if len(unmatchedChars) > 0:
                 xml_format = "<alt>%s</alt>"
             else:
                 xml_format = "<ins>%s</ins>"
-            unusedXml = escape_xml( unusedSuggestion )
+            unusedXml = escape_xml(unusedSuggestion)
             xmlText += xml_format % unusedXml
 
             completion += unusedSuggestion.split(" ")[0]
@@ -437,18 +457,20 @@ class Suggestion:
                 completion += " "
 
         # Finally, add the help text, if it exists.
-        if self.__helpText != None:
+        if self.__helpText is not None:
             xmlText += "<help>%s</help>" % self.__helpText
 
-        if self.__suggestedPrefix and xmlText.startswith(self.__suggestedPrefix):
-            xmlText = "<prefix>%s</prefix>%s" % (escape_xml(self.__suggestedPrefix), xmlText[len(self.__suggestedPrefix):])
+        if self.__suggestedPrefix and xmlText.startswith(
+                self.__suggestedPrefix):
+            xmlText = "<prefix>%s</prefix>%s" % (escape_xml(
+                self.__suggestedPrefix), xmlText[len(self.__suggestedPrefix):])
 
         self.__xml = xmlText
-        #print "COMPLETION: \"%s\"" % completion
+        # print "COMPLETION: \"%s\"" % completion
         #self.__completion = completion
 
 
-class AutoCompletion( Suggestion ):
+class AutoCompletion(Suggestion):
     """
     Encapsulates a single auto-completed suggestion.
 
@@ -458,29 +480,43 @@ class AutoCompletion( Suggestion ):
     failed autocompletion).
     """
 
-    def __init__( self, originalText, suggestedText, helpText=None, prefix_end=None, start=None, end=None ):
+    def __init__(
+            self,
+            originalText,
+            suggestedText,
+            helpText=None,
+            prefix_end=None,
+            start=None,
+            end=None):
         """
         Initializes the AutoCompletion.
         """
 
         # Enforce the object's preconditions.
-        if len( suggestedText ) > 0:
+        if len(suggestedText) > 0:
             assertionText = "Attempted to create AutoCompletion %s from %s, "\
                             "but %s was not found."
 
-            words = originalText.split( " " )
+            words = originalText.split(" ")
             # LONGTERM TODO: Don't handle this as a special case.
-            if words[-1].endswith( "?" ):
+            if words[-1].endswith("?"):
                 words[-1] = words[-1][:-1]
-                words.append( "?" )
+                words.append("?")
             for word in words:
                 assert word in suggestedText, \
-                       assertionText % ( suggestedText, originalText, word)
+                    assertionText % (suggestedText, originalText, word)
 
         # The text matches one of the class's two required conditions,
         # so initialize self as a Suggestion.
 
-        Suggestion.__init__( self, originalText, suggestedText, helpText, prefix_end, start, end )
+        Suggestion.__init__(
+            self,
+            originalText,
+            suggestedText,
+            helpText,
+            prefix_end,
+            start,
+            end)
 
     def hasCompletion(self):
         return bool(self.toText())
