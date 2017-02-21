@@ -1,19 +1,34 @@
 #! /usr/bin/env python
+# vim:set tabstop=4 shiftwidth=4 expandtab:
 # -*- coding: utf-8 -*-
 
+import logging
 import os
+import socket
 import sys
 import threading
-import logging
+from optparse import OptionParser
 
 import enso.config
+import enso.version
 from enso.messages import displayMessage
-from optparse import OptionParser
 
 
 ENSO_DIR = os.path.realpath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 
-options = None
+
+# Disable IPV6 address lookup
+# http://stackoverflow.com/questions/2014534/force-python-mechanize-urllib2-to-only-use-a-requests
+# FIXME: Resolve this based on current location and user configuration
+# FIXME: Move this somewhere else
+# This hack will force IPV4 DNS lookups only.
+origGetAddrInfo = socket.getaddrinfo
+
+def getAddrInfoWrapper(host, port, family=0, socktype=0, proto=0, flags=0):
+    return origGetAddrInfo(host, port, socket.AF_INET, socktype, proto, flags)
+
+# replace the original socket.getaddrinfo by our version
+#socket.getaddrinfo = getAddrInfoWrapper
 
 
 def change_color_scheme(color):
@@ -39,20 +54,29 @@ def process_options(argv):
     usageStr = "%prog [options]\n\n"
     parser = OptionParser(usage=usageStr, version="%prog " + version)
 
-    parser.add_option("-l", "--log-level", action="store", dest="loglevel", default="ERROR", help="logging level (CRITICAL, ERROR, INFO, WARNING, DEBUG)")
-    parser.add_option("-n", "--no-splash", action="store_false", dest="show_splash", default=True, help="Do not show splash window")
-    parser.add_option("-c", "--no-console", action="store_false", dest="show_console", default=True, help="Hide console window")
-    parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False, help="No information windows are shown on startup/shutdown")
-    parser.add_option("-k", "--hotkey", action="store", dest="hotkey", default="default", help="Hotkey used to invoke Enso. Possible values are: CAPITAL, LSHIFT, RSHIFT, LCONTROL, RCONTROL, LWIN, RWIN")
-    parser.add_option("", "--ignore-ensorc", action="store_true", dest="ignore_ensorc", default=False, help="Ignore .ensorc file")
+    parser.add_option("-l", "--log-level", action="store", dest="loglevel",
+                      default="ERROR", help="logging level (CRITICAL, ERROR, INFO, WARNING, DEBUG)")
+    parser.add_option("-n", "--no-splash", action="store_false",
+                      dest="show_splash", default=True, help="Do not show splash window")
+    parser.add_option("-c", "--no-console", action="store_false",
+                      dest="show_console", default=True, help="Hide console window")
+    parser.add_option("-q", "--quiet", action="store_true", dest="quiet",
+                      default=False, help="No information windows are shown on startup/shutdown")
+    parser.add_option("-k", "--hotkey", action="store", dest="hotkey", default="default",
+                      help="Hotkey used to invoke Enso. Possible values are: CAPITAL, LSHIFT, RSHIFT, LCONTROL, RCONTROL, LWIN, RWIN")
+    parser.add_option("", "--ignore-ensorc", action="store_true",
+                      dest="ignore_ensorc", default=False, help="Ignore .ensorc file")
 
     # Hidden options useful for development
-    parser.add_option("", "--commands-dir", action="store", dest="commands_dir", default="default", help="Used to override name of the subdirectory in user home directory that stores custom commands (used for development)")
-    parser.add_option("", "--color-scheme", action="store", dest="color_scheme", default="default", help="Used to override default color scheme (used for development)")
+    parser.add_option("", "--commands-dir", action="store", dest="commands_dir", default="default",
+                      help="Used to override name of the subdirectory in user home directory that stores custom commands (used for development)")
+    parser.add_option("", "--color-scheme", action="store", dest="color_scheme",
+                      default="default", help="Used to override default color scheme (used for development)")
 
     if sys.platform.startswith("win"):
         # Add tray-icon support for win32 platform
-        parser.add_option("-t", "--no-tray", action="store_false", dest="show_tray_icon", default=True, help="Hide tray icon")
+        parser.add_option("-t", "--no-tray", action="store_false",
+                          dest="show_tray_icon", default=True, help="Hide tray icon")
 
     opts, args = parser.parse_args(argv)
     return opts, args
@@ -93,12 +117,9 @@ class LogLevelFilter( logging.Filter, object ):
 
 
 def main(argv = None):
-    global options
-
     opts, args = process_options(argv[1:])
-    options = opts
 
-    enso.config.CMDLINE_OPTIONS = options
+    enso.config.CMDLINE_OPTIONS = opts
 
 
     logformat = "%(levelname)-9s%(asctime)s %(pathname)s[%(funcName)s:%(lineno)d]: %(message)s"
@@ -146,9 +167,10 @@ def main(argv = None):
 
     if not opts.ignore_ensorc:
         ensorc_path = os.path.expanduser(os.path.join("~",".ensorc"))
-        if (not os.path.isfile(ensorc_path) and sys.platform.startswith("win")
-            and os.path.isfile(ensorc_path+".lnk")):
-            # Extract real .ensorc path from .ensorc.lnk file on Windows platform
+        if (not os.path.isfile(ensorc_path) and sys.platform.startswith("win") and
+                os.path.isfile(ensorc_path + ".lnk")):
+            # Extract real .ensorc path from .ensorc.lnk file on Windows
+            # platform
             try:
                 import pythoncom  # @UnresolvedImport
                 from win32com.shell import shell, shellcon  # @UnresolvedImport
@@ -158,7 +180,8 @@ def main(argv = None):
                     pythoncom.CLSCTX_INPROC_SERVER,  # @UndefinedVariable
                     shell.IID_IShellLink
                 )
-                link.QueryInterface(pythoncom.IID_IPersistFile).Load(ensorc_path+".lnk")  # @UndefinedVariable
+                link.QueryInterface(pythoncom.IID_IPersistFile).Load(
+                    ensorc_path + ".lnk")  # @UndefinedVariable
                 path = link.GetPath(shell.SLGP_UNCPRIORITY)
                 if path and path[0]:
                     ensorc_path = path[0]
@@ -195,12 +218,14 @@ def main(argv = None):
             # current thread (using PumpMessages() )
             try:
                 import enso.platform.win32.taskbar as taskbar
-                threading.Thread(target = taskbar.systray, args = (enso.config,)).start()
+                threading.Thread(
+                    target=taskbar.systray, args=(enso.config,)).start()
             except Exception, e:
                 logging.error("Error initializing taskbar systray icon: %s", e)
 
     if opts.commands_dir != "default":
-        logging.info("Default commands directory changed to \"%s\"" % opts.commands_dir)
+        logging.info(
+            "Default commands directory changed to \"%s\"" % opts.commands_dir)
         enso.config.SCRIPTS_FOLDER_NAME = opts.commands_dir
 
     if opts.color_scheme != "default":
@@ -241,6 +266,3 @@ def main(argv = None):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-
-
-# vim:set tabstop=4 shiftwidth=4 expandtab:

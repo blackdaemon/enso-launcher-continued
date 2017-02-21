@@ -162,7 +162,8 @@ def save_shortcuts_cache(shortcuts_dict):
         try:
             conn.execute("delete from shortcut")
         except sqlite3.OperationalError, e:
-            conn.execute("create table shortcut(name text, type text, target text, shortcut_filename text, flags integer)")
+            conn.execute(
+                "create table shortcut(name text, type text, target text, shortcut_filename text, flags integer)")
         conn.executemany(
             "insert into shortcut (name, type, target, shortcut_filename, flags) values (?, ?, ?, ?, ?)",
                 ((s.name, s.type, s.target, s.shortcut_filename, s.flags)
@@ -190,9 +191,12 @@ def get_file_type(target):
     # Stripping \0 is needed for the text copied from Lotus Notes
     target = target.strip(" \t\r\n\0")
     # Before deciding whether to examine given text using URL regular expressions
-    # do some simple checks for the probability that the text represents a file path
-    if not os.path.exists(target):
-        if interfaces.is_url(target):
+    # do some simple checks for the probability that the text represents a
+    # file path
+    
+    # FIXME: the file existence check must be also based on PATH search,
+    # probably use "is_runnable" instead
+    if not os.path.exists(target) and interfaces.is_valid_url(target):
             return SHORTCUT_TYPE_URL
 
     file_path = target
@@ -298,7 +302,8 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                 target = pathjoin(shortcut_dirpath, shortcut_directory)
                 try:
                     #old_name = shortcut_name
-                    shortcut_name = unicodedata.normalize('NFKD', unicode(shortcut_directory)).encode('ascii', 'ignore')
+                    shortcut_name = unicodedata.normalize(
+                        'NFKD', unicode(shortcut_directory)).encode('ascii', 'ignore')
                     #if shortcut_name != old_name:
                     #    print "NORMALIZED:", old_name, shortcut_name
                 except Exception, e: #IGNORE:W0703
@@ -323,10 +328,12 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
 
             if filesystem.is_symlink(shortcut_filepath):
                 try:
-                    shortcut_filepath = filesystem.trace_symlink_target(shortcut_filepath)
+                    shortcut_filepath = filesystem.trace_symlink_target(
+                        shortcut_filepath)
                     shortcut_filename = basename(shortcut_filepath)
-                except WindowsError, e:
-                    logging.error("Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
+                except WindowsError as e:
+                    logging.error(
+                        "Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
                     continue
 
             # rdp is remote-desktop shortcut
@@ -384,13 +391,15 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                     'ascii', 'ignore').lower()
                 if category:
                     if callable(category):
-                        shortcut_name = "%s (%s)" % (shortcut_name, category(shortcut_name, shortcut_type, target, shortcut_path))
+                        shortcut_name = "%s (%s)" % (
+                            shortcut_name, category(shortcut_name, shortcut_type, target, shortcut_path))
                     else:
                         shortcut_name = "%s (%s)" % (shortcut_name, category)
                 #if shortcut_name != old_name:
                 #    print "NORMALIZED:", old_name, shortcut_name
             except Exception, e: #IGNORE:W0703
-                logging.error(u"%s; shortcut_name:%s; dirpath:%s", e, shortcut_name, shortcut_path) #dirpath)
+                logging.error(
+                    u"%s; shortcut_name:%s; dirpath:%s", e, shortcut_name, shortcut_path)
             else:
                 try:
                     yield Shortcut(
@@ -446,7 +455,8 @@ def get_special_folders(use_categories=True):
         )
         recycle_shortcut.SetPath("")
         recycle_shortcut.SetWorkingDirectory("")
-        recycle_shortcut.SetIDList(['\x1f\x00@\xf0_d\x81P\x1b\x10\x9f\x08\x00\xaa\x00/\x95N'])
+        recycle_shortcut.SetIDList(
+            ['\x1f\x00@\xf0_d\x81P\x1b\x10\x9f\x08\x00\xaa\x00/\x95N'])
         recycle_shortcut.QueryInterface( pythoncom.IID_IPersistFile ).Save(
             RECYCLE_BIN_LINK, 0 )
     yield Shortcut(
@@ -485,8 +495,10 @@ def get_gameexplorer_entries(use_categories=True):
         game_key = "%s\\%s\\%s" % (gameux_key, gamelist_key, key)
 
         try:
-            target = registry.get_value(registry.HKEY_LOCAL_MACHINE, game_key, "AppExePath", True)[1]
-            title = registry.get_value(registry.HKEY_LOCAL_MACHINE, game_key, "Title", True)[1]
+            target = registry.get_value(
+                registry.HKEY_LOCAL_MACHINE, game_key, "AppExePath", True)[1]
+            title = registry.get_value(
+                registry.HKEY_LOCAL_MACHINE, game_key, "Title", True)[1]
         except:
             continue
 
@@ -526,7 +538,8 @@ def run_shortcut(shortcut):
                 work_dir = None
             else:
                 target, params = utils.splitcmdline(target)
-                target = os.path.normpath(utils.expand_win_path_variables(target))
+                target = os.path.normpath(
+                    utils.expand_win_path_variables(target))
                 params = " ".join(
                     (
                         ('"%s"' % p if ' ' in p else p) for p in
@@ -540,7 +553,8 @@ def run_shortcut(shortcut):
                 if ".cpl" in params:
                     params = re.sub(r"(.*) (,@[0-9]+)$", "\\1\\2", params)
                 work_dir = os.path.dirname(target)
-            logger.info("Executing '%s%s'", target, " "+params if params else "")
+            logger.info(
+                "Executing '%s%s'", target, " " + params if params else "")
             try:
                 _ = win32api.ShellExecute(
                     0,
@@ -561,15 +575,18 @@ def run_shortcut(shortcut):
             except WindowsError, e:
                 logger.error("%d: %s", e.errno, e)
         else:
-            target = os.path.normpath(utils.expand_win_path_variables(shortcut.shortcut_filename))
+            target = os.path.normpath(
+                utils.expand_win_path_variables(shortcut.shortcut_filename))
             logger.info("Executing '%s'", target)
 
             try:
                 os.startfile(target)
             except WindowsError, e:
-                #TODO: Why am I getting 'bad command' error on Win7 instead of 'not found' error?
+                # TODO: Why am I getting 'bad command' error on Win7 instead of
+                # 'not found' error?
                 if e.errno in (winerror.ERROR_FILE_NOT_FOUND, winerror.ERROR_BAD_COMMAND):
-                    ensoapi.display_message(u"File has not been found. Please adjust the shortcut properties.")
+                    ensoapi.display_message(
+                        u"File has not been found. Please adjust the shortcut properties.")
                     logger.error("%d: %s", e.errno, e)
                     try:
                         _ = win32api.ShellExecute(
@@ -692,14 +709,16 @@ class OpenCommandImpl( AbstractOpenCommand ):
             logging.error(e)
 
         desktop_dir = get_special_folder_path(shellcon.CSIDL_DESKTOPDIRECTORY)
-        common_desktop_dir = get_special_folder_path(shellcon.CSIDL_COMMON_DESKTOPDIRECTORY)
+        common_desktop_dir = get_special_folder_path(
+            shellcon.CSIDL_COMMON_DESKTOPDIRECTORY)
         quick_launch_dir = os.path.join(
             get_special_folder_path(shellcon.CSIDL_APPDATA),
             "Microsoft",
             "Internet Explorer",
             "Quick Launch")
         start_menu_dir = get_special_folder_path(shellcon.CSIDL_STARTMENU)
-        common_start_menu_dir = get_special_folder_path(shellcon.CSIDL_COMMON_STARTMENU)
+        common_start_menu_dir = get_special_folder_path(
+            shellcon.CSIDL_COMMON_STARTMENU)
         virtualmachines_dir = os.path.join(
             get_special_folder_path(shellcon.CSIDL_PROFILE),
             "Virtual Machines")
@@ -719,7 +738,8 @@ class OpenCommandImpl( AbstractOpenCommand ):
         """
         shortcuts = []
         import cProfile
-        cProfile.runctx('list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
+        cProfile.runctx(
+            'list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
         with Timer("Loaded common-desktop shortcuts"):
             shortcuts.extend(get_shortcuts_from_dir(common_desktop_dir,
                 max_depth=0, collect_dirs=True

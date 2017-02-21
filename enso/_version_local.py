@@ -1,3 +1,3 @@
-# This file is originally generated from Git information by running 'setup.py
-# version'. Distribution tarballs contain a pre-generated copy of this file.
-VERSION = '1.2-67-gfd09873-dirty'
+# This file is originally generated from Git information by running version.py.
+# Distribution package contains a pre-generated copy of this file.
+VERSION = '1.2-78-g8d26340-dirty'
