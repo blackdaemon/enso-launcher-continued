@@ -183,7 +183,6 @@ class PyShellLink(_AbstractPyShortcut):
         path = self._base.GetPath(shell.SLGP_UNCPRIORITY)
         if path and path[0]:
             target = path[0]
-            #shortcut_type = get_file_type(target)
         else:
             #FIXME: This is hack for .lnk files containing IE web link
             # Why it doesn't use normal .url files?
@@ -225,6 +224,7 @@ class PyShellLink(_AbstractPyShortcut):
             # URL is on 2nd position
             if idlist and len(idlist) > 1:
                 # Always in UTF-16 encoding (widechar)
+                iditem = None
                 try:
                     iditem = idlist[1].decode("UTF-16LE")
                 except UnicodeDecodeError, e:
@@ -237,13 +237,12 @@ class PyShellLink(_AbstractPyShortcut):
                             iditem = idlist[1].decode("UTF-8")
                         except UnicodeDecodeError, e:
                             logging.error(e)
-                else:
-                    #FIXME: Is this format always same? u"\u8061\x00\x00{URL}\x00\x00"
-                    if len(iditem) > 5 and iditem.startswith(u"\u8061"):
-                        iditem = iditem[1:].strip(u"\x00")
-                        if iditem.startswith(("http://", "https://", "hcp://")):
-                            target = iditem
-                            #shortcut_type = SHORTCUT_TYPE_URL
+                #FIXME: Is this format always same? u"\u8061\x00\x00{URL}\x00\x00"
+                if iditem and len(iditem) > 5 and iditem.startswith(u"\u8061"):
+                    iditem = iditem[1:].strip(u"\x00")
+                    if iditem.startswith(("http://", "https://", "hcp://")):
+                        target = iditem
+                        #shortcut_type = SHORTCUT_TYPE_URL
         return target
 
     def get_working_dir(self):

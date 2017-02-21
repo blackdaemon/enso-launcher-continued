@@ -73,18 +73,12 @@ try:
 except ImportError:
     import re
 
-logger = logging.getLogger(__name__)
-
-try:
-    directory_watcher = enso.providers.getInterface("directory_watcher")
-except ImportError:
-    logging.warning("directory_watcher interface is not available. \"Open\" command items reloading will be disabled.")
-    directory_watcher = None
-
 if utils.platform_windows_vista() or utils.platform_windows_7():
     from enso.contrib.open.platform.win32 import control_panel_vista_win7 as control_panel
 else:
     from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
+
+logger = logging.getLogger(__name__)
 
 EXECUTABLE_EXTS = ['.exe', '.com', '.cmd', '.bat', '.py', '.pyw']
 EXECUTABLE_EXTS.extend(
@@ -95,6 +89,7 @@ EXECUTABLE_EXTS = set(EXECUTABLE_EXTS)
 
 ensoapi = EnsoApi()
 
+directory_watcher = None
 
 def get_special_folder_path(folder_id):
     return unicode(shell.SHGetFolderPath(0, folder_id, 0, 0))
@@ -196,10 +191,9 @@ def get_file_type(target):
     target = target.strip(" \t\r\n\0")
     # Before deciding whether to examine given text using URL regular expressions
     # do some simple checks for the probability that the text represents a file path
-    
-    #FIXME: the file existence check must be also based on PATH search, probably use "is_runnable" instead
-    if not os.path.exists(target) and interfaces.is_valid_url(target):
-        return SHORTCUT_TYPE_URL
+    if not os.path.exists(target):
+        if interfaces.is_url(target):
+            return SHORTCUT_TYPE_URL
 
     file_path = target
     file_name, file_ext = os.path.splitext(file_path)
@@ -348,11 +342,16 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                 #type could be also get lazily, but the advantage is then void
                 target = shell_link.get_target()
                 if target:
+                    #print type(target)
+                    if isinstance(target, str):
+                        target = target.encode("string_escape")
+                    else:
+                        print target.replace("\\", "\\\\")
                     if isdir(target):
                         shortcut_type = SHORTCUT_TYPE_FOLDER
                     elif isfile(target):
                         target_ext = splitext(target)[1].lower()
-                        if target_ext in EXECUTABLE_EXTS + [".ahk"]:
+                        if target_ext in EXECUTABLE_EXTS | set([".ahk"]):
                             shortcut_type = SHORTCUT_TYPE_EXECUTABLE
                         elif target_ext == ".url":
                             shortcut_type = SHORTCUT_TYPE_URL
@@ -687,7 +686,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
             pythoncom.CoInitialize()
 
         try:
-            self.shortcut_dict = load_cached_shortcuts()
+            shortcuts_dict.update(load_cached_shortcuts())
             logging.info("Loaded shortcuts from cache")
         except Exception as e:
             logging.error(e)
@@ -830,15 +829,13 @@ class OpenCommandImpl( AbstractOpenCommand ):
                     (None, 0))
         """
 
-        self.shortcut_dict = ShortcutsDict(((s.name, s) for s in shortcuts))
+        shortcuts_dict.update(ShortcutsDict(((s.name, s) for s in shortcuts)))
 
         try:
-            save_shortcuts_cache(self.shortcut_dict)
+            save_shortcuts_cache(shortcuts_dict)
             logging.info("Updated shortcuts cache")
         except Exception, e:
             logging.error(e)
-
-        return self.shortcut_dict
 
     def _is_application(self, shortcut):
         return shortcut.type == SHORTCUT_TYPE_EXECUTABLE

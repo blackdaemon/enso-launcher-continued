@@ -212,11 +212,19 @@ def main(argv = None):
         # Last Psyco available is for Python 2.6 (Win32) and Python 2.7 (Linux, unofficial build from github)
         # There is no Psyco support for Python > 2.7
         import psyco  # @UnresolvedImport
-        logging.info("Using Psyco optimization")
         psyco.profile()
         #psyco.log()
-    except:
-        pass
+    except Exception as e:
+        try:
+            from enso.thirdparty import psyco
+            psyco.profile()
+            #psyco.log()
+        except Exception as e:
+            logging.error(e)
+        else:
+            logging.info("Using Psyco optimization; Psyco for Python 2.7 (experimental)")
+    else:
+        logging.info("Using Psyco optimization; Psyco for Python <= 2.6")
 
     l = logging.getLogger()
     if l.isEnabledFor(logging.DEBUG):
