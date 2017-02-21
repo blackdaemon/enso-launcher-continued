@@ -66,38 +66,38 @@ class _FileChangedEventHandler(FileSystemEventHandler):
 
     def on_moved(self, event):
         super(_FileChangedEventHandler, self).on_moved(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
         self.call_callback(event)
     
     def on_created(self, event):
         super(_FileChangedEventHandler, self).on_created(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Created %s: %s" % (what, event.src_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Created %s: %s" % (what, event.src_path)
         self.call_callback(event)
     
     def on_deleted(self, event):
         super(_FileChangedEventHandler, self).on_deleted(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Deleted %s: %s" % (what, event.src_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Deleted %s: %s" % (what, event.src_path)
         self.call_callback(event)
     
     def on_modified(self, event):
         super(_FileChangedEventHandler, self).on_modified(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Modified %s: %s" % (what, event.src_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Modified %s: %s" % (what, event.src_path)
         self.call_callback(event)
 
     def call_callback(self, event):
         print "Recently changed applications list was updated"
         if self.update_callback_func:
             try:
-                print "Calling update callback func..."
+                assert logging.debug("Calling update callback func...") or True
                 self.update_callback_func()
             except Exception, e:
-                print e
+                logging.error("Error calling watchdog-update-callback function: %s", e)
         else:
-            print "No calling update callback func was defined, that's fine"
+            assert logging.debug("No calling update callback func was defined, that's fine") or True
 
 
 def get_applications():

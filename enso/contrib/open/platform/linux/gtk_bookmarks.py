@@ -91,15 +91,15 @@ class _FileChangedEventHandler(FileSystemEventHandler):
         #print "Modified %s: %s" % (what, event.src_path)
 
     def call_callback(self, event):
-        print "Recently changed gtk-bookmarks list was updated"
+        #print "Recently changed gtk-bookmarks list was updated"
         if self.update_callback_func:
             try:
-                print "Calling update callback func..."
+                assert logging.debug("Calling update callback func...") or True
                 self.update_callback_func()
             except Exception, e:
-                print e
+                logging.error("Error calling watchdog-update-callback function: %s", e)
         else:
-            print "No calling update callback func was defined, that's fine"
+            assert logging.debug("No calling update callback func was defined, that's fine") or True
 
 
 def get_bookmarks():

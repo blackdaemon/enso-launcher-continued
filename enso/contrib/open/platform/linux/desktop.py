@@ -63,46 +63,46 @@ class _FileChangedEventHandler(FileSystemEventHandler):
 
     def on_moved(self, event):
         super(_FileChangedEventHandler, self).on_moved(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
         # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
     def on_created(self, event):
         super(_FileChangedEventHandler, self).on_created(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Created %s: %s" % (what, event.src_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Created %s: %s" % (what, event.src_path)
         # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
     def on_deleted(self, event):
         super(_FileChangedEventHandler, self).on_deleted(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Deleted %s: %s" % (what, event.src_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Deleted %s: %s" % (what, event.src_path)
         # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
     
     def on_modified(self, event):
         super(_FileChangedEventHandler, self).on_modified(event)
-        what = 'directory' if event.is_directory else 'file'
-        print "Modified %s: %s" % (what, event.src_path)
+        #what = 'directory' if event.is_directory else 'file'
+        #print "Modified %s: %s" % (what, event.src_path)
         # We are interested only in created/modified/deleted files, not subdirs
         if not event.is_directory:
             self.call_callback(event)
 
     def call_callback(self, event):
-        print "Recently changed desktop shortcuts list was updated"
+        #print "Recently changed desktop shortcuts list was updated"
         if self.update_callback_func:
             try:
-                print "Calling update callback func..."
+                assert logging.debug("Calling update callback func...") or True
                 self.update_callback_func()
             except Exception, e:
-                logging.error(e)
+                logging.error("Error calling watchdog-update-callback function: %s", e)
         else:
-            print "No calling update callback func was defined, that's fine"
+            assert logging.debug("No calling update callback func was defined, that's fine") or True
 
 
 def get_shortcut_type(filepath):
@@ -155,7 +155,7 @@ def get_desktop_shortcuts():
         shortcuts.Shortcut("Desktop", shortcuts.SHORTCUT_TYPE_FOLDER, DESKTOP_DIR, category=SHORTCUT_CATEGORY_DESKTOP)
     )
     logging.info("open-command: Loaded %d desktop shortcuts" % len(s))
-    return s 
+    return s
 
 
 def get_launch_panel_shortcuts():

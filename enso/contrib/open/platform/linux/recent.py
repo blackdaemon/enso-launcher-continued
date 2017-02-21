@@ -32,6 +32,7 @@
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
+import logging
 
 import gio
 from gtk import recent_manager_get_default
@@ -51,15 +52,15 @@ class RecentChangedSignalReceiver(object):
         self.update_callback_func = None
         
     def recent_changed(self, *args):
-        print "Recently changed documents list was updated"
+        #print "Recently changed documents list was updated"
         if self.update_callback_func:
             try:
-                print "Calling update callback func..."
+                assert logging.debug("Calling update callback func...") or True
                 self.update_callback_func()
             except Exception, e:
-                print e
+                logging.error("Error calling watchdog-update-callback function: %s", e)
         else:
-            print "No calling update callback func was defined, that's fine"
+            assert logging.debug("No calling update callback func was defined, that's fine") or True
 
 recent_changed_signal_receiver = RecentChangedSignalReceiver()
 

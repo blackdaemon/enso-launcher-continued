@@ -128,11 +128,12 @@ def load_cached_shortcuts():
     try:
         conn = sqlite3.connect(
             os.path.expanduser("~/enso-open-shortcuts.db"),
-            timeout = 0.5)
+            timeout=0.5
+        )
         logging.info("connected " + repr(conn))
         rows = conn.execute(
             "select name, type, target, shortcut_filename from shortcut"
-            ).fetchall()
+        ).fetchall()
     except Exception, e:
         logging.error(e)
         raise
@@ -156,8 +157,9 @@ def save_shortcuts_cache(shortcuts_dict):
         conn = sqlite3.connect(
             #":memory:",
             os.path.expanduser("~/enso-open-shortcuts.db"),
-            isolation_level = 'DEFERRED',
-            timeout = 0.5)
+            isolation_level='DEFERRED',
+            timeout=0.5
+        )
         logging.info("connected " + repr(conn))
         try:
             conn.execute("delete from shortcut")
@@ -166,9 +168,8 @@ def save_shortcuts_cache(shortcuts_dict):
                 "create table shortcut(name text, type text, target text, shortcut_filename text, flags integer)")
         conn.executemany(
             "insert into shortcut (name, type, target, shortcut_filename, flags) values (?, ?, ?, ?, ?)",
-                ((s.name, s.type, s.target, s.shortcut_filename, s.flags)
-                for s in shortcuts_dict.itervalues())
-            )
+                ((s.name, s.type, s.target, s.shortcut_filename, s.flags) for s in shortcuts_dict.itervalues())
+        )
     except Exception, e:
         logging.error(e)
         if conn:
@@ -185,9 +186,10 @@ def save_shortcuts_cache(shortcuts_dict):
 
 
 
-# TODO: Refactor get_file_type, it's too complex, solves too many cases, ...
-# ...is unreliable, split url/file detection: url should be detected outside of this
 def get_file_type(target):
+    # TODO: Refactor get_file_type, it's too complex, solves too many cases, ...
+    # ...is unreliable, split url/file detection: url should be detected outside of this
+
     # Stripping \0 is needed for the text copied from Lotus Notes
     target = target.strip(" \t\r\n\0")
     # Before deciding whether to examine given text using URL regular expressions
