@@ -132,7 +132,25 @@ PLUGINS = [
     "enso.contrib.scriptotron",
 ]
 
-FONT_NAME = {"normal": "Gentium", "italic": "Gentium Italic"}
+# You can download fantastic looking font named "Input" from http://input.fontbureau.com/download/
+FONT_NAME = {
+    "normal": [
+        ("Input Sans Compressed Light", {"xAdvanceModifier": 0.85}),
+        ("Input Sans Condensed Light", {"xAdvanceModifier": 0.85}),
+        ("Input Sans Compressed", {"xAdvanceModifier": 0.85}),
+        "Gentium",
+        "Helvetica",
+        "Liberation Sans",
+    ],
+    "italic": [
+        ("Input Sans Compressed Light", {"xAdvanceModifier": 0.85}),
+        ("Input Sans Condensed Light", {"xAdvanceModifier": 0.85}),
+        ("Input Sans Compressed", {"xAdvanceModifier": 0.85}),
+        "Gentium Italic",
+        "Helvetica",
+        "Liberation Sans",
+    ],
+}
 
 COLOR_SCHEMES = {
     'default': ("#ffffff", "#9fbe57", "#7f9845", "#000000"),

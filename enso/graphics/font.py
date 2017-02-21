@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -44,32 +44,46 @@
 # Imports
 # ----------------------------------------------------------------------------
 
-import sys
 import logging
+import sys
 
 import enso
-from enso import config
-from enso import cairo
+from enso import cairo, config
+from enso.utils import do_once
 from enso.utils.memoize import memoized
 
-_graphics = enso.providers.getInterface( "graphics" )
-
-_used_font_logged = False
+_graphics = enso.providers.getInterface("graphics")
 
 
 # ----------------------------------------------------------------------------
 # Fonts
 # ----------------------------------------------------------------------------
 
-class Font:
+class Font(object):
     """
     Encapsulates a font face, which describes both a given typeface
     and style.
     """
 
+    __slots__ = (
+        '__weakref__',
+        'ascent',
+        'cairoContext',
+        'descent',
+        'font_name',
+        'font_opts',
+        'height',
+        'isItalic',
+        'maxXAdvance',
+        'maxYAdvance',
+        'name',
+        'size',
+        'slant',
+    )
+    
     _cairoContext = None
 
-    def __init__( self, name, size, isItalic ):
+    def __init__(self, name, size, isItalic):
         """
         Creates a Font with the given properties.
         """
@@ -78,35 +92,36 @@ class Font:
         self.size = size
         self.isItalic = isItalic
         self.font_name = None
-
+        self.font_opts = {}
+        
         if self.isItalic:
             self.slant = cairo.FONT_SLANT_ITALIC
         else:
             self.slant = cairo.FONT_SLANT_NORMAL
 
         if not Font._cairoContext:
-            dummySurface = cairo.ImageSurface( cairo.FORMAT_ARGB32, 1, 1 )
-            Font._cairoContext = cairo.Context( dummySurface )
+            dummySurface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
+            Font._cairoContext = cairo.Context(dummySurface)
 
         self.cairoContext = Font._cairoContext
 
         self.cairoContext.save()
 
-        self.loadInto( self.cairoContext )
+        self.loadInto(self.cairoContext)
 
         # Make our font metrics information visible to the client.
-        
-        ( self.ascent,
-          self.descent,
-          self.height,
-          self.maxXAdvance,
-          self.maxYAdvance ) = self.cairoContext.font_extents()
-        
+
+        (self.ascent,
+         self.descent,
+         self.height,
+         self.maxXAdvance,
+         self.maxYAdvance) = self.cairoContext.font_extents()
+
         self.cairoContext.restore()
 
     @classmethod
     @memoized
-    def get( cls, name, size, isItalic ):
+    def get(cls, name, size, isItalic):
         """
         Retrieves the Font object with the given properties.
 
@@ -114,18 +129,18 @@ class Font:
         this mechanism a flyweight pool of Font objects.
         """
 
-        return cls( name, size, isItalic )
+        return cls(name, size, isItalic)
 
     @memoized
-    def getGlyph( self, char ):
+    def getGlyph(self, char):
         """
         Returns a glyph of the font corresponding to the given Unicode
         character.
         """
 
-        return FontGlyph( char, self, self.cairoContext )
+        return FontGlyph(char, self, self.cairoContext)
 
-    def getKerningDistance( self, charLeft, charRight ):
+    def getKerningDistance(self, charLeft, charRight):
         """
         Returns the kerning distance (in points) between the two
         Unicode characters for this font face.
@@ -135,126 +150,143 @@ class Font:
         # the source code of Cairo.
         return 0.0
 
-    def loadInto( self, cairoContext ):
+    def loadInto(self, cairoContext):
         """
         Sets the cairo context's current font to this font.
         """
 
         def get_font_name(font_id):
-            global _used_font_logged
+            """
+            Get the font name based on the font_id.
+            Font_id equals font name on Linux.
+            On Windows, we need to return the font filename.
+            """
+            if not sys.platform.startswith("win"):
+                # font_id represents the name on Linux/OSX
+                return font_id
             
+            """
+            TODO: Used Cairo version does not have any usable font registry
+            implementation on Windows. This win32 specific code handling should
+            go away as soon as Cairo is updated to newer version with better
+            font support for Windows.
+            """
+            # For Win32, we have to lookup the font filename
+            font_name = None
+            # FIXME: FontRegistry is present only for Win32 platform
             font_detail = _graphics.FontRegistry.get().get_font_detail(font_id)
             if font_detail:
                 font_name = font_detail.filepath
-                if not _used_font_logged:
-                    logging.info("Font used: " + repr(font_detail))
-                    _used_font_logged = True
+                do_once(
+                    logging.info,
+                    u"Font used: %s" % repr(font_detail)
+                )
             else:
-                font_name = None
-                if not _used_font_logged:
-                    logging.error(u"Specified font was not found in the system: \"%s\"."
-                                  % font_id)
-                    _used_font_logged = True
+                do_once(
+                    logging.error,
+                    u"Specified font was not found in the system: %s" % font_id
+                )
             return font_name
 
-        # TODO: Used Cairo version does not have any usable font registry
-        # implementation on Windows. This handling should go away as soon as
-        # Cairo is updated to newer version with better font support for Windows.
-        if sys.platform.startswith( "win" ):
-            # Set it once
-            if not self.font_name:
-                font_name = None
+        def font_exists(font_id):
+            """
+            Find out if the font with given font_id exists on the system
+            Font_id is the font name like "Input Consensed Light" or "Arial"
+            """
+            if sys.platform.startswith("win"):
+                return _graphics.FontRegistry.get().get_font_detail(font_id) is not None
+            else:
+                # FIXME: Provide OSX code
+                from enso.platform.linux.utils import get_cmd_output
+                rc, _ = get_cmd_output(
+                    "fc-list | grep -E \"{0}\"".format(font_id.replace(" ", " ?"))
+                )
+                return rc == 0
+            
+        # Set it just once
+        if not self.font_name:
+            font_name = None
+            font_opts = {}
 
-                if not hasattr(config, "FONT_NAME"):
-                    logging.error("There is no FONT_NAME setting in enso.config.")
-
+            if hasattr(config, "FONT_NAME"):
                 # Search for suitable font in config
-                if self.isItalic:
+                f = config.FONT_NAME["normal"]
+                if self.isItalic and "italic" in config.FONT_NAME:
                     # italic font
-                    if hasattr(config, "FONT_NAME"):
-                        if "italic" in config.FONT_NAME:
-                            font_name = get_font_name(config.FONT_NAME["italic"])
-                        if not font_name:
-                            # fallback if italic font is not available
-                            font_name = get_font_name(config.FONT_NAME["normal"])
+                    f = config.FONT_NAME["italic"]
+                if isinstance(f, basestring):
+                    font_name = get_font_name(f)
                 else:
-                    # normal font
-                    if hasattr(config, "FONT_NAME") and "normal" in config.FONT_NAME:
-                        font_name = get_font_name(config.FONT_NAME["normal"])
+                    font_list = f + ["Helvetica", "Arial", "Liberation Sans"]
+                    for font_spec in font_list:
+                        if isinstance(font_spec, basestring):
+                            font_id = font_spec
+                        else:
+                            font_id, font_opts = font_spec
+                        if font_exists(font_id):
+                            font_name = get_font_name(font_id)
+                            break
+            else:
+                logging.error(
+                    "There is no FONT_NAME setting in enso.config.")
 
-                if not font_name:
-                    logging.warning("Using default 'Arial.ttf' font.")
+            self.font_name = font_name
+            self.font_opts = font_opts
 
-                    import os
-                    from win32com.shell import shell, shellcon
+        if self.font_name:
+            if self.isItalic:
+                do_once(
+                    logging.info,
+                    "Using font (italic): {0}".format(self.font_name)
+                )
+            else:
+                do_once(
+                    logging.info,
+                    "Using font (normal): {0}".format(self.font_name)
+                )
 
-                    fonts_dir = shell.SHGetPathFromIDList(
-                        shell.SHGetFolderLocation (0, shellcon.CSIDL_FONTS))
-
-                    # Default is Arial
-                    font_name = os.path.join(fonts_dir, "arial.ttf")
-
-                self.font_name = font_name
-
+            fo = cairo.FontOptions()
+            fo.set_antialias(cairo.ANTIALIAS_GRAY)
+            #fo.set_hint_metrics(cairo.HINT_METRICS_ON)
+            cairoContext.set_font_options(fo)
+            
             cairoContext.select_font_face(
                 self.font_name,
                 self.slant,
                 cairo.FONT_WEIGHT_NORMAL
-                )
-        else:
-            # Other than win32 platform
-            # This works on Linux, not tested on OSX
-            # TODO: Provide OSX specific version
-            if not self.font_name:
-                font_name = None
-                if not hasattr(config, "FONT_NAME"):
-                    logging.error("There is no FONT_NAME setting in enso.config.")
-    
-                # Search for suitable font in config
-                if self.isItalic:
-                    # italic font
-                    if hasattr(config, "FONT_NAME"):
-                        if "italic" in config.FONT_NAME:
-                            font_name = config.FONT_NAME["italic"] #get_font_name(config.FONT_NAME["italic"])
-                        if not font_name:
-                            # fallback if italic font is not available
-                            font_name = config.FONT_NAME["normal"] #get_font_name(config.FONT_NAME["normal"])
-                else:
-                    # normal font
-                    if hasattr(config, "FONT_NAME") and "normal" in config.FONT_NAME:
-                        font_name = config.FONT_NAME["normal"] #get_font_name(config.FONT_NAME["normal"])
+            )
 
-                if not font_name:
-                    font_name = "Helvetica"
-
-                self.font_name = font_name
-
-            cairoContext.select_font_face(
-                self.font_name,
-                self.slant,
-                cairo.FONT_WEIGHT_NORMAL
-                )
-
-        cairoContext.set_font_size( self.size )
-
+            cairoContext.set_font_size(self.size)
 
 
 # ----------------------------------------------------------------------------
 # Font Glyphs
 # ----------------------------------------------------------------------------
 
-class FontGlyph:
+class FontGlyph(object):
     """
     Encapsulates a glyph of a font face.
     """
+
+    __slots__ = (
+        '__weakref__',
+        'advance',
+        'char',
+        'charAsUtf8',
+        'font',
+        'xMax',
+        'xMin',
+        'yMax',
+        'yMin',
+    )
     
-    def __init__( self, char, font, cairoContext ):
+    def __init__(self, char, font, cairoContext):
         """
         Creates the font glyph corresponding to the given Unicode
         character, using the font specified by the given Font object
         and the given cairo context.
         """
-        
+
         # Encode the character to UTF-8 because that's what the cairo
         # API uses.
         self.charAsUtf8 = char.encode("UTF-8")
@@ -262,17 +294,17 @@ class FontGlyph:
         self.font = font
 
         cairoContext.save()
-        
-        self.font.loadInto( cairoContext )
+
+        self.font.loadInto(cairoContext)
 
         # Make our font glyph metrics information visible to the client.
 
-        ( xBearing,
-          yBearing,
-          width,
-          height,
-          xAdvance,
-          yAdvance ) = cairoContext.text_extents( self.charAsUtf8 )
+        (xBearing,
+         yBearing,
+         width,
+         height,
+         xAdvance,
+         yAdvance) = cairoContext.text_extents(self.charAsUtf8)
 
         # The xMin, xMax, yMin, yMax, and advance attributes are used
         # here to correspond to their values in this image:
@@ -282,6 +314,16 @@ class FontGlyph:
         self.xMax = xBearing + width
         self.yMin = -yBearing + height
         self.yMax = -yBearing
-        self.advance = xAdvance
-        
+
+        # User can specify custom spacing between letters
+        xAdvanceModifier = 1.0
+        try:
+            xAdvanceModifier = self.font.font_opts.get("xAdvanceModifier", xAdvanceModifier) * 1.0
+        except:
+            pass
+        if xAdvanceModifier < 0.5 or xAdvanceModifier > 1.5:
+            logging.error("config.FONT_NAME option 'xAdvanceModifier' must be decimal number between 0.0 and 1.0")
+            xAdvanceModifier = 1.0
+        self.advance = xAdvance * xAdvanceModifier
+
         cairoContext.restore()
