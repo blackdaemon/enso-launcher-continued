@@ -37,6 +37,7 @@
 from __future__ import with_statement
 
 # Imports
+import sys
 import os
 import logging
 import unicodedata
@@ -76,13 +77,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-try:
-    directory_watcher = enso.providers.getInterface("directory_watcher")
-except ImportError:
-    logging.warning("directory_watcher interface is not available. \"Open\" command items reloading will be disabled.")
-    directory_watcher = None
-
-
 EXECUTABLE_EXTS = ['.exe', '.com', '.cmd', '.bat', '.py', '.pyw']
 EXECUTABLE_EXTS.extend(
     [ext for ext
@@ -92,6 +86,7 @@ EXECUTABLE_EXTS = set(EXECUTABLE_EXTS)
 
 ensoapi = EnsoApi()
 
+directory_watcher = None
 
 def get_special_folder_path(folder_id):
     return unicode(shell.SHGetFolderPath(0, folder_id, 0, 0))
@@ -344,11 +339,16 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                 #type could be also get lazily, but the advantage is then void
                 target = shell_link.get_target()
                 if target:
+                    #print type(target)
+                    if isinstance(target, str):
+                        target = target.encode("string_escape")
+                    else:
+                        print target.replace("\\", "\\\\")
                     if isdir(target):
                         shortcut_type = SHORTCUT_TYPE_FOLDER
                     elif isfile(target):
                         target_ext = splitext(target)[1].lower()
-                        if target_ext in EXECUTABLE_EXTS + [".ahk"]:
+                        if target_ext in EXECUTABLE_EXTS | set([".ahk"]):
                             shortcut_type = SHORTCUT_TYPE_EXECUTABLE
                         elif target_ext == ".url":
                             shortcut_type = SHORTCUT_TYPE_URL
@@ -695,7 +695,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
             # Update shortcuts related to this directory only
             self.shortcut_dict.update_by_dir(directory, updated_dict)
 
-    def _reload_shortcuts(self):
+    def _reload_shortcuts(self, shortcuts_dict):
         try:
             # Need to initialize this here because it's called from
             # the directory-watcher in a new thread.
@@ -705,7 +705,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
             pass
 
         try:
-            self.shortcut_dict = load_cached_shortcuts()
+            shortcuts_dict.update(load_cached_shortcuts())
             logging.info("Loaded shortcuts from cache")
         except Exception, e:
             logging.error(e)
@@ -848,15 +848,13 @@ class OpenCommandImpl( AbstractOpenCommand ):
                     (None, 0))
         """
 
-        self.shortcut_dict = ShortcutsDict(((s.name, s) for s in shortcuts))
+        shortcuts_dict.update(ShortcutsDict(((s.name, s) for s in shortcuts)))
 
         try:
-            save_shortcuts_cache(self.shortcut_dict)
+            save_shortcuts_cache(shortcuts_dict)
             logging.info("Updated shortcuts cache")
         except Exception, e:
             logging.error(e)
-
-        return self.shortcut_dict
 
     def _is_application(self, shortcut):
         return shortcut.type == SHORTCUT_TYPE_EXECUTABLE
