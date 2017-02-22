@@ -246,9 +246,13 @@ class Font(object):
                 )
 
             fo = cairo.FontOptions()
-            fo.set_antialias(cairo.ANTIALIAS_GRAY)
-            #fo.set_hint_metrics(cairo.HINT_METRICS_ON)
-            cairoContext.set_font_options(fo)
+            try:
+                fo.set_antialias(cairo.ANTIALIAS_GRAY)
+                #fo.set_hint_metrics(cairo.HINT_METRICS_ON)
+            except:
+                pass
+            else:
+                cairoContext.set_font_options(fo)
             
             cairoContext.select_font_face(
                 self.font_name,
