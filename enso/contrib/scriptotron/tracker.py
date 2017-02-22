@@ -34,6 +34,7 @@
 
 import logging
 import os
+import sys
 import time
 import types
 
@@ -50,10 +51,24 @@ from enso.contrib.scriptotron.events import EventResponderList
 from enso.contrib.scriptotron.tracebacks import TracebackCommand, safetyNetted
 from enso.messages import MessageManager, displayMessage as display_xml_message
 
+__updated__ = "2017-02-22"
 
 # This may no longer be required (it was for backward compat)
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+# IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
+
+_PLATFORM_NAME = ""
+if sys.platform.startswith("win"):
+    _PLATFORM_NAME = "windows"
+elif sys.platform == "darwin":
+    _PLATFORM_NAME = "osx"
+elif any(
+    sys.platform.startswith(p) for p in [
+        "linux", "openbsd", "freebsd", "netbsd", ]
+):
+    _PLATFORM_NAME = "linux"
+_EXCLUDED_PLATFORMS = set(["windows", "linux", "osx"]) - set([_PLATFORM_NAME])
 
 
 class ScriptCommandTracker:
@@ -119,9 +134,11 @@ class ScriptCommandTracker:
     def registerNewCommands(self, commandInfoList):
         for info in commandInfoList:
             if hasattr(info["func"], "on_quasimode_start"):
-                self._quasimodeStartEvents[info["cmdName"]] = info["func"].on_quasimode_start
+                self._quasimodeStartEvents[info["cmdName"]] = info[
+                    "func"].on_quasimode_start
             if hasattr(info["func"], "on_text_modified"):
-                self._textModifiedEvents[info["cmdName"]] = info["func"].on_text_modified
+                self._textModifiedEvents[info["cmdName"]] = info[
+                    "func"].on_text_modified
             cmd = adapters.makeCommandFromInfo(
                 info,
                 ensoapi.EnsoApi(),
@@ -186,10 +203,14 @@ class ScriptTracker:
 
     def _getCommandFiles(self):
         try:
+            # Get all *.py files, except those not valid for current platform, example:
+            # example.windows.py, example.linux.py, example.osx.py
             commandFiles = [
                 os.path.join(self._scriptFolder, x)
                 for x in os.listdir(self._scriptFolder)
-                if x.endswith(".py")
+                if x.endswith(".py") and not
+                any(1 for ep in _EXCLUDED_PLATFORMS if x.endswith(
+                    ".{0}.py".format(ep)))
             ]
         except:
             commandFiles = []
@@ -218,7 +239,8 @@ class ScriptTracker:
                     text = fd.read().replace('\r\n', '\n') + "\n"
             except IOError as e:
                 if file_name == SCRIPTS_FILE_NAME:
-                    logging.info("Legacy script file %s not found" % SCRIPTS_FILE_NAME)
+                    logging.info(
+                        "Legacy script file %s not found" % SCRIPTS_FILE_NAME)
                 else:
                     logging.error(e)
                 continue
@@ -274,9 +296,10 @@ class ScriptTracker:
             if not self._firstRun:
                 display_xml_message(
                     u"<p>Reloading commands, please wait...</p><caption>enso</caption>")
-            # TODO: This can be enabled after issues in clearCommands are solved...
+            # TODO: This can be enabled after issues in clearCommands are
+            # solved...
             self._reloadPyScripts(filesToReload.keys())
-            #self._reloadPyScripts()
+            # self._reloadPyScripts()
             if not self._firstRun:
                 # Force primary-message to disappear
                 MessageManager.get().finishPrimaryMessage()
