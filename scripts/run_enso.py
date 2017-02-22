@@ -238,6 +238,7 @@ def main(argv=None):
         psyco.profile()
         # psyco.log()
     except Exception as e:
+        """
         try:
             from enso.thirdparty import psyco  # @UnresolvedImport
             psyco.profile()
@@ -247,6 +248,8 @@ def main(argv=None):
         else:
             logging.info(
                 "Using Psyco optimization; Psyco for Python 2.7 (experimental)")
+        """
+        pass
     else:
         logging.info("Using Psyco optimization; Psyco for Python <= 2.6")
 
