@@ -35,6 +35,17 @@ from os import system as runcmd
 
 import enso.platform
 
+__updated__ = "2017-02-22"
+
+platforms = [
+    "linux",
+    "openbsd",
+    "freebsd",
+    "netbsd",
+]
+if not any(sys.platform.startswith(p) for p in platforms):
+    raise enso.platform.PlatformUnsupportedError()
+
 
 DE_GNOME = "GNOME"
 DE_KDE = "KDE"
@@ -58,15 +69,6 @@ DESKTOP_ENVIRONMENT = next(
         if runcmd("ps -e | grep -E '%s' > /dev/null" % pattern) == 0
     ), DE_UNKNOWN
 )
-
-platforms = [
-    "linux",
-    "openbsd",
-    "freebsd",
-    "netbsd",
-]
-if not any(sys.platform.startswith(p) for p in platforms):
-    raise enso.platform.PlatformUnsupportedError()
 
 
 def provideInterface(name):
