@@ -4,10 +4,8 @@ import Queue
 import cgi
 import logging
 import os
-import re
 import socket
 import threading
-import time
 import urllib
 import urllib2
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
@@ -40,9 +38,9 @@ def serve_favicon(request):
     request.wfile.write(ico)
 
 
-def serve_static_content(request, file):
-    print "serving", file
-    _, ext = os.path.splitext(file)
+def serve_static_content(request, file_name):
+    print "serving", file_name
+    _, ext = os.path.splitext(file_name)
     if ext not in (".css", ".txt", ".gif", ".jpg", ".png"):
         request.send_response(404)
         request.end_headers()
@@ -51,15 +49,15 @@ def serve_static_content(request, file):
 
     webdir = os.path.realpath(
         os.path.join(os.path.split(__file__)[0], "..", "web", "static"))
-    filepath = os.path.join(webdir, file)
+    filepath = os.path.join(webdir, file_name)
     if not os.path.isfile(filepath):
         request.send_response(404)
         request.end_headers()
         request.wfile.write("404 Not Found")
         return
 
-    with open(filepath, "rb") as file:
-        content = file.read()
+    with open(filepath, "rb") as fd:
+        content = fd.read()
 
     request.send_response(200)
     if ext == ".css":
@@ -76,9 +74,9 @@ def serve_static_content(request, file):
     request.wfile.write(content)
 
 
-def serve_js(request, file):
-    print "serving", file
-    _, ext = os.path.splitext(file)
+def serve_js(request, file_name):
+    print "serving", file_name
+    _, ext = os.path.splitext(file_name)
     if ext not in (".js"):
         request.send_response(404)
         request.end_headers()
@@ -87,15 +85,15 @@ def serve_js(request, file):
 
     webdir = os.path.realpath(
         os.path.join(os.path.split(__file__)[0], "..", "web", "js"))
-    filepath = os.path.join(webdir, file)
+    filepath = os.path.join(webdir, file_name)
     if not os.path.isfile(filepath):
         request.send_response(404)
         request.end_headers()
         request.wfile.write("404 Not Found")
         return
 
-    with open(filepath, "r") as file:
-        content = file.read()
+    with open(filepath, "r") as fd:
+        content = fd.read()
 
     request.send_response(200)
     if ext == ".js":
@@ -123,8 +121,8 @@ class myhandler(BaseHTTPRequestHandler):
         elif self.path == "/favicon.ico":
             serve_favicon(self)
         elif self.path.startswith("/static/"):
-            file = self.path[len("/static/"):]
-            serve_static_content(self, file)
+            file_name = self.path[len("/static/"):]
+            serve_static_content(self, file_name)
         elif self.path.startswith("/help/"):
             if self.path == "/help" or self.path == "/help/":
                 with open(os.path.join(webdir, "help", "index.html"), "r") as htmlfile:
@@ -235,7 +233,7 @@ def urlopen(url, timeout=None):
         try:
             # Use urllib2 with timeout on Python >= 2.6
             fp = urllib2.urlopen(url, timeout=timeout)
-        except (TypeError, ImportError), e:
+        except (TypeError, ImportError):
             fp = urllib.urlopen(url)
     else:
         fp = urllib.urlopen(url)
@@ -316,9 +314,16 @@ def install_command_from_url(command_url):
 
 
 commandq = Queue.Queue()
+_poll_ms_accumulator = 0
 
 
 def pollqueue(ms):
+    global _poll_ms_accumulator
+    _poll_ms_accumulator += ms
+    if _poll_ms_accumulator < 500:
+        return
+    _poll_ms_accumulator = 0
+
     try:
         command_url = commandq.get(False, 0)
     except Queue.Empty:
