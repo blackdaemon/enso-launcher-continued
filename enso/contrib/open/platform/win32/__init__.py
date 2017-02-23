@@ -1,3 +1,5 @@
+# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
+
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -38,15 +40,24 @@ import ctypes
 import logging
 import os
 import sqlite3
+import subprocess
 import unicodedata
 from ctypes import wintypes
 from itertools import chain
 from xml.sax.saxutils import escape as xml_escape
+from os.path import (
+    basename,
+    isdir,
+    isfile,
+    join as pathjoin,
+    splitext,
+)
 
 import pythoncom
 import win32api
 import win32con
 import win32file
+import win32process
 import winerror
 from win32com.shell import shell, shellcon
 
@@ -67,7 +78,6 @@ from enso.contrib.open.utils import Timer
 from enso.contrib.scriptotron.ensoapi import EnsoApi
 from enso.utils.decorators import suppress
 
-
 try:
     import regex as re
 except ImportError:
@@ -77,6 +87,8 @@ if utils.platform_windows_vista() or utils.platform_windows_7():
     from enso.contrib.open.platform.win32 import control_panel_vista_win7 as control_panel
 else:
     from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
+
+__updated__ = "2017-02-23"
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +103,13 @@ ensoapi = EnsoApi()
 
 directory_watcher = None
 
+
 def get_special_folder_path(folder_id):
     return unicode(shell.SHGetFolderPath(0, folder_id, 0, 0))
     return unicode(
         shell.SHGetPathFromIDList(
             shell.SHGetFolderLocation(0, folder_id)
-        ) #.decode("iso-8859-2")
+        )  # .decode("iso-8859-2")
     )
 
 LEARN_AS_DIR = os.path.join(
@@ -116,12 +129,13 @@ startmenu_ignored_links = re.compile(
     re.IGNORECASE)
 
 GAMEEXPLORER_DIR = os.path.join(
-            get_special_folder_path(shellcon.CSIDL_LOCAL_APPDATA),
-            "Microsoft", "Windows", "GameExplorer")
+    get_special_folder_path(shellcon.CSIDL_LOCAL_APPDATA),
+    "Microsoft", "Windows", "GameExplorer")
 
 
 def load_cached_shortcuts():
-    #TODO: Move shortcuts caching to platform independent interface? (AbstractOpenCommandImpl)
+    # TODO: Move shortcuts caching to platform independent interface?
+    # (AbstractOpenCommandImpl)
     rows = []
     conn = None
     #cursor = None
@@ -138,7 +152,7 @@ def load_cached_shortcuts():
         logging.error(e)
         raise
     finally:
-        #if cursor:
+        # if cursor:
         #    cursor.close()
         #    del cursor
         if conn:
@@ -150,7 +164,8 @@ def load_cached_shortcuts():
 
 
 def save_shortcuts_cache(shortcuts_dict):
-    #TODO: Move shortcuts caching to platform independent interface? (AbstractOpenCommandImpl)
+    # TODO: Move shortcuts caching to platform independent interface?
+    # (AbstractOpenCommandImpl)
     conn = None
     #cursor = None
     try:
@@ -168,7 +183,8 @@ def save_shortcuts_cache(shortcuts_dict):
                 "create table shortcut(name text, type text, target text, shortcut_filename text, flags integer)")
         conn.executemany(
             "insert into shortcut (name, type, target, shortcut_filename, flags) values (?, ?, ?, ?, ?)",
-                ((s.name, s.type, s.target, s.shortcut_filename, s.flags) for s in shortcuts_dict.itervalues())
+            ((s.name, s.type, s.target, s.shortcut_filename, s.flags)
+             for s in shortcuts_dict.itervalues())
         )
     except Exception, e:
         logging.error(e)
@@ -177,13 +193,32 @@ def save_shortcuts_cache(shortcuts_dict):
     else:
         conn.commit()
     finally:
-        #if cursor:
+        # if cursor:
         #    cursor.close()
         #    del cursor
         if conn:
             conn.close()
             #del conn
 
+
+def safe_isdir(text):
+    """ Ignore type error for badly encoded strings
+    If TypeError is thrown, it returns False
+    """
+    try:
+        return isdir(text)
+    except TypeError:
+        return False
+
+
+def safe_isfile(text):
+    """ Ignore type error for badly encoded strings
+    If TypeError is thrown, it returns False
+    """
+    try:
+        return isfile(text)
+    except TypeError:
+        return False
 
 
 def get_file_type(target):
@@ -195,11 +230,11 @@ def get_file_type(target):
     # Before deciding whether to examine given text using URL regular expressions
     # do some simple checks for the probability that the text represents a
     # file path
-    
+
     # FIXME: the file existence check must be also based on PATH search,
     # probably use "is_runnable" instead
     if not os.path.exists(target) and interfaces.is_valid_url(target):
-            return SHORTCUT_TYPE_URL
+        return SHORTCUT_TYPE_URL
 
     file_path = target
     file_name, file_ext = os.path.splitext(file_path)
@@ -225,8 +260,8 @@ def get_file_type(target):
     if (os.path.isfile(file_path) and ext in EXECUTABLE_EXTS):
         return SHORTCUT_TYPE_EXECUTABLE
 
-    #TODO: Finish this
-    #if ext in (".", ""):
+    # TODO: Finish this
+    # if ext in (".", ""):
     #    for ext in EXECUTABLE_EXTS:
     #        if os.path.isfile(os.path.extsep)
     return SHORTCUT_TYPE_DOCUMENT
@@ -263,7 +298,7 @@ def dirwalk(top, max_depth=None):
     yield top, dirs, nondirs
 
     if max_depth is None or max_depth > 0:
-        depth = None if max_depth is None else max_depth-1
+        depth = None if max_depth is None else max_depth - 1
         for name in dirs:
             path = join(top, name)
             if not islink(path):
@@ -276,13 +311,6 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
 
     if not os.path.isdir(directory):
         return
-
-    # Speed optimization
-    splitext = os.path.splitext
-    pathjoin = os.path.join
-    isfile = os.path.isfile
-    isdir = os.path.isdir
-    basename = os.path.basename
 
     """
     with Timer("os.listdir %s" % directory):
@@ -306,10 +334,10 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                     #old_name = shortcut_name
                     shortcut_name = unicodedata.normalize(
                         'NFKD', unicode(shortcut_directory)).encode('ascii', 'ignore')
-                    #if shortcut_name != old_name:
+                    # if shortcut_name != old_name:
                     #    print "NORMALIZED:", old_name, shortcut_name
-                except Exception, e: #IGNORE:W0703
-                    logging.error(u"%s; directory:%s", e, target) #dirpath)
+                except Exception, e:  # IGNORE:W0703
+                    logging.error(u"%s; directory:%s", e, target)  # dirpath)
                 else:
                     try:
                         yield Shortcut(
@@ -339,26 +367,26 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                     continue
 
             # rdp is remote-desktop shortcut
-            #if not shortcut_ext in (".lnk", ".url", ".rdp"):
+            # if not shortcut_ext in (".lnk", ".url", ".rdp"):
             #    continue
-            #print shortcut_name, shortcut_ext
+            # print shortcut_name, shortcut_ext
             shortcut_type = SHORTCUT_TYPE_DOCUMENT
 
             if shortcut_ext == ".lnk":
                 shell_link = win_shortcuts.PyShellLink(shortcut_filepath)
-                #FIXME: Maybe extracting of path could be done lazily in the Shortcut object itself
-                #bottom-line here is: we need to extract it to get the type
-                #type could be also get lazily, but the advantage is then void
+                # FIXME: Maybe extracting of path could be done lazily in the Shortcut object itself
+                # bottom-line here is: we need to extract it to get the type
+                # type could be also get lazily, but the advantage is then void
                 target = shell_link.get_target()
                 if target:
-                    #print type(target)
+                    # print type(target)
                     if isinstance(target, str):
                         target = target.encode("string_escape")
                     else:
                         print target.replace("\\", "\\\\")
-                    if isdir(target):
+                    if safe_isdir(target):
                         shortcut_type = SHORTCUT_TYPE_FOLDER
-                    elif isfile(target):
+                    elif safe_isfile(target):
                         target_ext = splitext(target)[1].lower()
                         if target_ext in EXECUTABLE_EXTS | set([".ahk"]):
                             shortcut_type = SHORTCUT_TYPE_EXECUTABLE
@@ -397,9 +425,9 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                             shortcut_name, category(shortcut_name, shortcut_type, target, shortcut_path))
                     else:
                         shortcut_name = "%s (%s)" % (shortcut_name, category)
-                #if shortcut_name != old_name:
+                # if shortcut_name != old_name:
                 #    print "NORMALIZED:", old_name, shortcut_name
-            except Exception, e: #IGNORE:W0703
+            except Exception, e:  # IGNORE:W0703
                 logging.error(
                     u"%s; shortcut_name:%s; dirpath:%s", e, shortcut_name, shortcut_path)
             else:
@@ -409,46 +437,47 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                 except AssertionError, e:
                     logging.error(e)
                 #really_processed += 1
-    #print "Total files to process:", total_files_processed, ", really processed:", really_processed
-    #return shortcuts
+    # print "Total files to process:", total_files_processed, ", really processed:", really_processed
+    # return shortcuts
 
 
 def get_special_folders(use_categories=True):
-    #TODO:Use sublasses here (something like SpecialShortcut, or FixedShortcut)
+    # TODO:Use sublasses here (something like SpecialShortcut, or
+    # FixedShortcut)
     with suppress():
         yield Shortcut(
-                "desktop folder",
-                SHORTCUT_TYPE_FOLDER,
-                get_special_folder_path(shellcon.CSIDL_DESKTOPDIRECTORY)
-            )
+            "desktop folder",
+            SHORTCUT_TYPE_FOLDER,
+            get_special_folder_path(shellcon.CSIDL_DESKTOPDIRECTORY)
+        )
 
     with suppress():
         yield Shortcut(
-                "my documents folder",
-                SHORTCUT_TYPE_FOLDER,
-                get_special_folder_path(shellcon.CSIDL_PERSONAL)
-            )
+            "my documents folder",
+            SHORTCUT_TYPE_FOLDER,
+            get_special_folder_path(shellcon.CSIDL_PERSONAL)
+        )
 
     with suppress():
         yield Shortcut(
-                "my pictures folder",
-                SHORTCUT_TYPE_FOLDER,
-                get_special_folder_path(shellcon.CSIDL_MYPICTURES)
-            )
+            "my pictures folder",
+            SHORTCUT_TYPE_FOLDER,
+            get_special_folder_path(shellcon.CSIDL_MYPICTURES)
+        )
 
     with suppress():
         yield Shortcut(
-                "my videos folder",
-                SHORTCUT_TYPE_FOLDER,
-                get_special_folder_path(shellcon.CSIDL_MYVIDEO)
-            )
+            "my videos folder",
+            SHORTCUT_TYPE_FOLDER,
+            get_special_folder_path(shellcon.CSIDL_MYVIDEO)
+        )
 
     with suppress():
         yield Shortcut(
-                "my music folder",
-                SHORTCUT_TYPE_FOLDER,
-                get_special_folder_path(shellcon.CSIDL_MYMUSIC)
-            )
+            "my music folder",
+            SHORTCUT_TYPE_FOLDER,
+            get_special_folder_path(shellcon.CSIDL_MYMUSIC)
+        )
 
     if not os.path.isfile(RECYCLE_BIN_LINK):
         recycle_shortcut = pythoncom.CoCreateInstance(
@@ -459,13 +488,13 @@ def get_special_folders(use_categories=True):
         recycle_shortcut.SetWorkingDirectory("")
         recycle_shortcut.SetIDList(
             ['\x1f\x00@\xf0_d\x81P\x1b\x10\x9f\x08\x00\xaa\x00/\x95N'])
-        recycle_shortcut.QueryInterface( pythoncom.IID_IPersistFile ).Save(
-            RECYCLE_BIN_LINK, 0 )
+        recycle_shortcut.QueryInterface(pythoncom.IID_IPersistFile).Save(
+            RECYCLE_BIN_LINK, 0)
     yield Shortcut(
-            "recycle bin",
-            SHORTCUT_TYPE_FOLDER,
-            RECYCLE_BIN_LINK
-            )
+        "recycle bin",
+        SHORTCUT_TYPE_FOLDER,
+        RECYCLE_BIN_LINK
+    )
 
 
 def get_control_panel_applets(use_categories=True):
@@ -492,8 +521,8 @@ def get_gameexplorer_entries(use_categories=True):
 
     # Go through games records
     for key in registry.walk_keys(registry.HKEY_LOCAL_MACHINE,
-        "%s\\%s" % (gameux_key, gamelist_key),
-        r"^{.*}$"):
+                                  "%s\\%s" % (gameux_key, gamelist_key),
+                                  r"^{.*}$"):
         game_key = "%s\\%s\\%s" % (gameux_key, gamelist_key, key)
 
         try:
@@ -521,7 +550,7 @@ def get_gameexplorer_entries(use_categories=True):
             title = title.lower()
             yield Shortcut(
                 (u"%s (games)" % title) if use_categories else title,
-                SHORTCUT_TYPE_VIRTUAL, # Virtual shortcut, so it's undeletable
+                SHORTCUT_TYPE_VIRTUAL,  # Virtual shortcut, so it's undeletable
                 target,
                 shortcut_filename)
         except AssertionError, e:
@@ -534,7 +563,8 @@ def run_shortcut(shortcut):
             target = shortcut.target
             # os.startfile does not work with .cpl files,
             # ShellExecute have to be used.
-            #FIXME: Replace with regexp, there will be probably more such things
+            # FIXME: Replace with regexp, there will be probably more such
+            # things
             if target.startswith("mshelp://") or target.startswith("ms-help://"):
                 params = None
                 work_dir = None
@@ -545,13 +575,14 @@ def run_shortcut(shortcut):
                 params = " ".join(
                     (
                         ('"%s"' % p if ' ' in p else p) for p in
-                            (utils.expand_win_path_variables(p) for p in params)
+                        (utils.expand_win_path_variables(p) for p in params)
                     )
                 )
                 # Fix params if there is special Control Panel syntax like:
                 # shell32.dll,Control_RunDLL C:\Windows\system32\FlashPlayerCPLApp.cpl,@0
                 # where utils.splitcmdline erroneously separate last part before , as:
-                # shell32.dll,Control_RunDLL C:\Windows\system32\FlashPlayerCPLApp.cpl ,@0
+                # shell32.dll,Control_RunDLL
+                # C:\Windows\system32\FlashPlayerCPLApp.cpl ,@0
                 if ".cpl" in params:
                     params = re.sub(r"(.*) (,@[0-9]+)$", "\\1\\2", params)
                 work_dir = os.path.dirname(target)
@@ -565,7 +596,7 @@ def run_shortcut(shortcut):
                     params,
                     work_dir if work_dir else None,
                     win32con.SW_SHOWDEFAULT)
-            except Exception, e: #IGNORE:W0703
+            except Exception, e:  # IGNORE:W0703
                 logger.error(e)
                 try:
                     os.startfile(target)
@@ -582,8 +613,8 @@ def run_shortcut(shortcut):
             logger.info("Executing '%s'", target)
 
             try:
-                os.startfile(target)
-            except WindowsError, e:
+                subprocess.Popen(target, shell=True, creationflags=win32process.DETACHED_PROCESS)
+            except WindowsError as e:
                 # TODO: Why am I getting 'bad command' error on Win7 instead of
                 # 'not found' error?
                 if e.errno in (winerror.ERROR_FILE_NOT_FOUND, winerror.ERROR_BAD_COMMAND):
@@ -598,7 +629,7 @@ def run_shortcut(shortcut):
                             None,
                             None,
                             win32con.SW_SHOWDEFAULT)
-                    except Exception, e: #IGNORE:W0703
+                    except Exception, e:  # IGNORE:W0703
                         logger.error(e)
                 elif e.errno == winerror.ERROR_NO_ASSOCIATION:
                     # No application is associated with the specified file.
@@ -611,12 +642,12 @@ def run_shortcut(shortcut):
                             "shell32.dll,OpenAs_RunDLL %s" % target,
                             None,
                             win32con.SW_SHOWDEFAULT)
-                    except Exception, e: #IGNORE:W0703
+                    except Exception, e:  # IGNORE:W0703
                         logger.error(e)
                 else:
                     logger.error("%d: %s", e.errno, e)
         return True
-    except Exception, e: #IGNORE:W0703
+    except Exception, e:  # IGNORE:W0703
         logger.error(e)
         return False
 
@@ -633,7 +664,7 @@ def open_with_shortcut(shortcut, targets):
                     "shell32.dll,OpenAs_RunDLL %s" % file_name,
                     None,
                     win32con.SW_SHOWDEFAULT)
-            except Exception, e: #IGNORE:W0703
+            except Exception, e:  # IGNORE:W0703
                 logger.error(e)
         return
 
@@ -648,10 +679,10 @@ def open_with_shortcut(shortcut, targets):
         workdir = sl.get_working_dir()
         if not workdir:
             workdir = os.path.dirname(executable)
-    #print executable, workdir
+    # print executable, workdir
 
     params = u" ".join((u'"%s"' % file_name for file_name in targets))
-    #print params
+    # print params
 
     try:
         win32api.ShellExecute(
@@ -661,19 +692,19 @@ def open_with_shortcut(shortcut, targets):
             params,
             workdir,
             win32con.SW_SHOWDEFAULT)
-    except Exception, e: #IGNORE:W0703
+    except Exception, e:  # IGNORE:W0703
         logger.error(e)
 
 
+class OpenCommandImpl(AbstractOpenCommand):
 
-class OpenCommandImpl( AbstractOpenCommand ):
-
-    def __init__(self, use_categories = True):
+    def __init__(self, use_categories=True):
         self.shortcut_dict = None
         self.use_categories = use_categories
         super(OpenCommandImpl, self).__init__()
 
-    def __reload_dir(self, directory, added_files, removed_files, modified_files, re_ignored=None, max_depth=None, collect_dirs=False):
+    def __reload_dir(self, directory, added_files, removed_files, modified_files,
+                     re_ignored=None, max_depth=None, collect_dirs=False):
         """ This is called from the directory-watcher service when the contents
         of a monitored directory changes
         """
@@ -744,9 +775,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
             'list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
         with Timer("Loaded common-desktop shortcuts"):
             shortcuts.extend(get_shortcuts_from_dir(common_desktop_dir,
-                max_depth=0, collect_dirs=True
-                #,category="desktop" if self.use_categories else None
-                ))
+                                                    max_depth=0, collect_dirs=True
+                                                    #,category="desktop" if self.use_categories else None
+                                                    ))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     common_desktop_dir,
@@ -754,9 +785,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
                     (None, 0, True))
         with Timer("Loaded user-desktop shortcuts"):
             shortcuts.extend(get_shortcuts_from_dir(desktop_dir,
-                max_depth=0, collect_dirs=True
-                #,category="desktop" if self.use_categories else None
-                ))
+                                                    max_depth=0, collect_dirs=True
+                                                    #,category="desktop" if self.use_categories else None
+                                                    ))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     desktop_dir,
@@ -765,9 +796,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
         with Timer("Loaded quick-launch shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(quick_launch_dir, startmenu_ignored_links,
-                    max_depth=0, collect_dirs=True
-                    #,category="quicklaunch" if self.use_categories else None
-                    ))
+                                       max_depth=0, collect_dirs=True
+                                       #,category="quicklaunch" if self.use_categories else None
+                                       ))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     quick_launch_dir,
@@ -777,6 +808,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
         pathsplit = os.path.split
         _, start_menu_name = pathsplit(start_menu_dir)
         _, common_start_menu_name = pathsplit(common_start_menu_dir)
+
         def get_startmenu_category(name, type, target, filename):
             # Get the last sub-menu name
             _, category = pathsplit(pathsplit(filename)[0])
@@ -785,13 +817,13 @@ class OpenCommandImpl( AbstractOpenCommand ):
                 return "startmenu"
             # We are in some of the sub-menus, return the sub-menu name
             category = unicodedata.normalize('NFKD', unicode(category)
-                ).encode('ascii', 'ignore').lower()
+                                             ).encode('ascii', 'ignore').lower()
             return "startmenu %s" % category
 
         with Timer("Loaded user-start-menu shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(start_menu_dir, startmenu_ignored_links,
-                    category=get_startmenu_category if self.use_categories else None))
+                                       category=get_startmenu_category if self.use_categories else None))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     start_menu_dir,
@@ -800,8 +832,8 @@ class OpenCommandImpl( AbstractOpenCommand ):
         with Timer("Loaded common-start-menu shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(common_start_menu_dir,
-                    startmenu_ignored_links,
-                    category=get_startmenu_category if self.use_categories else None))
+                                       startmenu_ignored_links,
+                                       category=get_startmenu_category if self.use_categories else None))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     common_start_menu_dir,
@@ -810,7 +842,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
         with Timer("Loaded Virtual PC machines"):
             shortcuts.extend(
                 get_shortcuts_from_dir(virtualmachines_dir,
-                    category="virtual machine" if self.use_categories else None))
+                                       category="virtual machine" if self.use_categories else None))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     virtualmachines_dir,
@@ -829,9 +861,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
         with Timer("Loaded Enso learn-as shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(LEARN_AS_DIR,
-                    max_depth=0
-                    #,category="learned" if self.use_categories else None
-                    ))
+                                       max_depth=0
+                                       #,category="learned" if self.use_categories else None
+                                       ))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     LEARN_AS_DIR,
@@ -864,7 +896,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
 
     def _is_runnable(self, shortcut):
         raise NotImplementedError()
-        
+
     def _save_shortcut(self, name, target):
         # Shortcut actual file goes to "Enso Learn As" directory. This is typically
         # different for each platform.
@@ -887,7 +919,7 @@ class OpenCommandImpl( AbstractOpenCommand ):
                     win32file.CreateSymbolicLink(
                         shortcut_file_path,
                         target,
-                        win32file.SYMBOLIC_LINK_FLAG_DIRECTORY if os.path.isdir(target) else 0 )
+                        win32file.SYMBOLIC_LINK_FLAG_DIRECTORY if os.path.isdir(target) else 0)
                 except Exception, e:
                     s = win_shortcuts.PyShellLink()
                     s.set_path(target)
@@ -921,10 +953,9 @@ class OpenCommandImpl( AbstractOpenCommand ):
         return LEARN_AS_DIR
 
 
+class RecentCommandImpl(AbstractOpenCommand):
 
-class RecentCommandImpl( AbstractOpenCommand ):
-
-    def __init__(self, use_categories = True):
+    def __init__(self, use_categories=True):
         print "RecentCommandIMpl.__init__()"
         self.shortcut_dict = None
         self.use_categories = use_categories
@@ -976,9 +1007,9 @@ class RecentCommandImpl( AbstractOpenCommand ):
         with Timer("Loaded recent documents shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(recent_documents_dir,
-                    max_depth=0,
-                    category=self._create_category
-                    ))
+                                       max_depth=0,
+                                       category=self._create_category
+                                       ))
             if directory_watcher:
                 directory_watcher.manager.register_handler(
                     recent_documents_dir,
@@ -1000,7 +1031,3 @@ class RecentCommandImpl( AbstractOpenCommand ):
 
     def _open_with_shortcut(self, shortcut, targets):
         return open_with_shortcut(shortcut, targets)
-
-
-
-# vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
