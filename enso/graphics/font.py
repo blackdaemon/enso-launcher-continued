@@ -80,7 +80,7 @@ class Font(object):
         'size',
         'slant',
     )
-    
+
     _cairoContext = None
 
     def __init__(self, name, size, isItalic):

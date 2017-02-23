@@ -2,12 +2,13 @@ import sys
 
 import enso.platform
 
+__updated__ = "2017-02-22"
+
 if sys.platform != "darwin":
     raise enso.platform.PlatformUnsupportedError()
 
 
-
-def provideInterface( name ):
+def provideInterface(name):
     if name == "input":
         import enso.platform.osx.input
         return enso.platform.osx.input
@@ -25,6 +26,6 @@ def provideInterface( name ):
         return get_script_folder_name
     elif name == "system":
         import enso.platform.osx.system
-        return enso.platform.osx.system    
+        return enso.platform.osx.system
     else:
         return None

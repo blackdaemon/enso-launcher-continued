@@ -70,7 +70,7 @@ def _expanduser( path ):
 
     return userhome + path[i:]
 
-# Hack standard os.path.expanduser with fixed one correctly handling national
+# Monkeypatch standard os.path.expanduser with fixed one correctly handling national
 # characters in username.
 os.path.expanduser = _expanduser
 

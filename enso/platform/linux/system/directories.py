@@ -56,13 +56,15 @@ import os
 def get_user_home_dir():
     return os.path.expanduser("~")
 
+
 def get_enso_local_conf_dir():
     return os.path.join(get_user_home_dir(), ".enso")
 
+
 def get_enso_cache_dir():
     return os.path.join(get_user_home_dir(), ".cache", "enso")
-    
-    
+
+
 # Enso special folder - Local data storage
 SPECIALFOLDER_ENSOLOCAL = get_enso_local_conf_dir()
 
