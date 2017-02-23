@@ -34,8 +34,6 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-__updated__ = "2017-02-23"
-
 from __future__ import with_statement
 from time import clock, time
 
@@ -49,8 +47,7 @@ from gio import File  # @UnresolvedImport Keep PyLint and PyDev happy
 from enso.platform.linux.utils import get_display, get_keycode
 from enso.platform.linux.weaklib import DbusWeakCallback
 
-
-gtk.gdk.threads_init()
+__updated__ = "2017-02-23"
 
 """
 Class to handle Nautilus file-selection notifications in Linux Gnome desktop
@@ -220,13 +217,13 @@ def get():
     return selection
 
 
-def set(seldict):
+def set(seldict):  # @ReservedAssignment
     '''Paste data into X CLIPBOARD selection'''
-    if "text" in seldict:
-        clipboard = gtk.clipboard_get(selection="CLIPBOARD")
-        clipboard.set_text(seldict["text"])
-        primary = gtk.clipboard_get(selection="PRIMARY")
-        primary.set_text(seldict["text"])
-        fake_paste()
-        return True
-    return False
+    if "text" not in seldict:
+        return False
+    clipboard = gtk.clipboard_get(selection="CLIPBOARD")
+    primary = gtk.clipboard_get(selection="PRIMARY")
+    clipboard.set_text(seldict["text"])
+    primary.set_text(seldict["text"])
+    fake_paste()
+    return True

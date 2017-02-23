@@ -31,14 +31,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# Future imports
+from __future__ import division, with_statement
+
 __updated__ = "2017-02-23"
 
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
 
-# Future imports
-from __future__ import division, with_statement
 import glob
 import logging
 import os
