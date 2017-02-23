@@ -53,6 +53,7 @@ import re
 cppBaseDefines = {
     "ENSO_DEBUG" : "1",
     "WIN32" : "1",
+    "V8_TARGET_ARCH_X32": "1",
     "_WINDOWS" : "1",
     "_CRT_SECURE_NO_WARNINGS" : "1",
     }
@@ -81,11 +82,12 @@ ccBaseFlags = [
     "/Zi",      # Produce a program database (PDB) that contains type
                 # information and symbolic debugging information for use
                 # with the debugger.
+    "/arch:SSE",
     ]
 
 ccDebugFlags = [
-    "/MT",      # Use dynamically-linked msvcrt for C runtime
-    #"/LD",      # Use dynamically-linked msvcrt for C runtime
+    #"/MT",      # Use dynamically-linked msvcrt for C runtime
+    "/LD",      # Use dynamically-linked msvcrt for C runtime
     #"/MD",      # Use dynamically-linked msvcrt for C runtime
                 # We're not using the debug version of the msvcrt because
                 # it raises complications with linking to Python and because
@@ -96,8 +98,8 @@ ccDebugFlags = [
 
 ccNoDebugFlags = [
     "/O2",      # Enable optimizations
-    "/MT",      # Use dynamically-linked msvcrt for C runtime
-    #"/LD",      # Use dynamically-linked msvcrt for C runtime
+    #"/MT",      # Use dynamically-linked msvcrt for C runtime
+    "/LD",      # Use dynamically-linked msvcrt for C runtime
     #"/MD",      # Use dynamically-linked msvcrt for C runtime
     "/Ob1",     # Inline expansion only for functions marked as inline
     "/GF",      # Pool strings as read-only
@@ -112,6 +114,7 @@ ccNoDebugFlags = [
 linkBaseFlags = [
     "/nologo",
     "/DEBUG",   # Create .pdb file containing debugging information
+    "/MACHINE:X86",
     ]
 
 linkDebugFlags = [
@@ -133,6 +136,7 @@ baseEnv = Environment(
     CCFLAGS = ccBaseFlags,
     LINKFLAGS = linkBaseFlags,
     ENV = {'PATH': os.environ['PATH']},
+    TARGET_ARCH = 'x86',
 
     # Our custom environment variables used by our
     # SConstruct/SConscript files.
@@ -181,6 +185,7 @@ baseEnv.Tool( "HumanizedUtilsTool", toolpath = ["src/platform/win32/SConsTools"]
 #       includePath = "C:\\Program Files\\Microsoft Visual Studio 9.0\\VC\\include"
 #       )
 
+print "sys.prefix: ",sys.prefix
 
 # Python
 baseEnv.addLib(
@@ -189,6 +194,22 @@ baseEnv.addLib(
     libPath = "libs",
     includePath = "include",
     )
+
+# Handle virtualenv, sys.prefix is not pointing to Python dir
+try:
+   import os
+   with open(os.path.join(sys.prefix, "Lib", "orig-prefix.txt"), "r") as f:
+      orig_prefix = f.read()
+except:
+   pass
+finally:
+   if orig_prefix:
+      print "orig-prefix:",orig_prefix
+      baseEnv.addLib(
+         basePath = orig_prefix,
+         libPath = "libs",
+         includePath = "include",
+      )
 
 # Our own built libraries
 baseEnv.addLib(
@@ -204,8 +225,8 @@ baseEnv.addLib(
 # Take the base environment and create specialized debug and non-debug
 # environments out of them.
 
-debugEnv = baseEnv.Copy()
-noDebugEnv = baseEnv.Copy()
+debugEnv = baseEnv.Clone()
+noDebugEnv = baseEnv.Clone()
 
 debugEnv.Append(
     CPPDEFINES = cppDebugDefines,

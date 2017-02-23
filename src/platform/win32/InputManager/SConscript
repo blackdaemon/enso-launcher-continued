@@ -80,11 +80,12 @@ inputEnv.Install( "${LIB_INSTALL_DIR}",
 cppDefines = {
     "ASYNC_EVENT_USE_DL_EXPORT" : "1",
     }
+inputEnv.Append( CPPDEFINES = cppDefines )
+
 dllFile, asyncLibFile, expFile = \
          inputEnv.SharedLibrary( target = "AsyncEventProcessorRegistry",
                                  source = ["AsyncEventProcessorRegistry.cxx"],
-                                 LIBS = ["User32", "CLogging"],
-                                 CPPDEFINES = cppDefines)
+                                 LIBS = ["User32", "CLogging"])
 inputEnv.Install( "${LIB_INSTALL_DIR}",
                   asyncLibFile );
 inputEnv.Install( "${BASE_INSTALL_DIR}",

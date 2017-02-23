@@ -1,8 +1,15 @@
 Enso Windows Readme
 ===================
 
-In addition to the prerequisites outlined in the README, you need to
-have the following set up to compile win32 specific libraries:
+In addition to the prerequisites outlined in the README, you need:
+
+  * Following additional modules should be installed using 'pip' or 'easyinstall':
+
+    pypiwin32
+    pywinauto
+
+    
+The following set up to compile win32 specific libraries:
 
   * Python 2.5 needs to be installed at C:\Python25. 
     Compilation might also work with 2.4 and 2.6 version, but it is untested.
