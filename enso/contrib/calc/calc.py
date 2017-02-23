@@ -37,7 +37,7 @@
 # TODO: Give user a hint about home-currency
 # TODO: Give user a hint about no echange-rate for some currency
 
-import logging #@UnusedImport
+import logging  # @UnusedImport
 import re
 import itertools
 
@@ -154,7 +154,8 @@ def _convert_language(expression):
 
     return expression
 
-def _fast_calc(expression = None):
+
+def _fast_calc(expression=None):
     if not expression:
         return None, None
 
@@ -162,7 +163,7 @@ def _fast_calc(expression = None):
 
     print expression
 
-    #print expression = expression.replace(' in ', ' % ')
+    # print expression = expression.replace(' in ', ' % ')
 
     if expression.endswith("="):
         expression = expression[:-1]
@@ -180,7 +181,8 @@ def _fast_calc(expression = None):
         logging.warning(e)
         return str(e), expression
 
-def cmd_calculate(ensoapi, expression = None):
+
+def cmd_calculate(ensoapi, expression=None):
     """ Calculate %s
     <p>Calculate mathematical expression.</p>
     """
@@ -254,11 +256,11 @@ def cmd_calculate(ensoapi, expression = None):
     pasted = False
     if got_selection:
         if append_result:
-            pasted = selection.set({ "text" : expression.strip() + " = " + unicode(result) })
+            pasted = selection.set({"text": expression.strip() + " = " + unicode(result)})
         else:
-            pasted = selection.set({ "text" : unicode(result) })
+            pasted = selection.set({"text": unicode(result)})
 
-    _ = pasted # keep pylint happy
+    _ = pasted  # keep pylint happy
 
     msg = u"%s = %s" % (xml_escape(expression), xml_escape(unicode(result)))
     RecentResult.get().push_result(result, msg)
@@ -279,10 +281,10 @@ def cmd_calculate(ensoapi, expression = None):
     return result, unicode(expression)
 
 
-class CalculateCommand( CommandObject ):
+class CalculateCommand(CommandObject):
     u""" 
     \u201ccalculate {expression}\u201d command
-    
+
     Calculate mathematical expression. 
     """
 
@@ -295,7 +297,7 @@ class CalculateCommand( CommandObject ):
     DESCRIPTION_ERROR = u"Calculate %s = ?"
 
     OVERRIDE_ALLOWED_KEYCODES = {
-        191: "/", # Instead of ? (helps access / without shift on laptop keyboards)
+        191: "/",  # Instead of ? (helps access / without shift on laptop keyboards)
         # replace [ with (
         34: "(",
         # replace ] with )
@@ -304,8 +306,8 @@ class CalculateCommand( CommandObject ):
         21: "+",
     }
 
-    def __init__( self, expression = None ):
-        super( CalculateCommand, self ).__init__()
+    def __init__(self, expression=None):
+        super(CalculateCommand, self).__init__()
 
         if expression:
             expression = _replace_special_unicode_chars(expression)
@@ -314,28 +316,26 @@ class CalculateCommand( CommandObject ):
         if expression:
             result, expr = _fast_calc(expression)
             if result is not None:
-                expr = expr.replace(" * ", u" \u00D7 ") # X symbol
-                expr = expr.replace("pi", u"\u03c0").replace("PI", u"\u03c0") # Greek pi symbol
+                expr = expr.replace(" * ", u" \u00D7 ")  # X symbol
+                expr = expr.replace("pi", u"\u03c0").replace("PI", u"\u03c0")  # Greek pi symbol
                 self.setDescription(
                     self.DESCRIPTION_PREVIEW
-                    % (expr, format_number_local(result)) )
+                    % (expr, format_number_local(result)))
             else:
-                self.setDescription( self.DESCRIPTION_ERROR % expression )
+                self.setDescription(self.DESCRIPTION_ERROR % expression)
         else:
-            self.setDescription( self.DESCRIPTION_NO_PREVIEW )
+            self.setDescription(self.DESCRIPTION_NO_PREVIEW)
 
     @safetyNetted
-    def run( self ):
+    def run(self):
         result, expression = cmd_calculate(ensoapi, self.expression)
         if hasattr(self, "updateResultsHistory"):
             self.updateResultsHistory(expression)
 
 
-
 class SetHomeCurrencyCommand(CommandObject):
-    #u""" Unlearn \u201copen {name}\u201d command """
 
-    def __init__(self, code = None):
+    def __init__(self, code=None):
         super(SetHomeCurrencyCommand, self).__init__()
 
         if code:
@@ -355,13 +355,11 @@ class SetHomeCurrencyCommand(CommandObject):
         else:
             currconv.set_home_currency(self.code)
             ensoapi.display_message(
-                u"%s: %s" % (self.code, currconv.RATES.exchange_rates[self.code][0]),
+                u"%s: %s" % (self.code, currconv.RATES.exchange_rates[self.code]["name"]),
                 u"Home currency have been set to")
 
 
-
-
-class CalculateCommandFactory( ArbitraryPostfixFactory ):
+class CalculateCommandFactory(ArbitraryPostfixFactory):
     """
     Generates a "learn as open {name}" command.
     """
@@ -380,27 +378,26 @@ class CalculateCommandFactory( ArbitraryPostfixFactory ):
             CalculateCommandFactory.results_history.append(expression)
         self.setParameterSuggestions(CalculateCommandFactory.results_history)
 
-    def _generateCommandObj( self, postfix ):
+    def _generateCommandObj(self, postfix):
         if postfix is None:
-            cmd = CalculateCommand( postfix )
+            cmd = CalculateCommand(postfix)
             cmd.updateResultsHistory = self.updateResultsHistory
             cmd.getParameterSuggestions = self.getParameterSuggestions
             self.updateResultsHistory()
-            #cmd.setName(self.NAME)
+            # cmd.setName(self.NAME)
             return cmd
         else:
             if CalculateCommandFactory.last_postfix == postfix:
                 return CalculateCommandFactory.last_cmd_obj
             else:
-                cmd = CalculateCommand( postfix )
+                cmd = CalculateCommand(postfix)
                 cmd.updateResultsHistory = self.updateResultsHistory
                 cmd.getParameterSuggestions = self.getParameterSuggestions
-                #cmd.setName(self.NAME)
+                # cmd.setName(self.NAME)
                 CalculateCommandFactory.last_postfix = postfix
                 CalculateCommandFactory.last_cmd_obj = cmd
                 self.updateResultsHistory()
                 return cmd
-
 
 
 class SetHomeCurrencyCommandFactory(ArbitraryPostfixFactory):
@@ -429,11 +426,11 @@ def load():
         CommandManager.get().registerCommand(
             CalculateCommandFactory.NAME,
             CalculateCommandFactory()
-            )
+        )
         CommandManager.get().registerCommand(
             SetHomeCurrencyCommandFactory.NAME,
             SetHomeCurrencyCommandFactory()
-            )
+        )
     except Exception, e:
         logging.error(e)
 
@@ -443,6 +440,4 @@ def load():
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod()
-

@@ -40,6 +40,8 @@ import StringIO
 import threading
 import logging
 
+from pygeoip import GeoIP, GeoIPError
+
 from contextlib import closing
 
 from enso.net import inetcache
@@ -177,10 +179,10 @@ class Globals(object):
         if cls._download_geoip_thread and cls._download_geoip_thread.isAlive():
             if wait:
                 cls._download_geoip_thread.join(5)
-                print "ISALIVE?", cls._download_geoip_thread.isAlive()
+                #print "ISALIVE?", cls._download_geoip_thread.isAlive()
                 cls._download_geoip_thread = None
         else:
-            print cls.geoip_file, time.time() - os.path.getmtime(cls.geoip_file), 60*60*24
+            #print cls.geoip_file, time.time() - os.path.getmtime(cls.geoip_file), 60*60*24
             if ((not os.path.isfile(cls.geoip_file)
                 or time.time() - os.path.getmtime(cls.geoip_file) > 60*60*24)
                 and inetcache.isonline):
@@ -228,21 +230,16 @@ Globals.__init__()
 
 def lookup_country_code(ip_address):
     country_code = None
-    try:
-        import pygeoip
-
-        # Download geoip data file in background (non blocking, not wait for result)
-        gif = Globals.get_geoip_file(wait=False)
-
-        # If downloaded, use geoip API to get the country
-        if gif:
-            country_code = pygeoip.GeoIP(gif).country_code_by_addr(ip_address)
-    except ImportError:
-        pass
-    except Exception, e:
-        logging.error(e)
+    # Download geoip data file in background (non blocking, not wait for result)
+    gif = Globals.get_geoip_file(wait=False)
+    # If downloaded, use geoip API to get the country
+    if gif:
+        try:
+            country_code = GeoIP(gif).country_code_by_addr(ip_address)
+        except GeoIPError as e:
+            logging.error(e)
     
-    if  not country_code:
+    if not country_code:
         # If geoip file not present (not yet downloaded) or it did not find the IP, 
         # use web API to get the country code
         if inetcache.isonline:

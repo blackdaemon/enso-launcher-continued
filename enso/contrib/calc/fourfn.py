@@ -46,21 +46,31 @@
 # ----------------------------------------------------------------------------
 
 from __future__ import division
-
-from pyparsing import Literal,CaselessLiteral,Word,Combine,Optional,\
-    ZeroOrMore,Forward,nums,alphas,oneOf,ParseResults, OneOrMore
-import pyparsing
-import re
+import datetime
 import math
 import operator
-import datetime
+import re
 
+import pyparsing
+from currconv import RATES, currency, get_home_currency
 from dateutil.relativedelta import relativedelta
-
+from pyparsing import (
+    CaselessLiteral,
+    Combine,
+    Forward,
+    Literal,
+    OneOrMore,
+    Optional,
+    ParseResults,
+    Word,
+    ZeroOrMore,
+    oneOf,
+    alphas,
+    nums,
+)
 from text2num import text2num
-from currconv import currency, RATES, get_home_currency
 
-
+__updated__ = "2017-02-23"
 __all__ = ["evaluate"]
 
 RE_ROMAN_NUMERALS = '[IVXLCDMivxlcdm]+'
@@ -70,6 +80,7 @@ RE_TIMEDELTA = r"(\d+) ?(days?|weeks?|months?|years?)"
 
 
 class timedelta(relativedelta):
+
     def __init__(self, years=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0):
         super(timedelta, self).__init__(
             days=days,
@@ -86,14 +97,15 @@ class timedelta(relativedelta):
             "%d weeks " % weeks if weeks != 0 else "",
             "%d months " % months if months != 0 else "",
             "%d years " % years if years != 0 else ""
-            ))
+        ))
         if not self.expr:
             self.expr = "0 days"
 
 
 class Regex(pyparsing.Regex):
-    def parseImpl( self, instring, loc, doActions=True ):
-        result = self.re.match(instring,loc)
+
+    def parseImpl(self, instring, loc, doActions=True):
+        result = self.re.match(instring, loc)
         if not result or len(result.groups()) == 0 or len("".join(result.groups())) == 0:
             raise pyparsing.ParseException(instring, loc, self.errmsg, self)
 
@@ -103,7 +115,7 @@ class Regex(pyparsing.Regex):
         if d:
             for k in d:
                 ret[k] = d[k]
-        return loc,ret
+        return loc, ret
 
 
 class BNF(object):
@@ -113,41 +125,41 @@ class BNF(object):
     expr_stack = []
 
     @classmethod
-    def invalidate( cls ):
+    def invalidate(cls):
         cls.__bnf = None
 
     @classmethod
-    def pushFirst( cls, strg, loc, toks ):
-        _, _ = loc, strg # keep pylint happy
-        cls.expr_stack.append( toks[0] )
+    def pushFirst(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
+        cls.expr_stack.append(toks[0])
 
     @classmethod
-    def pushSecond( cls, strg, loc, toks ):
-        _, _ = loc, strg # keep pylint happy
-        cls.expr_stack.append( toks[1] )
+    def pushSecond(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
+        cls.expr_stack.append(toks[1])
 
     @classmethod
-    def pushUMinus( cls, strg, loc, toks ):
-        _, _ = loc, strg # keep pylint happy
+    def pushUMinus(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
         if toks:
-            if toks[0]=='-':
-                cls.expr_stack.append( 'unary -' )
+            if toks[0] == '-':
+                cls.expr_stack.append('unary -')
                 #~ exprStack.append( '-1' )
                 #~ exprStack.append( '*' )
-            if toks[0]=='(' and toks[-1]==')':
+            if toks[0] == '(' and toks[-1] == ')':
                 cls.expr_stack.append("()")
                 #~ exprStack.append( '-1' )
                 #~ exprStack.append( '*' )
 
     @classmethod
-    def pushFunc( cls, strg, loc, toks ):
-        _, _ = loc, strg # keep pylint happy
-        cls.expr_stack.append( toks[1] )
+    def pushFunc(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
+        cls.expr_stack.append(toks[1])
         return ParseResults([toks[0]])
 
     @classmethod
-    def pushCurrency( cls, strg, loc, toks ):
-        _, _ = loc, strg # keep pylint happy
+    def pushCurrency(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
         if len(cls.expr_stack[-1]) == 3:
             # Only source currency specified, add home currency as target
             cls.expr_stack.append(get_home_currency())
@@ -155,11 +167,11 @@ class BNF(object):
             # Split source and target currency on stack
             cls.expr_stack.append(cls.expr_stack[-1][3:])
             cls.expr_stack[-2] = cls.expr_stack[-2][:3]
-        cls.expr_stack.append( "currency" )
+        cls.expr_stack.append("currency")
 
     @classmethod
-    def pushNumber( cls, strg, loc, toks ):
-        _, _ = loc, strg # keep pylint happy
+    def pushNumber(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
 
     @classmethod
     def get_bnf(cls):
@@ -174,76 +186,93 @@ class BNF(object):
         expr    :: term [ addop term ]*
         """
         if cls.__bnf is None:
-            point = Literal( "." )
-            thousands_separator = Literal( "," ).suppress()
-            e     = CaselessLiteral( "E" )
+            point = Literal(".")
+            thousands_separator = Literal(",").suppress()
+            e = CaselessLiteral("E")
 
             inumber = Combine(
-                Optional( oneOf("+", "-") ) +
+                Optional(oneOf("+", "-")) +
                 (
                     # Format with thousands separators
-                    Word(nums, min=1, max=3) + ZeroOrMore( Combine( thousands_separator + Word(nums, min=3, max=3) ) )
+                    Word(nums, min=1, max=3) + \
+                    ZeroOrMore(
+                        Combine(thousands_separator + Word(nums, min=3, max=3)))
                     # Format without thousands separators
                     | Word(nums)
                 )
-                ).setParseAction(cls.pushNumber)
-            #Regex("[0-9]{1,3}(,[0-9]{3})*").setParseAction(cls.pushNumber)
-            fnumber = Combine( inumber +
-                               Optional( point + Optional( Word( nums ) ) ) +
-                               Optional( e + Word( "+-"+nums, nums ) ) )
+            ).setParseAction(cls.pushNumber)
+            # Regex("[0-9]{1,3}(,[0-9]{3})*").setParseAction(cls.pushNumber)
+            fnumber = Combine(inumber +
+                              Optional(point + Optional(Word(nums))) +
+                              Optional(e + Word("+-" + nums, nums)))
 
-            roman_numerals = Regex( RE_VALID_ROMAN_NUMBER, re.IGNORECASE ).setParseAction(lambda s,l,t: [str(roman_to_int(t[0]))])
+            roman_numerals = Regex(RE_VALID_ROMAN_NUMBER, re.IGNORECASE).setParseAction(
+                lambda s, l, t: [str(roman_to_int(t[0]))])
 
-            ident = Word(alphas, alphas+nums+"_$")
+            ident = Word(alphas, alphas + nums + "_$")
 
-            plus  = Literal( "+" ) | CaselessLiteral( "plus" ) | CaselessLiteral( "add" )
-            minus = Literal( "-" ) | CaselessLiteral( "minus" ) | CaselessLiteral( "substract" ) | CaselessLiteral( "subtract" ) | CaselessLiteral( "sub" )
-            mult  = Literal( "*" ) | CaselessLiteral( "times" ) | CaselessLiteral( "multiplied by" ) | CaselessLiteral( "multiply" ) | CaselessLiteral( "mul" )
-            div   = Literal( "/" ) | CaselessLiteral( "divided by" ) | CaselessLiteral( "divide" ) | CaselessLiteral( "div" )
-            floor = Literal( "//" ) | CaselessLiteral( "floor" )
-            mod   = Literal( "%" ) | CaselessLiteral( "modulo" ) | CaselessLiteral( "mod" )
-            lpar  = Literal( "(" ) #.suppress()
-            rpar  = Literal( ")" ) #.suppress()
-            addop  = plus | minus
+            plus = Literal(
+                "+") | CaselessLiteral("plus") | CaselessLiteral("add")
+            minus = Literal("-") | CaselessLiteral("minus") | CaselessLiteral(
+                "substract") | CaselessLiteral("subtract") | CaselessLiteral("sub")
+            mult = Literal("*") | CaselessLiteral("times") | CaselessLiteral(
+                "multiplied by") | CaselessLiteral("multiply") | CaselessLiteral("mul")
+            div = Literal(
+                "/") | CaselessLiteral("divided by") | CaselessLiteral("divide") | CaselessLiteral("div")
+            floor = Literal("//") | CaselessLiteral("floor")
+            mod = Literal("%") | CaselessLiteral(
+                "modulo") | CaselessLiteral("mod")
+            lpar = Literal("(")  # .suppress()
+            rpar = Literal(")")  # .suppress()
+            addop = plus | minus
             multop = mult | floor | div | mod
-            expop = Literal( "^" ) | Literal( "**" ) | CaselessLiteral( "power" ) | CaselessLiteral( "pow" )
-            pi    = CaselessLiteral( "PI" )
-            bitwise = CaselessLiteral( "xor" ) | CaselessLiteral( "and" ) | CaselessLiteral( "or" )
-            currencyop = CaselessLiteral( "in" )
+            expop = Literal("^") | Literal(
+                "**") | CaselessLiteral("power") | CaselessLiteral("pow")
+            pi = CaselessLiteral("PI")
+            bitwise = CaselessLiteral("xor") | CaselessLiteral(
+                "and") | CaselessLiteral("or")
+            currencyop = CaselessLiteral("in")
             shift = Literal("<<") | Literal(">>")
 
-            now = CaselessLiteral( "now" ).setParseAction( lambda s,l,t: [datetime.datetime.now()] )
+            now = CaselessLiteral("now").setParseAction(
+                lambda s, l, t: [datetime.datetime.now()])
             one_day = timedelta(days=1)
-            today = CaselessLiteral("today").setParseAction( lambda s,l,t: [datetime.date.today()] )
-            yesterday = CaselessLiteral("yesterday").setParseAction( lambda s,l,t: [datetime.date.today()-one_day] )
-            tomorrow = CaselessLiteral("tomorrow").setParseAction( lambda s,l,t: [datetime.date.today()+one_day] )
+            today = CaselessLiteral("today").setParseAction(
+                lambda s, l, t: [datetime.date.today()])
+            yesterday = CaselessLiteral("yesterday").setParseAction(
+                lambda s, l, t: [datetime.date.today() - one_day])
+            tomorrow = CaselessLiteral("tomorrow").setParseAction(
+                lambda s, l, t: [datetime.date.today() + one_day])
             minutes = Combine(
-                    ( Word( "+-"+nums, nums ) + CaselessLiteral("minutes").suppress() )
-                    | ( Optional( Word( "+-"+nums, nums ), "1" ) + CaselessLiteral("minute").suppress() )
-                ).setParseAction( lambda s,l,t: [timedelta(minutes=long(t[0]))] )
+                (Word("+-" + nums, nums) +
+                 CaselessLiteral("minutes").suppress())
+                | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("minute").suppress())
+            ).setParseAction(lambda s, l, t: [timedelta(minutes=long(t[0]))])
             hours = Combine(
-                    ( Word( "+-"+nums, nums ) + CaselessLiteral("hours").suppress() )
-                    | ( Optional( Word( "+-"+nums, nums ), "1" ) + CaselessLiteral("hour").suppress() )
-                ).setParseAction( lambda s,l,t: [timedelta(hours=long(t[0]))] )
+                (Word("+-" + nums, nums) + CaselessLiteral("hours").suppress())
+                | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("hour").suppress())
+            ).setParseAction(lambda s, l, t: [timedelta(hours=long(t[0]))])
             days = Combine(
-                    ( Word( "+-"+nums, nums ) + CaselessLiteral("days").suppress() )
-                    | ( Optional( Word( "+-"+nums, nums ), "1" ) + CaselessLiteral("day").suppress() )
-                ).setParseAction( lambda s,l,t: [timedelta(days=long(t[0]))] )
+                (Word("+-" + nums, nums) + CaselessLiteral("days").suppress())
+                | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("day").suppress())
+            ).setParseAction(lambda s, l, t: [timedelta(days=long(t[0]))])
             weeks = Combine(
-                    ( Word( "+-"+nums, nums ) + CaselessLiteral("weeks").suppress() )
-                    | ( Optional( Word( "+-"+nums, nums ), "1" ) + CaselessLiteral("week").suppress() )
-                ).setParseAction( lambda s,l,t: [timedelta(weeks=long(t[0]))] )
+                (Word("+-" + nums, nums) + CaselessLiteral("weeks").suppress())
+                | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("week").suppress())
+            ).setParseAction(lambda s, l, t: [timedelta(weeks=long(t[0]))])
             months = Combine(
-                    ( Word( "+-"+nums, nums ) + CaselessLiteral("months").suppress() )
-                    | ( Optional( Word( "+-"+nums, nums ), "1" ) + CaselessLiteral("month").suppress() )
-                ).setParseAction( lambda s,l,t: [timedelta(months=long(t[0]))] )
+                (Word("+-" + nums, nums) +
+                 CaselessLiteral("months").suppress())
+                | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("month").suppress())
+            ).setParseAction(lambda s, l, t: [timedelta(months=long(t[0]))])
             years = Combine(
-                    ( Word( "+-"+nums, nums ) + CaselessLiteral("years").suppress() )
-                    | ( Optional( Word( "+-"+nums, nums ), "1" ) + CaselessLiteral("year").suppress() )
-                ).setParseAction( lambda s,l,t: [timedelta(years=long(t[0]))] )
+                (Word("+-" + nums, nums) + CaselessLiteral("years").suppress())
+                | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("year").suppress())
+            ).setParseAction(lambda s, l, t: [timedelta(years=long(t[0]))])
             date = Combine(
-                    Word( nums ) + Literal(".") + Word( nums ) + Literal(".") + Optional( Word( nums ), datetime.date.today().year )
-                ).setParseAction( lambda s,l,t: [datetime.datetime.strptime(t[0], "%d.%m.%Y").date()] )
+                Word(nums) + Literal(".") + Word(nums) + Literal(".") +
+                Optional(Word(nums), datetime.date.today().year)
+            ).setParseAction(lambda s, l, t: [datetime.datetime.strptime(t[0], "%d.%m.%Y").date()])
 
             currency_name = Word(alphas, min=3, max=3)
             currency_pair = Word(alphas, min=6, max=6)
@@ -252,42 +281,48 @@ class BNF(object):
             for cur_code in RATES.exchange_rates.keys():
                 currency_name |= CaselessLiteral(cur_code)
             """
-            currency_name.setParseAction( cls.pushFirst )
-            currency_pair.setParseAction( cls.pushFirst )
-            #print currency_name
+            currency_name.setParseAction(cls.pushFirst)
+            currency_pair.setParseAction(cls.pushFirst)
+            # print currency_name
 
             expr = Forward()
-            atom = (Optional("-") + ( now | date | today | yesterday | tomorrow | hours | minutes
-                | days | weeks | months | years | pi | e | fnumber | roman_numerals | ident + lpar + expr + rpar ).setParseAction( cls.pushFirst )
-                 | ( lpar + expr + rpar )).setParseAction(cls.pushUMinus)
+            atom = (Optional("-") + (now | date | today | yesterday | tomorrow | hours | minutes
+                                     | days | weeks | months | years | pi | e | fnumber | roman_numerals | ident + lpar + expr + rpar).setParseAction(cls.pushFirst)
+                    | (lpar + expr + rpar)).setParseAction(cls.pushUMinus)
 #                 | ( lpar + expr.suppress() + rpar )).setParseAction(cls.pushUMinus)
 
             # by defining exponentiation as "atom [ ^ factor ]..." instead of "atom [ ^ atom ]...",
-            # we get right-to-left exponents, instead of left-to-right, that is, 2^3^2 = 2^(3^2), not (2^3)^2.
+            # we get right-to-left exponents, instead of left-to-right, that
+            # is, 2^3^2 = 2^(3^2), not (2^3)^2.
             factor = Forward()
-            factor << atom + ZeroOrMore( ( expop  + factor ).setParseAction( cls.pushFirst ) )
+            factor << atom + \
+                ZeroOrMore((expop + factor).setParseAction(cls.pushFirst))
 
-            term = factor + ZeroOrMore( ( multop + factor ).setParseAction( cls.pushFirst ) )
-            expr << term + ZeroOrMore( ( (addop | bitwise | shift) + term ).setParseAction( cls.pushFirst ) )
+            term = factor + \
+                ZeroOrMore((multop + factor).setParseAction(cls.pushFirst))
+            expr << term + \
+                ZeroOrMore(
+                    ((addop | bitwise | shift) + term).setParseAction(cls.pushFirst))
 
-            #currency_value = Combine(
+            # currency_value = Combine(
             #    ( expr ).setParseAction( cls.pushFirst ) +
             #    currency_name,
             #    adjacent = False )
 
-            expr1 = expr + Optional( ( currency_name | currency_pair ).setParseAction( cls.pushCurrency ) )
+            expr1 = expr + \
+                Optional(
+                    (currency_name | currency_pair).setParseAction(cls.pushCurrency))
 
-            #print expr1
+            # print expr1
             cls.__bnf = expr1
         return cls.__bnf
-
-
 
 
 roman_numeral_map = zip(
     (1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1),
     ('M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I')
 )
+
 
 def int_to_roman(i):
     result = []
@@ -296,6 +331,7 @@ def int_to_roman(i):
         result.append(numeral * count)
         i -= integer * count
     return ''.join(result)
+
 
 def roman_to_int(n):
     n = unicode(n).upper()
@@ -312,77 +348,77 @@ def roman_to_int(n):
 epsilon = 1e-12
 
 opn = {
-        "+" : operator.add,
-        "plus" : operator.add,
-        "add" : operator.add,
+    "+": operator.add,
+    "plus": operator.add,
+    "add": operator.add,
 
-        "-" : operator.sub,
-        "minus" : operator.sub,
-        "substract" : operator.sub,
-        "subtract" : operator.sub,
-        "sub" : operator.sub,
+    "-": operator.sub,
+    "minus": operator.sub,
+    "substract": operator.sub,
+    "subtract": operator.sub,
+    "sub": operator.sub,
 
-        "*" : operator.mul,
-        "times" : operator.mul,
-        "multiplied by" : operator.mul,
-        "multiply" : operator.mul,
-        "mul" : operator.mul,
+    "*": operator.mul,
+    "times": operator.mul,
+    "multiplied by": operator.mul,
+    "multiply": operator.mul,
+    "mul": operator.mul,
 
-        "/" : operator.truediv,
-        "divided by" : operator.truediv,
-        "divide" : operator.truediv,
-        "div" : operator.truediv,
+    "/": operator.truediv,
+    "divided by": operator.truediv,
+    "divide": operator.truediv,
+    "div": operator.truediv,
 
-        "//" : operator.floordiv,
-        "floor" : operator.floordiv,
+    "//": operator.floordiv,
+    "floor": operator.floordiv,
 
-        "%" : operator.mod,
-        "modulo" : operator.mod,
-        "mod" : operator.mod,
+    "%": operator.mod,
+    "modulo": operator.mod,
+    "mod": operator.mod,
 
-        "^" : operator.pow,
-        "**" : operator.pow,
-        "pow" : operator.pow,
-        "power" : operator.pow,
+    "^": operator.pow,
+    "**": operator.pow,
+    "pow": operator.pow,
+    "power": operator.pow,
 
-        "and" : operator.and_,
-        "or" : operator.or_,
-        "xor" : operator.xor,
+    "and": operator.and_,
+    "or": operator.or_,
+    "xor": operator.xor,
 
-        ">>" : operator.rshift,
-        "<<" : operator.lshift,
+    ">>": operator.rshift,
+    "<<": operator.lshift,
+}
+
+fn = {"sin": math.sin,
+      "cos": math.cos,
+      "tan": math.tan,
+      "asin": math.asin,
+      "acos": math.acos,
+      "atan": math.atan,
+      "acosh": math.acosh,
+      "asinh": math.asinh,
+      "atanh": math.atanh,
+      "cosh": math.cosh,
+      "sinh": math.sinh,
+      "tanh": math.tanh,
+      "rad": math.radians,
+      "deg": math.degrees,
+      "abs": abs,
+      "sqrt": math.sqrt,
+      "trunc": lambda a: long(a),
+      "round": round,
+      "squared": lambda x: x * x,
+      "cubed": lambda x: x * x * x,
+      "sgn": lambda a: 0 if a == 0 else 1 if abs(a) > epsilon and cmp(a, 0) > 0 else -1,
+      "invert": operator.invert,
+      "~": operator.invert,
+      "currency": currency
       }
 
-fn  = { "sin" : math.sin,
-        "cos" : math.cos,
-        "tan" : math.tan,
-        "asin" : math.asin,
-        "acos" : math.acos,
-        "atan" : math.atan,
-        "acosh" : math.acosh,
-        "asinh" : math.asinh,
-        "atanh" : math.atanh,
-        "cosh" : math.cosh,
-        "sinh" : math.sinh,
-        "tanh" : math.tanh,
-        "rad" : math.radians,
-        "deg" : math.degrees,
-        "abs" : abs,
-        "sqrt" : math.sqrt,
-        "trunc" : lambda a: long(a),
-        "round" : round,
-        "squared" : lambda x: x*x,
-        "cubed" : lambda x: x*x*x,
-        "sgn" : lambda a: 0 if a==0 else 1 if abs(a)>epsilon and cmp(a,0)>0 else -1,
-        "invert" : operator.invert,
-        "~" : operator.invert,
-        "currency" : currency
-      }
 
-
-def evaluateStack( s ):
+def evaluateStack(s):
     op = s.pop()
-    #print op
+    # print op
 
     if isinstance(op, datetime.datetime):
         return op, op.strftime("%Y-%m-%d %H:%M:%S")
@@ -394,23 +430,23 @@ def evaluateStack( s ):
         return op, str(op)
 
     if op == 'unary -':
-        val, expr = evaluateStack( s )
+        val, expr = evaluateStack(s)
         val = -val
         return val, "-%s" % expr
     elif op in set(["xor", "and", "or"]):
-        op2, expr2 = evaluateStack( s )
-        op1, expr1 = evaluateStack( s )
-        val = opn[op]( long(op1), long(op2) )
+        op2, expr2 = evaluateStack(s)
+        op1, expr1 = evaluateStack(s)
+        val = opn[op](long(op1), long(op2))
         print op, opn[op]
         return val, "%s %s %s" % (expr1, op, expr2)
     elif op in set([
             "+", "plus", "add",
             "-", "minus", "substract", "subtract", "sub",
             "*", "times", "multiplied by", "multiply", "mul",
-            "pow", "power","**", "^",  
+            "pow", "power", "**", "^",
             ">>", "<<"]):
-        op2, expr2 = evaluateStack( s )
-        op1, expr1 = evaluateStack( s )
+        op2, expr2 = evaluateStack(s)
+        op1, expr1 = evaluateStack(s)
         if isinstance(op1, datetime.datetime):
             if isinstance(op2, long):
                 op2 = timedelta(hours=op2)
@@ -431,30 +467,32 @@ def evaluateStack( s ):
                 pass
             else:
                 return "undefined", "%s %s %s" % (expr1, op.strip(), expr2)
-        val = opn[op]( op1, op2 )
+        val = opn[op](op1, op2)
         return val, "%s %s %s" % (expr1, op.strip(), expr2)
     elif op in set([
             "/", "divide", "div", "divided by",
             "%", "modulo", "mod",
             "//", "floor"]):
-        op2, expr2 = evaluateStack( s )
-        op1, expr1 = evaluateStack( s )
+        op2, expr2 = evaluateStack(s)
+        op1, expr1 = evaluateStack(s)
         # Handle division by zero gracefully
         if op2 == 0:
             return "undefined", "%s %s %s" % (expr1, op.strip(), expr2)
         else:
-            val = opn[op]( op1, op2 )
+            val = opn[op](op1, op2)
             return val, "%s %s %s" % (expr1, op.strip(), expr2)
     elif op == "currency":
-        curr_to, expr2 = evaluateStack( s )
+        curr_to, expr2 = evaluateStack(s)
         curr_to = curr_to.upper()
-        curr_from, expr1 = evaluateStack( s )
+        curr_from, expr1 = evaluateStack(s)
         curr_from = curr_from.upper()
-        curr_amount, expr0 = evaluateStack( s )
-        val, expr, rate, rate_updated = currency( curr_amount, curr_from, curr_to )
-        return round(val, 4), expr #"%s %s %s %s" % (curr_amount, curr_from, op.strip(), curr_to)
+        curr_amount, expr0 = evaluateStack(s)
+        val, expr, rate, rate_updated = currency(
+            curr_amount, curr_from, curr_to)
+        # "%s %s %s %s" % (curr_amount, curr_from, op.strip(), curr_to)
+        return round(val, 4), expr
     elif op == "PI":
-        val = math.pi # 3.1415926535
+        val = math.pi  # 3.1415926535
         return val, op
     elif op == "E":
         val = math.e  # 2.718281828
@@ -469,8 +507,8 @@ def evaluateStack( s ):
         val = datetime.date.today() + datetime.timedelta(days=1)
         return val, op
     elif op in fn:
-        op1, expr1 = evaluateStack( s )
-        val = fn[op]( op1 )
+        op1, expr1 = evaluateStack(s)
+        val = fn[op](op1)
         return val, "%s(%s)" % (op, expr1)
     elif re.match(RE_TIMEDELTA, op, re.IGNORECASE):
         m = re.match(RE_TIMEDELTA, op, re.IGNORECASE)
@@ -487,7 +525,7 @@ def evaluateStack( s ):
         else:
             val = ""
         return val, op
-    #elif op[0].isalpha():
+    # elif op[0].isalpha():
     #    if re.match(RE_ROMAN_NUMERALS, op, re.IGNORECASE):
     #        if re.match(RE_VALID_ROMAN_NUMBER, op, re.IGNORECASE):
     #            i = roman_to_int(op)
@@ -495,10 +533,10 @@ def evaluateStack( s ):
     #        else:
     #            return 0L, "Not valid roman numeral"
     #    return 0L, 0L
-    elif op.isalpha() and len(op) == 3: # in RATES.exchange_rates.keys():
+    elif op.isalpha() and len(op) == 3:  # in RATES.exchange_rates.keys():
         return op, op
     elif op == "()":
-        val, expr = evaluateStack( s )
+        val, expr = evaluateStack(s)
         return val, "(%s)" % expr
     else:
         val = 0L
@@ -520,93 +558,93 @@ def evaluate(expression):
     BNF.expr_stack = []
     expression, formatted_expression = text2num(expression)
 
-    expression = expression.replace(u"\u00D7", "*") # X symbol
-    expression = expression.replace(u"\u03c0", "PI") # Greek PI symbol
+    expression = expression.replace(u"\u00D7", "*")  # X symbol
+    expression = expression.replace(u"\u03c0", "PI")  # Greek PI symbol
 
-    #print "CONVERTED:", expression, formatted_expression
+    # print "CONVERTED:", expression, formatted_expression
     res = BNF.get_bnf().parseString(expression)
-    #print "STACK:", BNF.expr_stack[:]
-    #print "RES: ", res, "STACK: ", BNF.expr_stack
+    # print "STACK:", BNF.expr_stack[:]
+    # print "RES: ", res, "STACK: ", BNF.expr_stack
     val, expr = evaluateStack(BNF.expr_stack[:])
     #expr = " ".join(res)
-    #print expr
+    # print expr
 
     if isinstance(val, datetime.timedelta):
         val = "%d days %d hours %d minutes" % (
-            val.days #IGNORE:E1103
-            ,val.seconds // 3600
-            ,val.seconds % 3600 // 60)
+            val.days,  # IGNORE:E1103
+            val.seconds // 3600, val.seconds % 3600 // 60
+        )
 
     return val, expr
 
 
-def test( s, expVal ):
+def test(s, expVal):
     BNF.expr_stack = []
-    results = BNF.get_bnf().parseString( s )
-    val = evaluateStack( BNF.expr_stack[:] )
-    #print val.__class__, expVal.__class__
+    results = BNF.get_bnf().parseString(s)
+    val = evaluateStack(BNF.expr_stack[:])
+    # print val.__class__, expVal.__class__
     if val == expVal:
-        #print s, "=", val, results, "=>", BNF.expr_stack
+        # print s, "=", val, results, "=>", BNF.expr_stack
         return expVal
     else:
-        return s+"!!!", val, "!=", expVal, results, "=>", BNF.expr_stack
+        return s + "!!!", val, "!=", expVal, results, "=>", BNF.expr_stack
 
 if __name__ == "__main__":
 
-#    @timelimit(4)
+    #    @timelimit(4)
 
-    test( "9", 9 )
-    test( "-9", -9 )
-    test( "--9", 9 )
-    test( "-E", -math.e )
-    test( "9 + 3 + 6", 9 + 3 + 6 )
-    test( "9 pLUs 3 aDD 6", 9 + 3 + 6 )
-    test( "9 + 3 / 11", 9 + 3.0 / 11 )
-    test( "(9 + 3)", (9 + 3) )
-    test( "(9+3) / 11", (9+3.0) / 11 )
-    test( "9 - 12 - 6", 9 - 12 - 6 )
-    test( "9 minus 12 SUBTRACT 6", 9 - 12 - 6 )
-    test( "9 - (12 - 6)", 9 - (12 - 6) )
-    test( "2*3.14159", 2*3.14159 )
-    test( "3.1415926535*3.1415926535 / 10", 3.1415926535*3.1415926535 / 10 )
-    test( "PI * PI / 10", math.pi * math.pi / 10 )
-    test( "pi times pi divide 10", math.pi * math.pi / 10 )
-    test( "PI*PI/10", math.pi*math.pi/10 )
-    test( "PI^2", math.pi**2 )
-    test( "pi power 2", math.pi**2 )
-    test( "round(PI^2)", round(math.pi**2) )
-    test( "6.02E23 * 8.048", 6.02E23 * 8.048 )
-    test( "e / 3", math.e / 3 )
-    test( "sin(PI/2)", math.sin(math.pi/2) )
-    test( "trunc(E)", int(math.e) )
-    test( "trunc(-E)", int(-math.e) )
-    test( "round(E)", round(math.e) )
-    test( "round(-E)", round(-math.e) )
-    test( "E^pi", math.e**math.pi )
-    test( "2^3^2", 2**3**2 )
-    test( "2^3+2", 2**3+2 )
-    test( "2^9", 2**9 )
-    test( "2**3**2", 2**3**2 )
-    test( "2**3+2", 2**3+2 )
-    test( "2**9", 2**9 )
-    test( "sgn(-2)", -1 )
-    test( "sgn(0)", 0 )
-    test( "sgn(0.1)", 1 )
+    test("9", 9)
+    test("-9", -9)
+    test("--9", 9)
+    test("-E", -math.e)
+    test("9 + 3 + 6", 9 + 3 + 6)
+    test("9 pLUs 3 aDD 6", 9 + 3 + 6)
+    test("9 + 3 / 11", 9 + 3.0 / 11)
+    test("(9 + 3)", (9 + 3))
+    test("(9+3) / 11", (9 + 3.0) / 11)
+    test("9 - 12 - 6", 9 - 12 - 6)
+    test("9 minus 12 SUBTRACT 6", 9 - 12 - 6)
+    test("9 - (12 - 6)", 9 - (12 - 6))
+    test("2*3.14159", 2 * 3.14159)
+    test("3.1415926535*3.1415926535 / 10", 3.1415926535 * 3.1415926535 / 10)
+    test("PI * PI / 10", math.pi * math.pi / 10)
+    test("pi times pi divide 10", math.pi * math.pi / 10)
+    test("PI*PI/10", math.pi * math.pi / 10)
+    test("PI^2", math.pi**2)
+    test("pi power 2", math.pi**2)
+    test("round(PI^2)", round(math.pi**2))
+    test("6.02E23 * 8.048", 6.02E23 * 8.048)
+    test("e / 3", math.e / 3)
+    test("sin(PI/2)", math.sin(math.pi / 2))
+    test("trunc(E)", int(math.e))
+    test("trunc(-E)", int(-math.e))
+    test("round(E)", round(math.e))
+    test("round(-E)", round(-math.e))
+    test("E^pi", math.e**math.pi)
+    test("2^3^2", 2**3**2)
+    test("2^3+2", 2**3 + 2)
+    test("2^9", 2**9)
+    test("2**3**2", 2**3**2)
+    test("2**3+2", 2**3 + 2)
+    test("2**9", 2**9)
+    test("sgn(-2)", -1)
+    test("sgn(0)", 0)
+    test("sgn(0.1)", 1)
 
-    test( "9^9^2", float(9**9**2) )
+    test("9^9^2", float(9**9**2))
 
-    test( "1232 // 2.3", 1232//2.3 )
-    test( "10.3 % 6", 10.3 % 6 )
+    test("1232 // 2.3", 1232 // 2.3)
+    test("10.3 % 6", 10.3 % 6)
 
-    test( "10 xor 24", 10^24 )
-    test( "6 or 1", 6 | 1)
-    test( "7 and 3", 7 & 3)
+    test("10 xor 24", 10 ^ 24)
+    test("6 or 1", 6 | 1)
+    test("7 and 3", 7 & 3)
 
-    test( "sqrt(16)", 4)
-    test( "squared(4)", 4*4)
-    test( "cubed(4)", 4*4*4)
-    test( "one plus one", 1+1)
-    test( "thirty plus hundred", 30+100)
+    test("sqrt(16)", 4)
+    test("squared(4)", 4 * 4)
+    test("cubed(4)", 4 * 4 * 4)
+    test("one plus one", 1 + 1)
+    test("thirty plus hundred", 30 + 100)
 
 """
 Test output:
