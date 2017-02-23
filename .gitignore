@@ -1,11 +1,14 @@
 *.pyc
 *.pyd
 *.pyo
-
+*.pdb
 *.swp
 *.*~
 *.py_
 *.bak
+.sconsign.*
+*.dll
+*.lib
 
 /.cache/
 /.ensorc
@@ -17,3 +20,7 @@
 /derby.log
 /env/
 /build/
+/virtualenv*
+/python*
+/pypy*
+/scripts/scons
