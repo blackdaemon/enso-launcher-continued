@@ -1,20 +1,25 @@
-import time
+import Queue
+import logging
+import operator
 import os
 import re
-import operator
-import _winreg as reg
 import struct
-import Queue
 import threading
-import logging
+import time
+from functools import partial
 
-from enso.utils.decorators import suppress
+import win32api
+import win32con
 
 import enso.system
+from enso.utils.decorators import suppress
+
 
 FONT_DIR = enso.system.get_system_folder(enso.system.SYSTEMFOLDER_FONTS)
 FONT_LIST_REG_KEY = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
-RE_BARE_FONT_NAME = re.compile("^(.*) \\(.*\\)$", re.I)
+
+match_bare_font_name = re.compile("^(.*) \\(.*\\)$", re.I).match
+simplify_font_name = partial(re.compile(r"[^A-Za-z0-9]").sub, "")
 
 
 def not_implemented_yet(f):
@@ -39,7 +44,8 @@ def synchronized(lock):
     return wrap
 
 
-class FontDetail( object ):
+class FontDetail(object):
+
     def __init__(self, names, filepath, filename):
         self._names = names
         self._filepath = filepath
@@ -48,11 +54,11 @@ class FontDetail( object ):
     @property
     def names(self):
         return self._names
-    
+
     @property
     def filename(self):
         return self._filename
-    
+
     @property
     def filepath(self):
         return self._filepath
@@ -63,17 +69,17 @@ class FontDetail( object ):
 
 _font_detail_cache_lock = threading.Lock()
 
+
 class FontRegistry:
 
     __instance = None
     __font_detail_cache = {}
 
     @classmethod
-    def get( cls ):
+    def get(cls):
         if not cls.__instance:
             cls.__instance = cls()
         return cls.__instance
-
 
     def __init__(self):
         self.__requests = Queue.Queue()
@@ -82,7 +88,6 @@ class FontRegistry:
         self._request_lock = threading.Lock()
         self._name_to_file_cache = {}
         self._active_requests = {}
-
 
     def _get_font_file_from_name(self, font_id):
         """
@@ -100,11 +105,11 @@ class FontRegistry:
 
         # Get the list of all TrueType font files
         font_files = [font_file for font_file
-                in os.listdir(FONT_DIR)
-                if operator.itemgetter(1)(
-                    os.path.splitext(font_file)
-                ).lower() == ".ttf"
-            ]
+                      in os.listdir(FONT_DIR)
+                      if operator.itemgetter(1)(
+                          os.path.splitext(font_file)
+                      ).lower() == ".ttf"
+                      ]
 
         # Narrow font list to probable matches by seeking every font_id
         # word inside the filename
@@ -133,7 +138,6 @@ class FontRegistry:
 
         return None
 
-
     def _get_font_name_from_file(self, font_file):
         """
         Open font file and parse it to get the font name
@@ -147,14 +151,14 @@ class FontRegistry:
             f = open(font_file, 'rb')
 
             # Get header
-            shead = struct.Struct( '>IHHHH' )
-            fhead = f.read( shead.size )
-            dhead = shead.unpack_from( fhead, 0 )
+            shead = struct.Struct('>IHHHH')
+            fhead = f.read(shead.size)
+            dhead = shead.unpack_from(fhead, 0)
 
             # Get font directory
-            stable = struct.Struct( '>4sIII' )
-            ftable = f.read( stable.size * dhead[ 1 ] )
-            for i in range( dhead[1] ): #directory records
+            stable = struct.Struct('>4sIII')
+            ftable = f.read(stable.size * dhead[1])
+            for i in range(dhead[1]):  # directory records
                 dtable = stable.unpack_from(
                     ftable, i * stable.size)
                 if dtable[0] == 'name':
@@ -162,28 +166,32 @@ class FontRegistry:
             assert dtable[0] == 'name'
 
             # Get name table
-            f.seek( dtable[2] ) #at offset
-            fnametable = f.read( dtable[3] ) #length
-            snamehead = struct.Struct( '>HHH' ) #name table head
-            dnamehead = snamehead.unpack_from( fnametable, 0 )
+            f.seek(dtable[2])  # at offset
+            fnametable = f.read(dtable[3])  # length
+            snamehead = struct.Struct('>HHH')  # name table head
+            dnamehead = snamehead.unpack_from(fnametable, 0)
 
-            sname = struct.Struct( '>HHHHHH' )
-            for i in range( dnamehead[1] ): #name table records
-                dname= sname.unpack_from(
-                    fnametable, snamehead.size+ i* sname.size )
-                if dname[3]== 4: #key == 4: "full name of font"
-                    s= struct.unpack_from(
-                        '%is'% dname[4], fnametable,
-                        dnamehead[2]+ dname[5] )[0]
-                    # Return the font name, test names for different encodings in preferred order
-                    if dname[0] == 1 and dname[1] == 0: # Macintosh, Default, English
+            sname = struct.Struct('>HHHHHH')
+            for i in range(dnamehead[1]):  # name table records
+                dname = sname.unpack_from(
+                    fnametable, snamehead.size + i * sname.size)
+                if dname[3] == 4:  # key == 4: "full name of font"
+                    s = struct.unpack_from(
+                        '%is' % dname[4], fnametable,
+                        dnamehead[2] + dname[5])[0]
+                    # Return the font name, test names for different encodings
+                    # in preferred order
+                    # Macintosh, Default, English
+                    if dname[0] == 1 and dname[1] == 0:
                         # This one is usually looking best
                         font_full_name = s
                         break
-                    elif dname[0] == 0 and dname[1] == 3: # Unicode, Unicode 2.0, English
+                    # Unicode, Unicode 2.0, English
+                    elif dname[0] == 0 and dname[1] == 3:
                         font_full_name = s
                         break
-                    elif dname[0] == 3 and dname[1] == 1: # Windows, Version 1.1
+                    # Windows, Version 1.1
+                    elif dname[0] == 3 and dname[1] == 1:
                         font_full_name = unicode(s, "UTF-16BE")
                         break
         except Exception, e:
@@ -195,34 +203,33 @@ class FontRegistry:
 
         return font_full_name
 
-
     @synchronized(_font_detail_cache_lock)
     def get_font_detail(self, font_id):
         assert font_id is not None and len(font_id.strip()) > 0
 
-        #while not self.__font_detail_cache_lock(False):
+        # while not self.__font_detail_cache_lock(False):
         #    logging.warn("font cache lock acquire() has been blocked"
 
         font_id = font_id.strip().lower()
 
-        if self.__font_detail_cache.get(font_id):
+        if font_id in self.__font_detail_cache:
             #logging.debug("Font cache hit for \"%s\"" % font_id)
             return self.__font_detail_cache[font_id]
 
         font_detail = None
-        reghandle = None
         try:
             started = time.time()
-            reghandle = reg.ConnectRegistry(None, reg.HKEY_LOCAL_MACHINE)
-            regkey = reg.OpenKey(reghandle, FONT_LIST_REG_KEY)
+            regkey = win32api.RegOpenKeyEx(
+                win32api.RegConnectRegistry(None, win32con.HKEY_LOCAL_MACHINE),
+                FONT_LIST_REG_KEY)
             i = 0
             try:
-                EnumValue = reg.EnumValue
+                RegEnumValue = win32api.RegEnumValue
                 splitext = os.path.splitext
                 pathjoin = os.path.join
-                RE_BARE_FONT_NAME_MATCH = RE_BARE_FONT_NAME.match
+                basename = os.path.basename
                 while True:
-                    font_name, font_file, _ = EnumValue(regkey, i)
+                    font_name, font_file, _ = RegEnumValue(regkey, i)
                     i += 1
 
                     _, ext = splitext(font_file)
@@ -230,36 +237,42 @@ class FontRegistry:
                         continue
 
                     font_path = pathjoin(FONT_DIR, font_file)
-                    m = RE_BARE_FONT_NAME_MATCH(font_name)
+                    m = match_bare_font_name(font_name)
                     if m:
                         font_name = m.group(1)
 
-                    if font_name.lower() == font_id or font_file.lower() == font_id:
-                        font_detail = FontDetail([font_name], font_path, font_file)
+                    if simplify_font_name(font_id) == simplify_font_name(font_name).lower() or \
+                            simplify_font_name(font_id) == simplify_font_name(splitext(font_file)[0].lower()):
+                        font_detail = FontDetail(
+                            [font_name], font_path, font_file)
                         self.__font_detail_cache[font_id] = font_detail
                         break
-            except Exception, e:
-                pass
+            except Exception as e:
+                # Eroor 259: No more data is available, thrown by reg.EnumValue
+                if not hasattr(e, "winerror") or e.winerror != 259:
+                    raise
+                # Make a dent in the cache even if we did not find anything
+                self.__font_detail_cache[font_id] = None
+            finally:
+                if regkey:
+                    with suppress(Exception):
+                        win32api.RegCloseKey(regkey)
             """
                     font_name2 = self._get_font_name_from_file(font_path)
                         if font_name2 and font_name != font_name2:
                             font_info['names'].append(font_name2)
             """
             print "Available fonts examination finished in %fs" % (time.time() - started)
-        except Exception, e:
+            #import traceback; traceback.print_stack()
+        except Exception as e:
             logging.error(e)
 
-        if reghandle is not None:
-            with suppress(Exception):
-                reg.CloseKey(reghandle)
-            reghandle = None
-
         return font_detail
-
 
     @not_implemented_yet
     def get_font_registry(self):
         font_registry = {}
+        """
         reghandle = None
         try:
             reghandle = reg.ConnectRegistry(None, reg.HKEY_LOCAL_MACHINE)
@@ -270,7 +283,7 @@ class FontRegistry:
                     font_name, font_file, _ = reg.EnumValue(regkey, i)
                     font_path = FONT_DIR + "\\" + font_file
                     if os.path.isfile(font_path):
-                        #print font_def[0], font_path
+                        # print font_def[0], font_path
                         font_registry[font_name] = (font_name, font_path)
                         font_registry[font_file] = (font_name, font_path)
                     i += 1
@@ -285,5 +298,5 @@ class FontRegistry:
             except:
                 pass
             reghandle = None
-
+        """
         return font_registry
