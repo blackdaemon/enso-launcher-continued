@@ -49,6 +49,8 @@
       'files' -- A tuple of absolute file paths.
 """
 
+__updated__ = "2017-02-23"
+
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
@@ -77,7 +79,7 @@ def get():
     return __impl.get()
 
 
-def set(seldict):
+def set(seldict):  # @ReservedAssignment
     """
     Sets the current selection to the given seldict.  Returns True if
     at least one format of the seldict could be applied as the current

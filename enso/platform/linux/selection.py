@@ -34,6 +34,8 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+__updated__ = "2017-02-23"
+
 from __future__ import with_statement
 from time import clock, time
 
@@ -119,7 +121,7 @@ def make_key(keycode, state, window, display):
 
 def fake_key_up(key, window, display):
     '''Fake a keyboard press event'''
-    event = Xlib.protocol.event.KeyPress(
+    event = Xlib.protocol.event.KeyPress(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         **key)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     window.send_event(event, propagate=True)
     display.sync()
@@ -127,7 +129,7 @@ def fake_key_up(key, window, display):
 
 def fake_key_down(key, window, display):
     '''Fake a keyboard release event'''
-    event = Xlib.protocol.event.KeyRelease(
+    event = Xlib.protocol.event.KeyRelease(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         **key)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     window.send_event(event, propagate=True)
     display.sync()
@@ -155,10 +157,10 @@ def fake_paste(display=None):
     ctrl_keycode = get_keycode(key="Control_L", display=display)
     ctrl_key = make_key(ctrl_keycode, state, window, display)
     if ctrl:
-        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     display.sync()
 
 
@@ -178,11 +180,11 @@ def fake_ctrl_l(display=None):
     ctrl_keycode = get_keycode(key="Control_L", display=display)
     ctrl_key = make_key(ctrl_keycode, state, window, display)
     if ctrl:
-        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     if ctrl:
-        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     display.sync()
 
 

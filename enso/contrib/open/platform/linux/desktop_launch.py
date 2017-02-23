@@ -6,6 +6,8 @@
 # Credits:   Copyright 2007-2011 Ulrik Sverdrup <ulrik.sverdrup@gmail.com>
 # Licence:   GNU General Public License v3 (or any later version)
 
+__updated__ = "2017-02-23"
+
 import logging
 import os
 
@@ -66,8 +68,8 @@ def find_desktop_file(desk_id):
     try:
         return next(xdg.BaseDirectory.load_data_paths("applications", desk_id))
     except StopIteration:
-        ## it was not found as an immediate child of the data paths,
-        ## so we split by the hyphens and search deeper
+        # it was not found as an immediate child of the data paths,
+        # so we split by the hyphens and search deeper
         file_id = desk_id
         directories = ['applications']
 
@@ -81,15 +83,15 @@ def find_desktop_file(desk_id):
             return '-'.join(parts[:depth]), '-'.join(parts[depth:])
 
         while 1:
-            ## try the first parts of the id to see if it matches a directory
-            for x in xrange(1,4):
+            # try the first parts of the id to see if it matches a directory
+            for x in xrange(1, 4):
                 dirname, rest_id = get_dir_id_depth(file_id, x)
                 if rest_id and lookup(directories + [dirname]):
                     file_id = rest_id
                     directories.append(dirname)
                     break
             else:
-                ## we did not reach break
+                # we did not reach break
                 break
             desktop_file_path = lookup(directories + [file_id])
             if desktop_file_path:
@@ -161,7 +163,7 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
     """
     supports_single_file = False
     files_added_at_end = False
-    
+
     class Flags(object):
         did_see_small_f = False
         did_see_large_f = False
@@ -204,7 +206,7 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
     def replace_array_format(elem):
         """
         Handle array format codes -- only recognized as single arguments
-        
+
         Return  flag, arglist
         where flag is true if something was replaced
         """
@@ -229,10 +231,11 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
         """
         if not s:
             return s
+
         def _inner():
             it = iter(zip(s, s[1:]))
             for cur, nex in it:
-                key = cur+nex
+                key = cur + nex
                 rep = repfunc(key)
                 if rep is not None:
                     yield rep
@@ -259,7 +262,7 @@ def replace_format_specs(argv, location, desktop_info, gfilelist):
             arg = two_part_unescaper(x, replace_single_code)
             if arg:
                 new_argv.append(arg)
-    
+
     if len(gfilelist) > 1 and not Flags.did_see_large_f:
         supports_single_file = True
     if not Flags.did_see_small_f and not Flags.did_see_large_f and len(gfilelist):
@@ -321,7 +324,7 @@ def launch_app_info(app_info, gfiles=[], in_terminal=None, timestamp=None,
 
     # Now Resolve the %f etc format codes
     multiple_needed, missing_format, launch_argv = \
-            replace_format_specs(argv, desktop_file, desktop_info, gfiles)
+        replace_format_specs(argv, desktop_file, desktop_info, gfiles)
 
     if not multiple_needed:
         # Launch 1 process
@@ -402,7 +405,7 @@ def spawn_app(app_info, argv, filelist, workdir=None, startup_notify=True,
     else:
         child_env_add = {}
     if screen:
-        child_env_add["DISPLAY"]=screen.make_display_name()
+        child_env_add["DISPLAY"] = screen.make_display_name()
 
     if not workdir or not os.path.exists(workdir):
         workdir = "."
@@ -410,21 +413,24 @@ def spawn_app(app_info, argv, filelist, workdir=None, startup_notify=True,
     argv = list(locale_encode_argv(argv))
 
     try:
-        (pid, _ig1, _ig2, _ig3) = glib.spawn_async(
+        (pid, _ig1, _ig2, _ig3) = glib.spawn_async(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             argv,
             working_directory=workdir,
-            flags=glib.SPAWN_SEARCH_PATH,
+            # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+            flags=glib.SPAWN_SEARCH_PATH | glib.SPAWN_STDOUT_TO_DEV_NULL,
             child_setup=child_setup,
             user_data=child_env_add
         )
+        print dir(glib)
         logging.debug("Launched '%s'; notify_id: %s; pid: %d", argv, notify_id, pid)
-    except glib.GError as exc:
+    except glib.GError as exc:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         logging.error("Error Launching '%s'; %s", argv, unicode(exc))
         if notify_id:
             gtk.gdk.notify_startup_complete_with_id(notify_id)
         raise SpawnError(unicode(exc))
-    if launch_cb:
-        launch_cb(argv, pid, notify_id, filelist, timestamp)
+    finally:
+        if launch_cb:
+            launch_cb(argv, pid, notify_id, filelist, timestamp)
     return pid
 
 

@@ -15,7 +15,7 @@ import enso.system
 from enso.utils.decorators import suppress
 
 
-FONT_DIR = enso.system.get_system_folder(enso.system.SYSTEMFOLDER_FONTS)
+FONT_DIR = enso.system.get_system_folder(enso.system.SYSTEMFOLDER_FONTS)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 FONT_LIST_REG_KEY = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
 
 match_bare_font_name = re.compile("^(.*) \\(.*\\)$", re.I).match
@@ -219,15 +219,14 @@ class FontRegistry:
         font_detail = None
         try:
             started = time.time()
-            regkey = win32api.RegOpenKeyEx(
-                win32api.RegConnectRegistry(None, win32con.HKEY_LOCAL_MACHINE),
+            regkey = win32api.RegOpenKeyEx(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                win32api.RegConnectRegistry(None, win32con.HKEY_LOCAL_MACHINE),  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 FONT_LIST_REG_KEY)
             i = 0
             try:
-                RegEnumValue = win32api.RegEnumValue
+                RegEnumValue = win32api.RegEnumValue  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 splitext = os.path.splitext
                 pathjoin = os.path.join
-                basename = os.path.basename
                 while True:
                     font_name, font_file, _ = RegEnumValue(regkey, i)
                     i += 1
@@ -256,7 +255,7 @@ class FontRegistry:
             finally:
                 if regkey:
                     with suppress(Exception):
-                        win32api.RegCloseKey(regkey)
+                        win32api.RegCloseKey(regkey)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             """
                     font_name2 = self._get_font_name_from_file(font_path)
                         if font_name2 and font_name != font_name2:

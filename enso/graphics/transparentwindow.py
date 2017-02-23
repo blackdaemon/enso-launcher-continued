@@ -1,3 +1,5 @@
+__updated__ = "2017-02-23"
+
 import enso.providers
 
 from enso.graphics.measurement import pointsToPixels, pixelsToPoints
@@ -34,7 +36,7 @@ class TransparentWindow(object):
                                                  width, height)
 
     def makeCairoContext(self):
-        context = cairo.Context(self._impl.makeCairoSurface())
+        context = cairo.Context(self._impl.makeCairoSurface())  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         convertUserSpaceToPoints(context)
         return context
 

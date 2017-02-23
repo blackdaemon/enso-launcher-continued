@@ -95,13 +95,13 @@ class Font(object):
         self.font_opts = {}
         
         if self.isItalic:
-            self.slant = cairo.FONT_SLANT_ITALIC
+            self.slant = cairo.FONT_SLANT_ITALIC  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         else:
-            self.slant = cairo.FONT_SLANT_NORMAL
+            self.slant = cairo.FONT_SLANT_NORMAL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 
         if not Font._cairoContext:
-            dummySurface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
-            Font._cairoContext = cairo.Context(dummySurface)
+            dummySurface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+            Font._cairoContext = cairo.Context(dummySurface)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 
         self.cairoContext = Font._cairoContext
 
@@ -245,10 +245,10 @@ class Font(object):
                     "Using font (normal): {0}".format(self.font_name)
                 )
 
-            fo = cairo.FontOptions()
+            fo = cairo.FontOptions()  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             try:
-                fo.set_antialias(cairo.ANTIALIAS_GRAY)
-                #fo.set_hint_metrics(cairo.HINT_METRICS_ON)
+                fo.set_antialias(cairo.ANTIALIAS_GRAY)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                #fo.set_hint_metrics(cairo.HINT_METRICS_ON)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             except:
                 pass
             else:
@@ -257,7 +257,7 @@ class Font(object):
             cairoContext.select_font_face(
                 self.font_name,
                 self.slant,
-                cairo.FONT_WEIGHT_NORMAL
+                cairo.FONT_WEIGHT_NORMAL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
             )
 
             cairoContext.set_font_size(self.size)

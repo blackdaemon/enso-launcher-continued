@@ -47,7 +47,7 @@ def run():
         # manage unhandled exception here
         logging.error(value)
         tback.print_exc()
-        sys.__excepthook__(type, value, tback) # then call the default handler
+        sys.__excepthook__(type, value, tback)  # then call the default handler
 
     sys.excepthook = except_hook
     

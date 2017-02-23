@@ -31,6 +31,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+__updated__ = "2017-02-23"
+
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
@@ -73,7 +75,8 @@ _RE_URL_FINDERS = [
         )
         (:[0-9]*)?/[-A-Za-z0-9_\$\.\+\!\*\(\),;:@&=\?/~\#\%]*[^]'\.}>\),\\"]"
         """, re.VERBOSE),
-    re.compile("([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}|(((news|telnet|nttp|file|http|ftp|https)://)|(www|ftp)[-A-Za-z0-9]*\\.)[-A-Za-z0-9\\.]+)(:[0-9]*)?"),
+    re.compile(
+        "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}|(((news|telnet|nttp|file|http|ftp|https)://)|(www|ftp)[-A-Za-z0-9]*\\.)[-A-Za-z0-9\\.]+)(:[0-9]*)?"),
     re.compile("(~/|/|\\./)([-A-Za-z0-9_\\$\\.\\+\\!\\*\\(\\),;:@&=\\?/~\\#\\%]|\\\\)+"),
     re.compile(r"(mailto:)?[-_\.\d\w]+@[-_\.\d\w]+", re.IGNORECASE),
 ]
@@ -95,13 +98,13 @@ def is_url2(text):
     components = list(urlparse.urlparse(text))
     domain = "".join(components[1:])
     dotparts = domain.rsplit(".")
-  
+
     # 1. Domain name part is one word (without spaces)
     # 2. Urlparse parses a scheme (http://), else we apply heuristics
     if len(domain.split()) == 1 and (components[0] or ("." in domain and
-            len(dotparts) >= 2 and len(dotparts[-1]) >= 2 and
-            any(char.isalpha() for char in domain) and
-            all(part[:1].isalnum() for part in dotparts))):
+                                                       len(dotparts) >= 2 and len(dotparts[-1]) >= 2 and
+                                                       any(char.isalpha() for char in domain) and
+                                                       all(part[:1].isalnum() for part in dotparts))):
         if not components[0]:
             url = "http://" + "".join(components[1:])
         else:
@@ -117,7 +120,7 @@ class IOpenCommand(object):
     """
 
     __metaclass__ = ABCMeta
-    
+
     def __init__(self):
         super(IOpenCommand, self).__init__()
 
@@ -183,6 +186,7 @@ class AbstractOpenCommand(IOpenCommand):
                 shortcuts = ShortcutsDict(shortcuts)
             self.shortcut_dict = shortcuts
         """
+
         def reloader_thread(self):
             with utils.Timer("Reloading \"open\" command shortcuts dict"):
                 self._reload_shortcuts(self.shortcut_dict)

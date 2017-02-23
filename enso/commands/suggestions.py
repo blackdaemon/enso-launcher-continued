@@ -36,6 +36,8 @@
     Classes for encapsulating suggestions (including auto-completions).
 """
 
+__updated__ = "2017-02-23"
+
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
@@ -434,7 +436,7 @@ class Suggestion:
                 unmatchedChars += unusedSource[0]
                 unusedSource = unusedSource[1:]
 
-            assert len( unusedSource ) < len( oldUnusedSource ), \
+            assert len(unusedSource) < len(oldUnusedSource), \
                 "Potential infinite loop condition; failed to reduce"\
                 " the length of the unused portion of the source string"\
                 " in toXml()"

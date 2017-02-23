@@ -1,3 +1,5 @@
+__updated__ = "2017-02-23"
+
 from enso._version_local import VERSION as VERSION_LOCAL
 from enso._version_remote import VERSION as VERSION_REMOTE
 
