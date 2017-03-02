@@ -35,15 +35,11 @@ from os import system as runcmd
 
 import enso.platform
 
-__updated__ = "2017-02-22"
+__updated__ = "2017-02-24"
 
-platforms = [
-    "linux",
-    "openbsd",
-    "freebsd",
-    "netbsd",
-]
-if not any(sys.platform.startswith(p) for p in platforms):
+if not any(sys.platform.startswith(p) for p in [
+    "linux", "openbsd", "freebsd", "netbsd"]
+):
     raise enso.platform.PlatformUnsupportedError()
 
 

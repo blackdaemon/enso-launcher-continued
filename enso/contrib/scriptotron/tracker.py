@@ -31,13 +31,13 @@
 #   enso
 #
 # ----------------------------------------------------------------------------
-__updated__ = "2017-02-23"
+__updated__ = "2017-02-24"
 
 import logging
 import os
-import sys
 import time
 import types
+from os.path import basename
 
 import enso.config
 import enso.system
@@ -51,26 +51,17 @@ from enso.contrib.scriptotron import (
 from enso.contrib.scriptotron.events import EventResponderList
 from enso.contrib.scriptotron.tracebacks import TracebackCommand, safetyNetted
 from enso.messages import MessageManager, displayMessage as display_xml_message
+from enso.platform import PlatformUnsupportedError
+from enso.utils import do_once
 
 # This may no longer be required (it was for backward compat)
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
 # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-
-_PLATFORM_NAME = ""
-if sys.platform.startswith("win"):
-    _PLATFORM_NAME = "windows"
-elif sys.platform == "darwin":
-    _PLATFORM_NAME = "osx"
-elif any(
-    sys.platform.startswith(p) for p in [
-        "linux", "openbsd", "freebsd", "netbsd", ]
-):
-    _PLATFORM_NAME = "linux"
-_EXCLUDED_PLATFORMS = set(["windows", "linux", "osx"]) - set([_PLATFORM_NAME])
+# IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
 
 
-class ScriptCommandTracker:
+class ScriptCommandTracker(object):
 
     def __init__(self, commandManager, eventManager):
         self._cmdExprs = []
@@ -166,7 +157,7 @@ class ScriptCommandTracker:
             self._genMgr.reset()
 
 
-class ScriptTracker:
+class ScriptTracker(object):
 
     def __init__(self, eventManager, commandManager):
         self._firstRun = True
@@ -197,7 +188,14 @@ class ScriptTracker:
     def _getGlobalsFromSourceCode(text, filename):
         allGlobals = {}
         code = compile(text + "\n", filename, "exec")
-        exec code in allGlobals
+        try:
+            exec code in allGlobals
+        except PlatformUnsupportedError:
+            logging.warning(
+                "Command '%s' is not supported on this platform."
+                % basename(filename)
+            )
+            return None
         return allGlobals
 
     def _getCommandFiles(self):
@@ -207,9 +205,7 @@ class ScriptTracker:
             commandFiles = [
                 os.path.join(self._scriptFolder, x)
                 for x in os.listdir(self._scriptFolder)
-                if x.endswith(".py") and not
-                any(1 for ep in _EXCLUDED_PLATFORMS if x.endswith(
-                    ".{0}.py".format(ep)))
+                if x.endswith(".py")
             ]
         except:
             commandFiles = []
@@ -238,8 +234,10 @@ class ScriptTracker:
                     text = fd.read().replace('\r\n', '\n') + "\n"
             except IOError as e:
                 if file_name == SCRIPTS_FILE_NAME:
-                    logging.info(
-                        "Legacy script file %s not found" % SCRIPTS_FILE_NAME)
+                    do_once(
+                        logging.warning,
+                        "Legacy script file %s not found" % SCRIPTS_FILE_NAME
+                    )
                 else:
                     logging.error(e)
                 continue
@@ -257,6 +255,10 @@ class ScriptTracker:
                 self._scriptCmdTracker.registerNewCommands(infos)
                 self._registerDependencies(allGlobals)
                 self._commandsInFile[file_name] = infos
+                logging.info(
+                    "Scriptotron registered commands from '%s': [%s]" %
+                    (basename(file_name), ", ".join(info["cmdName"] for info in infos))
+                )
 
     def _registerDependencies(self, allGlobals=None):
         baseDeps = [self._scriptFilename] + self._getCommandFiles()
