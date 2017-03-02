@@ -213,7 +213,7 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
 
     def _generateCommandObj(self, parameter=None):
         self.parameter = parameter
-        article = "an" if self.command_name[0] in ("i", "y") else "a"
+        article = "an" if self.command_name[0].lower() in "aeiou" else "a"
         if self.parameter is not None:
             self.setDescription(
                 u"Performs %s %s search for \u201c%s\u201d."
