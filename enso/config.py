@@ -1,4 +1,4 @@
-__updated__ = "2017-02-23"
+__updated__ = "2017-03-02"
 
 from enso._version_local import VERSION as VERSION_LOCAL
 from enso._version_remote import VERSION as VERSION_REMOTE
@@ -104,9 +104,6 @@ MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
 
 DIDYOUMEAN_HINT_TEXT = u"<ins>Did you mean \u201c</ins><alt>%s</alt><ins>\u201d?</ins>" \
     "&nbsp;&nbsp;<alt>Press tab to fix</alt>"
-
-# Optional custom font. If not used, Arial is used on Windows and Helvetica on Linux
-# FONT_NAME = {"normal" : "Square 721 Condensed BT CZ", "italic" : "Square 721 Condensed BT CZ"}
 
 # List of default platforms supported by Enso; platforms are specific
 # types of providers that provide a suite of platform-specific
