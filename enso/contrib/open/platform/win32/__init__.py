@@ -88,7 +88,7 @@ if utils.platform_windows_vista() or utils.platform_windows_7():
 else:
     from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
 
-__updated__ = "2017-02-23"
+__updated__ = "2017-03-02"
 
 logger = logging.getLogger(__name__)
 
@@ -855,9 +855,10 @@ class OpenCommandImpl(AbstractOpenCommand):
         if os.path.isdir(GAMEEXPLORER_DIR):
             with Timer("Loaded gameexplorer entries"):
                 shortcuts.extend(get_gameexplorer_entries(self.use_categories))
-                directory_watcher.manager.register_handler(
-                    GAMEEXPLORER_DIR,
-                    self.__reload_dir)
+                if directory_watcher:
+                    directory_watcher.manager.register_handler(
+                        GAMEEXPLORER_DIR,
+                        self.__reload_dir)
         with Timer("Loaded Enso learn-as shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(LEARN_AS_DIR,
