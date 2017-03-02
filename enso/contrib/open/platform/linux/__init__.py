@@ -31,12 +31,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# Future imports
+from __future__ import division, with_statement
+
+__updated__ = "2017-02-23"
+
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
 
-# Future imports
-from __future__ import division, with_statement
 import glob
 import logging
 import os
@@ -94,19 +97,19 @@ def limit_windows_by_title_fuzzy_search(title, win_list, first_hit=False):
         window_title = window.get_name().lower()
         for keyword in keywords:
             keyword = re.sub("[^a-zA-Z0-9]", "", keyword)
-            pos = window_title.find(keyword) 
+            pos = window_title.find(keyword)
             if pos >= 0:
                 score += (100 - (pos / (len(window_title) / 100.0))) * points_multiplier
             points_multiplier /= 2
         scores.append((window, score))
-    new_list = [window for (window,score) in 
+    new_list = [window for (window,score) in
         sorted(
-            ((window,score) for (window,score) in scores if score > 0), 
-            key=operator.itemgetter(0), 
+            ((window,score) for (window,score) in scores if score > 0),
+            key=operator.itemgetter(0),
             reverse=False)
         ]
     print "||| ".join(window.get_name() for window in new_list)
-    return new_list 
+    return new_list
 """
 
 
@@ -122,15 +125,18 @@ class OpenCommandImpl(AbstractOpenCommand):
 
     def _reload_shortcuts(self, shortcuts_dict):
         def update_applications():
-            shortcuts_dict.update_by_category(applications.SHORTCUT_CATEGORY, dict((s.name, s) for s in applications.get_applications()))
+            shortcuts_dict.update_by_category(
+                applications.SHORTCUT_CATEGORY, dict((s.name, s) for s in applications.get_applications()))
         update_applications()
 
         def update_desktop_shortcuts():
-            shortcuts_dict.update_by_category(desktop.SHORTCUT_CATEGORY_DESKTOP, dict((s.name, s) for s in desktop.get_desktop_shortcuts()))
+            shortcuts_dict.update_by_category(
+                desktop.SHORTCUT_CATEGORY_DESKTOP, dict((s.name, s) for s in desktop.get_desktop_shortcuts()))
         update_desktop_shortcuts()
 
         def update_launch_panel_shortcuts():
-            shortcuts_dict.update_by_category(desktop.SHORTCUT_CATEGORY_LAUNCHPANEL, dict((s.name, s) for s in desktop.get_launch_panel_shortcuts()))
+            shortcuts_dict.update_by_category(
+                desktop.SHORTCUT_CATEGORY_LAUNCHPANEL, dict((s.name, s) for s in desktop.get_launch_panel_shortcuts()))
         update_launch_panel_shortcuts()
 
         """
@@ -141,11 +147,13 @@ class OpenCommandImpl(AbstractOpenCommand):
         """
 
         def update_gtk_bookmarks():
-            shortcuts_dict.update_by_category(gtk_bookmarks.SHORTCUT_CATEGORY, dict((s.name, s) for s in gtk_bookmarks.get_bookmarks()))
+            shortcuts_dict.update_by_category(
+                gtk_bookmarks.SHORTCUT_CATEGORY, dict((s.name, s) for s in gtk_bookmarks.get_bookmarks()))
         update_gtk_bookmarks()
 
         def update_learned_shortcuts():
-            shortcuts_dict.update_by_category(learned_shortcuts.SHORTCUT_CATEGORY, dict((s.name, s) for s in learned_shortcuts.get_learned_shortcuts()))
+            shortcuts_dict.update_by_category(learned_shortcuts.SHORTCUT_CATEGORY, dict(
+                (s.name, s) for s in learned_shortcuts.get_learned_shortcuts()))
         update_learned_shortcuts()
 
         applications.register_update_callback(update_applications)
@@ -153,10 +161,10 @@ class OpenCommandImpl(AbstractOpenCommand):
         desktop.register_update_callback(update_launch_panel_shortcuts)
         gtk_bookmarks.register_update_callback(update_gtk_bookmarks)
         learned_shortcuts.register_update_callback(update_learned_shortcuts)
-        
+
     def _is_runnable(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
-        
+
     def _is_application(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
 
@@ -251,14 +259,14 @@ class OpenCommandImpl(AbstractOpenCommand):
         return shortcuts.Shortcut(
             shortcut_name, file_type, shortcut_file_path, shortcut_file_path, category=learned_shortcuts.SHORTCUT_CATEGORY
         )
-        
+
         """
         os.symlink(file, shortcut_file_path)
 
         return shortcuts.Shortcut(
             shortcut_name, self._get_shortcut_type(file), shortcut_file_path)
         """
-        
+
     def _remove_shortcut(self, shortcut):
         if not os.path.isfile(shortcut.shortcut_filename):
             return False
@@ -272,7 +280,7 @@ class OpenCommandImpl(AbstractOpenCommand):
 
     def _get_shortcut_type(self, text):
         return get_file_type(text)
-        
+
     def _run_shortcut(self, shortcut):
         if shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE:
             try:
@@ -301,7 +309,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     """
                     launch_app_info(app, timestamp=gtk.get_current_event_time(), desktop_file=shortcut.target)
                     # app.launch([], gtk.gdk.AppLaunchContext())
-            except Exception, e:
+            except Exception as e:
                 logging.error(e)
         else:
             try:
@@ -331,6 +339,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             if not app:
                 app = applications.applications_dict.get(shortcut.name, None)
             if app:
+                # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 gfiles = [gio.File(filepath) for filepath in files]  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 launch_app_info(app, gfiles=gfiles)
                 # app.launch([], gtk.gdk.AppLaunchContext())
@@ -354,7 +363,8 @@ class RecentCommandImpl(OpenCommandImpl):
         update_recent_documents()
         recent.register_update_callback(update_recent_documents)
         """
-        logging.warn("The functionality of listing the recent items in 'open' command has been disabled due to performance issues in Linux GTK recent-files manager.")
-        
+        logging.warn(
+            "The functionality of listing the recent items in 'open' command has been disabled due to performance issues in Linux GTK recent-files manager.")
+
     def _get_shortcut_type(self, target):
         raise NotImplementedError()

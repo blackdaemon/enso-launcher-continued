@@ -32,6 +32,8 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+__updated__ = "2017-02-23"
+
 import atexit
 import logging
 import os
@@ -199,9 +201,9 @@ def fill_keymap():
             char = unichr(int(keyval))
             if len(char) > 0 and ord(char) > 0:
                 CASE_INSENSITIVE_KEYCODE_MAP[i] = str(char)
-    vars = globals()
+    global_vars = globals()
     for i in special_keycodes:
-        vars[i] = special_keycodes[i]
+        global_vars[i] = special_keycodes[i]
         EXTRA_KEYCODES.append(special_keycodes[i])
 
 fill_keymap()
@@ -234,9 +236,9 @@ class _KeyListener (Thread):
 
     def run(self):
         '''Main keyboard event loop'''
-        def make_event(type, keycode=None):
+        def make_event(event_type, keycode=None):
             return {
-                "event": type,
+                "event": event_type,
                 "keycode": keycode,
             }
         self.__display = get_display()
@@ -253,9 +255,9 @@ class _KeyListener (Thread):
                 event = self.__display.next_event()
                 self.__lock = True
                 with gtk.gdk.lock:
-                    if hasattr (event, "detail") \
-                       and event.detail == trigger_keycode \
-                       and event.type in events:
+                    if hasattr(event, "detail") and \
+                       event.detail == trigger_keycode and \
+                       event.type in events:
                         if self.__parent.getModality():
                             continue
                         elif event.type == X.KeyPress:
@@ -264,7 +266,7 @@ class _KeyListener (Thread):
                         elif event.type == X.KeyRelease:
                             self.__callback(make_event("quasimodeEnd"))
                             self.__capture = False
-                    elif not self.__parent.getModality () and self.__capture \
+                    elif not self.__parent.getModality() and self.__capture \
                             and event.type in events:
                         modifiers_mask = gtk.gdk.MODIFIER_MASK
                         if self.__key_mod:
@@ -500,7 +502,8 @@ class InputManager (object):
         # TODO: Implementation needed.
         if self.__isModal != isModal:
             self.__isModal = isModal
-            self.__keyListener.restart()
+            if self.__keyListener:
+                self.__keyListener.restart()
 
     def getModality(self):
         return self.__isModal

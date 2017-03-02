@@ -325,7 +325,7 @@ class CommandParameterWebSuggestionsMixin(object):
                     if text is not None:
                         # print "GOT TEXT: '%s'" % text
                         if text is not None and text != last_typed_text:
-                        #if text != self.__last_text_for_suggestions:
+                            #if text != self.__last_text_for_suggestions:
                             # Get the suggestions from webservice
                             suggestions = self.__suggest(text)
                             last_typed_text = text

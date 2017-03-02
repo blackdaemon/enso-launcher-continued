@@ -47,8 +47,7 @@ from gio import File  # @UnresolvedImport Keep PyLint and PyDev happy
 from enso.platform.linux.utils import get_display, get_keycode
 from enso.platform.linux.weaklib import DbusWeakCallback
 
-
-gtk.gdk.threads_init()
+__updated__ = "2017-02-23"
 
 """
 Class to handle Nautilus file-selection notifications in Linux Gnome desktop
@@ -119,7 +118,7 @@ def make_key(keycode, state, window, display):
 
 def fake_key_up(key, window, display):
     '''Fake a keyboard press event'''
-    event = Xlib.protocol.event.KeyPress(
+    event = Xlib.protocol.event.KeyPress(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         **key)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     window.send_event(event, propagate=True)
     display.sync()
@@ -127,7 +126,7 @@ def fake_key_up(key, window, display):
 
 def fake_key_down(key, window, display):
     '''Fake a keyboard release event'''
-    event = Xlib.protocol.event.KeyRelease(
+    event = Xlib.protocol.event.KeyRelease(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         **key)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     window.send_event(event, propagate=True)
     display.sync()
@@ -155,10 +154,10 @@ def fake_paste(display=None):
     ctrl_keycode = get_keycode(key="Control_L", display=display)
     ctrl_key = make_key(ctrl_keycode, state, window, display)
     if ctrl:
-        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     display.sync()
 
 
@@ -178,11 +177,11 @@ def fake_ctrl_l(display=None):
     ctrl_keycode = get_keycode(key="Control_L", display=display)
     ctrl_key = make_key(ctrl_keycode, state, window, display)
     if ctrl:
-        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)
-    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyPress, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     if ctrl:
-        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)
+        Xlib.ext.xtest.fake_input(display, Xlib.X.KeyRelease, ctrl_keycode)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     display.sync()
 
 
@@ -218,13 +217,13 @@ def get():
     return selection
 
 
-def set(seldict):
+def set(seldict):  # @ReservedAssignment
     '''Paste data into X CLIPBOARD selection'''
-    if "text" in seldict:
-        clipboard = gtk.clipboard_get(selection="CLIPBOARD")
-        clipboard.set_text(seldict["text"])
-        primary = gtk.clipboard_get(selection="PRIMARY")
-        primary.set_text(seldict["text"])
-        fake_paste()
-        return True
-    return False
+    if "text" not in seldict:
+        return False
+    clipboard = gtk.clipboard_get(selection="CLIPBOARD")
+    primary = gtk.clipboard_get(selection="PRIMARY")
+    clipboard.set_text(seldict["text"])
+    primary.set_text(seldict["text"])
+    fake_paste()
+    return True

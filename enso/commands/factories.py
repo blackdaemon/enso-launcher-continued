@@ -45,19 +45,20 @@
       "learn as format <blah>"
 """
 
+__updated__ = "2017-02-23"
+
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
 
-import re
 import logging
+import re
+from abc import ABCMeta, abstractmethod
 
 from enso.commands.suggestions import AutoCompletion, Suggestion
 from enso.commands.interfaces import AbstractCommandFactory, CommandObject
 from enso import config
 from enso import clipboard
-
-from abc import ABCMeta, abstractmethod
 
 
 # ----------------------------------------------------------------------------

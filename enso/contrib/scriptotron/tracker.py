@@ -31,6 +31,7 @@
 #   enso
 #
 # ----------------------------------------------------------------------------
+__updated__ = "2017-02-23"
 
 import logging
 import os
@@ -51,12 +52,10 @@ from enso.contrib.scriptotron.events import EventResponderList
 from enso.contrib.scriptotron.tracebacks import TracebackCommand, safetyNetted
 from enso.messages import MessageManager, displayMessage as display_xml_message
 
-__updated__ = "2017-02-22"
-
 # This may no longer be required (it was for backward compat)
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
 # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 
 _PLATFORM_NAME = ""
 if sys.platform.startswith("win"):
