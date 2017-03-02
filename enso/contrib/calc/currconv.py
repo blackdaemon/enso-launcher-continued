@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2017-02-23"
+__updated__ = "2017-03-02"
 
 #==============================================================================
 # Imports
@@ -66,6 +66,7 @@ try:
 except ImportError:
     from ConfigParser import SafeConfigParser
 
+from enso.platform import *
 from enso.contrib.scriptotron.ensoapi import EnsoApi
 from enso.events import EventManager
 from enso.quasimode import Quasimode
@@ -106,6 +107,8 @@ quasimode = Quasimode.get()
 
 # FIXME: This needs to work on all platforms
 CACHE_DIR = os.path.expanduser(u"~/.cache/enso/cmd_calculate")
+if not os.path.isdir(CACHE_DIR):
+    os.makedirs(CACHE_DIR)
 RATES_FILENAME = os.path.join(CACHE_DIR, "rates.csv")
 
 _dir_monitor = None
@@ -455,22 +458,20 @@ def spawn_exchangerates_updater():
         return 0
 
     try:
-        cmdline = ["python", os.path.join(_get_enso_directory(), "enso", "contrib", "calc", "exchangerates_updater.py")]
         try:
-            import gobject
-            """
-            A version of spawn_async that raises on error.
-    
-            raises SpawnError
-            """
-            argv = argv_to_locale(cmdline)
-            pid = gobject.spawn_async (argv, #working_directory=workdir,
-                    flags=gobject.SPAWN_SEARCH_PATH | gobject.SPAWN_STDOUT_TO_DEV_NULL)
-            return pid
+            if CURRENT_PLATFORM == PLATFORM_NAME_LINUX:
+                import gobject
+                cmdline = ["python", os.path.join(_get_enso_directory(), "enso", "contrib", "calc", "exchangerates_updater.py")]
+                argv = argv_to_locale(cmdline)
+                pid = gobject.spawn_async (argv, #working_directory=workdir,
+                        flags=gobject.SPAWN_SEARCH_PATH | gobject.SPAWN_STDOUT_TO_DEV_NULL)
+                return pid
+            else:
+                cmdline = ["python.exe", os.path.join(_get_enso_directory(), "enso", "contrib", "calc", "exchangerates_updater.py")]
+                pid = subprocess.Popen(cmdline, shell=False, stdout=None).pid  # Only on windows: , creationflags=os.P_NOWAIT
+                return pid
         except Exception as e:
             logging.error(e)
-            pid = subprocess.Popen(cmdline, shell=True, stdout=None).pid  # Only on windows: , creationflags=os.P_NOWAIT
-            return pid
     except Exception as e:
         logging.error("Error spawning exchangerates_updater process: %s", e)
         return 0

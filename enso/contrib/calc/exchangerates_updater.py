@@ -40,7 +40,7 @@ import shutil
 
 __author__ = "pavelvitis@gmail.com"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2017-02-23"
+__updated__ = "2017-03-02"
 
 #==============================================================================
 # Imports
@@ -109,7 +109,10 @@ HTTP_HEADERS = {
 }
 
 # FIXME: This needs to work on all platforms
+# FIXME: Read this from shared configuration
 CACHE_DIR = os.path.expanduser(u"~/.cache/enso/cmd_calculate")
+if not os.path.isdir(CACHE_DIR):
+    os.makedirs(CACHE_DIR)
 RATES_FILE = os.path.join(CACHE_DIR, "rates.csv")
 CURRENCIES_FILE = os.path.join(CACHE_DIR, "currencies.json")
 
@@ -378,7 +381,7 @@ def download_actual_rates():
 
     currencies_url = "http://finance.yahoo.com/webservice/v1/symbols/allcurrencies/quote?format=json"
     try:
-        mtime = os.path.getmtime(CURRENCIES_FILE)
+        mtime = os.path.getmtime(CURRENCIES_FILE) if os.path.isfile(CURRENCIES_FILE) else 0
         currencies_json = _download_data(currencies_url, mtime)
         currencies = ujson.loads(currencies_json)
         if currencies and currencies['list']['meta']['count'] == 0:
@@ -398,7 +401,7 @@ def download_actual_rates():
     # t1:   Last Trade Time
     url = "http://download.finance.yahoo.com/d/quotes.csv?f=sl1bad1t1&e=.csv&s=%(params)s"
     csv = ""
-    mtime = os.path.getmtime(RATES_FILE)
+    mtime = os.path.getmtime(RATES_FILE) if os.path.isfile(RATES_FILE) else 0
     currency_symbols = [
         cr['resource']['fields']['symbol'].split("=")[0]
         for cr in currencies['list']['resources']
