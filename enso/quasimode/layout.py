@@ -48,22 +48,27 @@ from enso.graphics import xmltextlayout
 from enso.graphics.textlayout import MaxLinesExceededError
 from enso.utils.html_tools import strip_html_tags
 from enso.utils.xml_tools import escape_xml
+from enso.utils.strings import smart_quote
 
 
 # ----------------------------------------------------------------------------
 # Layout Constants
 # ----------------------------------------------------------------------------
 
+SCALE_FACTOR = 1.0
+if hasattr(config, "DRAW_SCALE_FACTOR"):
+    SCALE_FACTOR = config.DRAW_SCALE_FACTOR
+
 # Constants determining the "rag-smoothing" process.  The delta is how
 # close two rags need to be to require "smoothing" (i.e., widening one
 # to match the other), and the max cycles is the maximum number of
 # times to "smooth" the rags.
-RAG_DELTA = 5
+RAG_DELTA = 5 * SCALE_FACTOR
 MAX_CYCLES = 8
 
 # Left and right margins (in points)
-L_MARGIN = 5
-R_MARGIN = 7
+L_MARGIN = 5 * SCALE_FACTOR
+R_MARGIN = 7 * SCALE_FACTOR
 
 # Top and bottom margins, in proportion to the relevant font size; i.e.,
 # for a line with font size 20 and a top margin factor of .2, the top margin
@@ -89,13 +94,14 @@ COLOR_YELLOW = "#FFFF00"
 DESCRIPTION_BACKGROUND_COLOR = COLOR_DESIGNER_GREEN + "cc"
 MAIN_BACKGROUND_COLOR = COLOR_BLACK + "d8"
 
-SMALL_SCALE = [12, 18, 24]
-LARGE_SCALE = [24, 28, 32, 36, 40, 44, 48]
+
+SMALL_SCALE = [(s * SCALE_FACTOR) for s in [12, 18, 24]]
+LARGE_SCALE = [(s * SCALE_FACTOR) for s in [24, 28, 32, 36, 40, 44, 48]]
 DESCRIPTION_SCALE = SMALL_SCALE
 AUTOCOMPLETE_SCALE = LARGE_SCALE
 SUGGESTION_SCALE = SMALL_SCALE
-DIDYOUMEANHINT_SCALE = [8, 14, 20]
-PARAMETERSUGGESTION_SCALE = [10, 15, 20]
+DIDYOUMEANHINT_SCALE = [(s * SCALE_FACTOR) for s in [8, 14, 20]]
+PARAMETERSUGGESTION_SCALE = [(s * SCALE_FACTOR) for s in [10, 15, 20]]
 
 if config.QUASIMODE_TRAILING_SPACE_STRING:
     TRAILING_SPACE_STRING = config.QUASIMODE_TRAILING_SPACE_STRING
@@ -358,7 +364,7 @@ def layoutXmlLine(xml_data, styles, scale):
 # Layout Classes
 # ----------------------------------------------------------------------------
 
-class QuasimodeLayout:
+class QuasimodeLayout(object):
     """
     Class for calculating and storing layout metrics of the quasimode
     window.
@@ -383,7 +389,7 @@ class QuasimodeLayout:
         lines = []
 
         suggestionList = quasimode.getSuggestionList()
-        description = suggestionList.getDescription()
+        description = smart_quote(suggestionList.getDescription())
         description = escape_xml(description)
         didyoumean_hint = suggestionList.getDidyoumeanHint()
         if didyoumean_hint:

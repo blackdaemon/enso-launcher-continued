@@ -22,6 +22,8 @@ IS_QUASIMODE_MODAL = False
 # If set to False, Enso displays on primary-monitor.
 SHOW_ON_ACTIVE_MONITOR = True
 
+DRAW_SCALE_FACTOR = 1.0
+
 # Amount of time, in seconds (float), to wait from the time
 # that the quasimode begins drawing to the time that the
 # suggestion list begins to be displayed.  Setting this to a

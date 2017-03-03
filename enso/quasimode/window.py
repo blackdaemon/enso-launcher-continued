@@ -56,6 +56,8 @@
     in them are actually drawn.
 """
 
+__updated__ = "2017-02-25"
+
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
@@ -73,13 +75,17 @@ from enso.quasimode.layout import (
     QuasimodeLayout,
 )
 from enso.quasimode.linewindows import TextWindow
+from enso.quasimode.layout import SCALE_FACTOR
 
+# TODO: Implement variable position (maybe floating dynamcally)
+POSITION = (0, 0)
 
 # ----------------------------------------------------------------------------
 # QuasimodeWindow
 # ----------------------------------------------------------------------------
 
-class QuasimodeWindow:
+
+class QuasimodeWindow(object):
     """
     Implements the quasimode's display, in a multi-line transparent window.
     """
@@ -101,24 +107,25 @@ class QuasimodeWindow:
         # that window is.  Use a "top" variable to know how far down
         # the screen the top of the next window should start.
 
+        top = POSITION[1]
         height = DESCRIPTION_SCALE[-1] * HEIGHT_FACTOR
         self.__descriptionWindow = TextWindow(
             height=height,
-            position=[0, 0],
+            position=POSITION,
         )
-        top = height
+        top += height
 
         height = AUTOCOMPLETE_SCALE[-1] * HEIGHT_FACTOR
         self.__userTextWindow = TextWindow(
             height=height,
-            position=[0, top],
+            position=[POSITION[0], top],
         )
         top += height
 
         height = DIDYOUMEANHINT_SCALE[-1] * HEIGHT_FACTOR
         self.__didyoumeanHintWindow = TextWindow(
             height=height,
-            position=[50, top],
+            position=[POSITION[0] + 250, top],
         )
 
         self.__suggestionWindows = []
@@ -126,7 +133,7 @@ class QuasimodeWindow:
             height = SUGGESTION_SCALE[-1] * HEIGHT_FACTOR
             self.__suggestionWindows.append(TextWindow(
                 height=height,
-                position=[0, top],
+                position=[POSITION[0], top],
             ))
             top += height
 
@@ -135,6 +142,9 @@ class QuasimodeWindow:
         self.__drawStart = 0
         atexit.register(self.__finalize)
 
+    def setPosition(self, x, y):
+        self.__descriptionWindow.setPosition(x, y)
+        
     def hide(self):
         self.__descriptionWindow.hide()
         self.__userTextWindow.hide()
@@ -250,7 +260,7 @@ class QuasimodeWindow:
             del window
 
 
-class _SuggestionDrawer:
+class _SuggestionDrawer(object):
     """
     Private object encapsulating the rendering of a suggestion to a
     suggestion window, useful for the delayed rendering of a
