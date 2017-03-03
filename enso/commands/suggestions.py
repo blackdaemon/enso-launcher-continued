@@ -36,7 +36,7 @@
     Classes for encapsulating suggestions (including auto-completions).
 """
 
-__updated__ = "2017-02-23"
+__updated__ = "2017-02-27"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -47,7 +47,7 @@ try:
 except ImportError:
     import re
 
-from enso.utils.strings import stringRatio
+from enso.utils.strings import string_ratio
 
 # This is used in loop so better to import the function directly to avoid
 # lookup penalty
@@ -59,7 +59,7 @@ from enso.utils.xml_tools import escape_xml
 # ----------------------------------------------------------------------------
 
 
-class Suggestion:
+class Suggestion(object):
     """
     An object the encapsulates a "suggestion".  A "suggestion" is
     essentially a string from a list that is similar to some source
@@ -72,6 +72,18 @@ class Suggestion:
     which are altered).
     """
 
+    __slots__ = (
+        '__source',
+        '__suggestion',
+        '__suggestedPrefix',
+        '__helpText',
+        '__xml',
+        '__prefix_end',
+        '__start',
+        '__end',
+        '_nearness',
+    )
+    
     def __init__(
             self,
             originalText,
@@ -188,7 +200,7 @@ class Suggestion:
         this method may be overridden to implement custom notions of
         "nearness".
         """
-        result = stringRatio(self.__source, self.__suggestion)
+        result = string_ratio(self.__source, self.__suggestion)
         assert (result >= 0) and (result <= 1),\
             "string-ratio is not between 0 and 1: %0.1f" % result
         return result

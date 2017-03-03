@@ -41,8 +41,8 @@
 # ----------------------------------------------------------------------------
 
 # Double "smart quotes".
-OPEN_QUOTE = u"\u201C"
-CLOSE_QUOTE = u"\u201D"
+OPEN_QUOTE = u"\u201c"
+CLOSE_QUOTE = u"\u201d"
 
 # Single "smart quotes".
 OPEN_SINGLE_QUOTE = u"\u2018"
@@ -53,7 +53,7 @@ CLOSE_SINGLE_QUOTE = u"\u2019"
 # String utility functions
 # ----------------------------------------------------------------------------
 
-def smartQuote(text):
+def smart_quote(text):
     """
     Replaces regular quotes in text with "smart quotes", i.e., left and right
     facing quotes, and returns the result as a unicode object.
@@ -65,13 +65,13 @@ def smartQuote(text):
     before you apply the formatting operation that dumps unknown text.
     """
 
-    text = _smartDoubleQuote(text)
-    text = _smartSingleQuote(text)
+    text = _smart_double_quote(text)
+    text = _smart_single_quote(text)
 
     return text
 
 
-def _smartSingleQuote(inText):
+def _smart_single_quote(inText):
     """
     Replaces single quotes with "smart quotes", i.e., forward
     and back facing quotes, except for single quotes that are
@@ -110,7 +110,7 @@ def _smartSingleQuote(inText):
     return outText
 
 
-def _smartDoubleQuote(inText):
+def _smart_double_quote(inText):
     """
     Replaces double quotes with "smart quotes", i.e., forward
     and back facing quotes.
@@ -124,7 +124,7 @@ def _smartDoubleQuote(inText):
     return outText
 
 
-def stringRatio(a, b):
+def string_ratio(a, b):
     """
     Calculates the string ratio of a to b.
 
@@ -159,11 +159,11 @@ def stringRatio(a, b):
         return 1.0
 
 
-def stringRatioBestMatch(item, sequence):
+def string_ratio_best_match(item, sequence):
     """
     Uses a string ratio algorithm to find to the best match
     to item among the elements of sequence.
     """
 
-    ratios = [stringRatio(item, element) for element in sequence]
+    ratios = [string_ratio(item, element) for element in sequence]
     return sequence[ratios.index(min(ratios))]

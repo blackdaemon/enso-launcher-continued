@@ -63,7 +63,7 @@ from enso.quasimode.suggestionlist import SuggestionList
 from enso.quasimode.window import QuasimodeWindow
 from enso.utils.decorators import suppress
 from enso.utils.memoize import memoized
-from enso.utils.strings import stringRatioBestMatch
+from enso.utils.strings import string_ratio_best_match
 from enso.utils.xml_tools import escape_xml
 
 
@@ -546,7 +546,7 @@ class Quasimode(object):
         # FIXME: It seems that this will never get any matches
         if suggestions:
             cmds = [s.toText() for s in suggestions]
-            ratioBestMatch = stringRatioBestMatch(userText.lower(), cmds)
+            ratioBestMatch = string_ratio_best_match(userText.lower(), cmds)
             caption = config.ONE_SUGG_CAPTION
             caption = caption % escape_xml(ratioBestMatch)
         else:
