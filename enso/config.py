@@ -1,7 +1,8 @@
-__updated__ = "2017-03-02"
+__updated__ = "2017-03-03"
 
 from enso._version_local import VERSION as VERSION_LOCAL
 from enso._version_remote import VERSION as VERSION_REMOTE
+from enso.platform import CURRENT_PLATFORM, PLATFORM_NAME_LINUX
 
 # Configuration settings for Enso.  Eventually this will take
 # localization into account too (or we can make a separate module for
@@ -152,6 +153,45 @@ FONT_NAME = {
         "Liberation Sans",
     ],
 }
+
+""" Specifies the type of antialiasing to do when rendering text.
+
+"default"
+    Use the default antialiasing for the subsystem and target device
+"none"
+    Use a bilevel alpha mask
+"gray"
+    Perform single-color antialiasing (using shades of gray for black text
+    on a white background, for example).
+"subpixel"
+    Perform antialiasing by taking advantage of the order of subpixel elements
+    on devices such as LCD panels.
+"""
+FONT_ANTIALIASING = "gray" if CURRENT_PLATFORM == PLATFORM_NAME_LINUX else "default"
+
+""" Specify the type of hinting to do on font outlines. Hinting is the process
+of fitting outlines to the pixel grid in order to improve the appearance
+of the result. Since hinting outlines involves distorting them, it also reduces
+the faithfulness to the original outline shapes. Not all of the outline hinting
+styles are supported by all platforms.
+Strong hinting tend to negatively affect the font kerning on Linux much more
+than on Windows. Default is therefore set to "none" on Linux.
+On Windows we get good kerning and sharp fonts with hinting on.
+
+"default"
+    Use the default hint style for font backend and target device
+"none"
+    Do not hint outlines
+"slight"
+    Hint outlines slightly to improve contrast while retaining good fidelity
+    to the original shapes.
+"medium"
+    Hint outlines with medium strength giving a compromise between fidelity
+    to the original shapes and contrast
+"full"
+    Hint outlines to maximize contrast
+"""
+FONT_HINTING = "none" if CURRENT_PLATFORM == PLATFORM_NAME_LINUX else "default"
 
 COLOR_SCHEMES = {
     'default': ("#ffffff", "#9fbe57", "#7f9845", "#000000"),

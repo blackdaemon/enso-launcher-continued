@@ -44,6 +44,8 @@
 # Imports
 # ----------------------------------------------------------------------------
 
+from __future__ import division
+
 import logging
 import sys
 
@@ -128,7 +130,6 @@ class Font(object):
         The fact that this class method is memoized effectively makes
         this mechanism a flyweight pool of Font objects.
         """
-
         return cls(name, size, isItalic)
 
     @memoized
@@ -137,7 +138,6 @@ class Font(object):
         Returns a glyph of the font corresponding to the given Unicode
         character.
         """
-
         return FontGlyph(char, self, self.cairoContext)
 
     def getKerningDistance(self, charLeft, charRight):
@@ -145,7 +145,6 @@ class Font(object):
         Returns the kerning distance (in points) between the two
         Unicode characters for this font face.
         """
-
         # LONGTERM TODO: Get this to work. This may involve modifying
         # the source code of Cairo.
         return 0.0
@@ -233,34 +232,71 @@ class Font(object):
             self.font_name = font_name
             self.font_opts = font_opts
 
-        if self.font_name:
-            if self.isItalic:
-                do_once(
-                    logging.info,
-                    "Using font (italic): {0}".format(self.font_name)
-                )
-            else:
-                do_once(
-                    logging.info,
-                    "Using font (normal): {0}".format(self.font_name)
-                )
+        # Still not set, leave default
+        if not self.font_name:
+            return
 
-            fo = cairo.FontOptions()  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-            try:
-                fo.set_antialias(cairo.ANTIALIAS_GRAY)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                #fo.set_hint_metrics(cairo.HINT_METRICS_ON)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-            except:
-                pass
-            else:
-                cairoContext.set_font_options(fo)
-            
-            cairoContext.select_font_face(
-                self.font_name,
-                self.slant,
-                cairo.FONT_WEIGHT_NORMAL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+        # Log the used font name once            
+        if self.isItalic:
+            do_once(
+                logging.info,
+                "Using font (italic): {0}".format(self.font_name)
+            )
+        else:
+            do_once(
+                logging.info,
+                "Using font (normal): {0}".format(self.font_name)
             )
 
-            cairoContext.set_font_size(self.size)
+        # Set custom font options from enso.config, if possible
+        fo = cairo.FontOptions()  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+        font_options_set = False
+        try:
+            font_antialias = config.FONT_ANTIALIASING.lower()
+            fo.set_antialias(
+                {
+                    "default": cairo.ANTIALIAS_DEFAULT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "none": cairo.ANTIALIAS_NONE,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "gray": cairo.ANTIALIAS_GRAY,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "subpixel": cairo.ANTIALIAS_SUBPIXEL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                }[font_antialias]
+            )
+        except Exception as e:
+            logging.error("Error setting the font antialiasing method to %s; %s", font_antialias, e)
+        else:
+            font_options_set = True
+
+        try:
+            fo.set_hint_metrics(cairo.HINT_METRICS_ON)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+            font_hint_style = config.FONT_HINTING.lower()
+            fo.set_hint_style(
+                {
+                    "default": cairo.HINT_STYLE_DEFAULT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "none": cairo.HINT_STYLE_NONE,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "slight": cairo.HINT_STYLE_SLIGHT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "medium": cairo.HINT_STYLE_MEDIUM,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    "full": cairo.HINT_STYLE_FULL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                }[font_hint_style]
+            )
+        except Exception as e:
+            logging.error("Error setting the font hinting method to %s; %s", font_hint_style, e)
+        else:
+            font_options_set = True
+
+        if font_options_set:
+            try:
+                cairoContext.set_font_options(fo)
+            except Exception as e:
+                # This can still fail if some of the values is unsupported on the platform
+                logging.error("Error setting the font options: %s", e)
+
+        cairoContext.select_font_face(
+            self.font_name,
+            self.slant,
+            cairo.FONT_WEIGHT_NORMAL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+        )
+
+        cairoContext.set_font_size(self.size)
 
 
 # ----------------------------------------------------------------------------
@@ -278,6 +314,8 @@ class FontGlyph(object):
         'char',
         'charAsUtf8',
         'font',
+        'height',
+        'width',
         'xMax',
         'xMin',
         'yMax',
@@ -303,22 +341,6 @@ class FontGlyph(object):
 
         # Make our font glyph metrics information visible to the client.
 
-        (xBearing,
-         yBearing,
-         width,
-         height,
-         xAdvance,
-         yAdvance) = cairoContext.text_extents(self.charAsUtf8)
-
-        # The xMin, xMax, yMin, yMax, and advance attributes are used
-        # here to correspond to their values in this image:
-        # http://freetype.sourceforge.net/freetype2/docs/glyphs/Image3.png
-
-        self.xMin = xBearing
-        self.xMax = xBearing + width
-        self.yMin = -yBearing + height
-        self.yMax = -yBearing
-
         # User can specify custom spacing between letters
         xAdvanceModifier = 1.0
         try:
@@ -328,6 +350,23 @@ class FontGlyph(object):
         if xAdvanceModifier < 0.5 or xAdvanceModifier > 1.5:
             logging.error("config.FONT_NAME option 'xAdvanceModifier' must be decimal number between 0.0 and 1.0")
             xAdvanceModifier = 1.0
+
+        (xBearing,
+         yBearing,
+         width,
+         height,
+         xAdvance,
+         yAdvance) = cairoContext.text_extents(self.charAsUtf8)
+        # The xMin, xMax, yMin, yMax, and advance attributes are used
+        # here to correspond to their values in this image:
+        # http://freetype.sourceforge.net/freetype2/docs/glyphs/Image3.png
+
+        self.width = width
+        self.height = height
+        self.xMin = xBearing
+        self.xMax = (xBearing + width)
+        self.yMin = -yBearing + height
+        self.yMax = -yBearing
         self.advance = xAdvance * xAdvanceModifier
 
         cairoContext.restore()

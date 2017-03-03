@@ -53,6 +53,8 @@
       http://freetype.sourceforge.net/freetype2/docs/glyphs/index.html
 """
 
+from __future__ import division
+
 # ----------------------------------------------------------------------------
 # The Document Element
 # ----------------------------------------------------------------------------
