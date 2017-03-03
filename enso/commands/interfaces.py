@@ -246,7 +246,7 @@ class AbstractCommandFactory(_CommandImpl):
 # Command Expression Class
 # ----------------------------------------------------------------------------
 
-class CommandExpression:
+class CommandExpression(object):
     """
     A "CommandExpression" is an object that encapsulates the basic form
     of the name or names of a given command implementation.

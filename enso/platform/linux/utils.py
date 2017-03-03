@@ -84,6 +84,6 @@ def get_cmd_output(cmd, cwd=None):
     sts = pipe.close()
     if sts is None:
         sts = 0
-    if text and text[-1:] == '\n':
+    if text and text[-1] == '\n':
         text = text[:-1]
     return sts, text

@@ -1,3 +1,5 @@
+# vim:set tabstop=4 shiftwidth=4 expandtab:
+
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
 #
@@ -32,6 +34,8 @@
 #
 # ----------------------------------------------------------------------------
 
+__updated__ = "2017-02-24"
+
 """
     Implements a SuggestionList to keep track of auto-completions,
     suggestions, and other data related to typing in the quasimode.
@@ -63,7 +67,7 @@ ANIMATION_TIME = 10
 MAX_OPACITY = 255
 
 
-class ParameterSuggestionWindow:
+class ParameterSuggestionWindow(object):
     """
     Encapsulates the drawing of a single line of text, with optional
     rounded corners and an optional "override width", which overides the
@@ -508,6 +512,3 @@ class ParameterSuggestionList(object):
             scale=layout.PARAMETERSUGGESTION_SCALE,
         )
         self.__window.draw(lines, active)
-
-
-# vim:set tabstop=4 shiftwidth=4 expandtab:

@@ -6,7 +6,7 @@
 # Credits:   Copyright 2007-2011 Ulrik Sverdrup <ulrik.sverdrup@gmail.com>
 # Licence:   GNU General Public License v3 (or any later version)
 
-__updated__ = "2017-02-23"
+__updated__ = "2017-03-01"
 
 import logging
 import os
@@ -421,7 +421,6 @@ def spawn_app(app_info, argv, filelist, workdir=None, startup_notify=True,
             child_setup=child_setup,
             user_data=child_env_add
         )
-        print dir(glib)
         logging.debug("Launched '%s'; notify_id: %s; pid: %d", argv, notify_id, pid)
     except glib.GError as exc:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         logging.error("Error Launching '%s'; %s", argv, unicode(exc))

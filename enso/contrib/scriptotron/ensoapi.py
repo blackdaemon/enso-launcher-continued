@@ -40,7 +40,6 @@ from enso.messages import displayMessage as display_xml_message, hideMessage
 from enso import selection
 
 
-
 class EnsoApi(object):
     """
     A simple facade to Enso's functionality for use by commands.
@@ -88,11 +87,10 @@ class EnsoApi(object):
                     xmltext_mini += "<caption>%s</caption>" % caption_escaped
         return display_xml_message(
             xmltext, miniMsgXml=xmltext_mini,
-            primaryWaitTime=primary_wait, miniWaitTime = mini_wait)
-
+            primaryWaitTime=primary_wait, miniWaitTime=mini_wait)
 
     def display_xml_message(self, msg_xml, show_mini_msg=False,
-        mini_msg_xml=None, primary_wait=None, mini_wait=None):
+                            mini_msg_xml=None, primary_wait=None, mini_wait=None):
         """
         Displays the given message, with an optional caption.  Both
         parameters should be unicode strings.
@@ -117,12 +115,10 @@ class EnsoApi(object):
 
         return display_xml_message(
             msg_xml, miniMsgXml=mini_msg_xml,
-            primaryWaitTime=primary_wait, miniWaitTime = mini_wait)
+            primaryWaitTime=primary_wait, miniWaitTime=mini_wait)
 
-
-    def hide_message(self, skip_animation = False):
+    def hide_message(self, skip_animation=False):
         hideMessage(skip_animation)
-
 
     def get_selection(self):
         """
@@ -131,14 +127,12 @@ class EnsoApi(object):
         """
         return selection.get()
 
-
-    def get_text_selection(self, default = None):
+    def get_text_selection(self, default=None):
         """
         Retrieves the current text selection as string.
         Returns default if nothing is selected.
         """
         return selection.get().get("text", default)
-
 
     def set_selection(self, seldict):
         """
@@ -151,7 +145,7 @@ class EnsoApi(object):
         """
 
         if isinstance(seldict, basestring):
-            seldict = { "text" : unicode(seldict) }
+            seldict = {"text": unicode(seldict)}
         return selection.set(seldict)
 
     @staticmethod
@@ -170,6 +164,5 @@ class EnsoApi(object):
         from cmdretriever import getCommandsFromObjects
         execGlobals = {}
         exec text in execGlobals
-        commands = getCommandsFromObjects( execGlobals )
-        return commands 
-
+        commands = getCommandsFromObjects(execGlobals)
+        return commands

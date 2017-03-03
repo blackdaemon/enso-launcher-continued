@@ -66,22 +66,26 @@ SYSTEMFOLDER_APPDATALOCAL = shellcon.CSIDL_LOCAL_APPDATA
 # Functions
 # ----------------------------------------------------------------------------
 
+
 def get_system_folder(folder_id):
     #folder = shell.SHGetFolderPath(0, folder_id, 0, 0)
     # Following does not return unicode string
-    folder = shell.SHGetPathFromIDList(shell.SHGetFolderLocation (0, folder_id))
+    folder = shell.SHGetPathFromIDList(shell.SHGetFolderLocation(0, folder_id))
     if not isinstance(folder, unicode):
         folder = folder.decode(sys.getfilesystemencoding())
     return folder
 
+
 def get_user_home_dir():
     return get_system_folder(SYSTEMFOLDER_USERPROFILE)
+
 
 def get_enso_local_conf_dir():
     appdata_dir = get_system_folder(SYSTEMFOLDER_APPDATALOCAL)
     if os.path.isdir(appdata_dir):
         appdata_dir = get_system_folder(SYSTEMFOLDER_APPDATA)
     return os.path.join(appdata_dir, "Enso")
+
 
 def get_enso_cache_dir():
     return os.path.join(get_enso_local_conf_dir(), "cache")
@@ -97,5 +101,5 @@ SPECIALFOLDER_ENSOLEARNAS = os.path.join(
 
 SPECIALFOLDER_ENSOCOMMANDS = os.path.join(
     get_system_folder(SYSTEMFOLDER_APPDATALOCAL), u"EnsoCommands")
-    
+
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

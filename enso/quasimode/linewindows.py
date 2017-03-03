@@ -62,7 +62,7 @@ from enso.quasimode import layout
 Position = namedtuple('Point', 'x y')
 
 
-class TextWindow:
+class TextWindow(object):
     """
     Encapsulates the drawing of a single line of text, with optional
     rounded corners and an optional "override width", which overides the
