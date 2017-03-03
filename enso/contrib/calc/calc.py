@@ -148,8 +148,8 @@ def _convert_language(expression):
 
     for symbol, iso in curr_repl:
         expression = re.sub(
-            u"%s(\.?[0-9]+(\.([0-9]+)?)?)" % re.escape(symbol),
-            u"\\1 %s" % iso,
+            ur"%s(\.?[0-9]+(\.([0-9]+)?)?)" % re.escape(symbol),
+            ur"\1 %s" % iso,
             expression)
 
     return expression
@@ -159,9 +159,9 @@ def _fast_calc(expression=None):
     if not expression:
         return None, None
 
+    if isinstance(expression, str):
+        expression = expression.decode("utf-8", "ignore")
     expression = _convert_language(expression)
-
-    print expression
 
     # print expression = expression.replace(' in ', ' % ')
 
@@ -202,6 +202,8 @@ def cmd_calculate(ensoapi, expression=None):
         ensoapi.display_message("No expression. Please type or select some mathematic expression.")
         return
 
+    if isinstance(expression, str):
+        expression = expression.decode("utf-8", "ignore")
     expression = _convert_language(expression)
 
     if "=" in expression:
