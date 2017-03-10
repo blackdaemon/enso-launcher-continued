@@ -112,41 +112,41 @@ urllib2.install_opener(
 
     
 # ----------------------------------------------------------------------------
-# PersistentHTTPConnection
+# PersistentHTTPConnectionManager
 # ----------------------------------------------------------------------------
 
-class PersistentHTTPConnection(object):
-    """
-    Peristent HTTP1.1 connection object.
+class PersistentHTTPConnectionManager(object):
+    """Peristent HTTP1.1 connection manager.
     
-    Get persistent connection by instantiating and calling get().
-    
-    get() can be called repeatedly and it will always return the same
-    connection while open.
-    If "endQuasimode" event occurs, current connection will be closed.
-    Next call to get() will open new one.
+    Instantiate the manager and call get_connection() to get the persistent connection.
+    The manager will open the connection on first call to get_connection() and then return
+    the same connection on subsequent calls to get_connection() until
+        - connection is closed by the server
+        - "endQuasimode" event occurs
+        - close_connections() is called
+    in which case new connection is opened on next call to get_connection().
     """
     
     def __init__(self, url_or_request):
         self.url_or_request = url_or_request
         self._connection_pool = None
         self.__eventManager = EventManager.get()
+        if isinstance(url_or_request, basestring):
+            self._url = url_or_request
+            self._headers = DEFAULT_HTTP_HEADERS
+        else:
+            self._url = url_or_request.get_full_url()
+            self._headers = dict(url_or_request.header_items())
+        # Force compression if not set by the caller
+        # urllib3 auto-decompress the response data based on Content-Encoding header
+        if "Accept-Encoding" not in self._headers and "accept-encoding" not in self._headers:
+            self._headers["Accept-Encoding"] = "gzip, deflate"
        
-    def get(self):
-        if self._connection_pool is None:
-            if isinstance(self.url_or_request, basestring):
-                url = self.url_or_request
-                headers = DEFAULT_HTTP_HEADERS
-            else:
-                url = self.url_or_request.get_full_url()
-                headers = dict(self.url_or_request.header_items())
-            # Force compression if not set by the caller
-            # urllib3 auto-decompress the response data based on Content-Encoding header
-            if "Accept-Encoding" not in headers and "accept-encoding" not in headers:
-                headers["Accept-Encoding"] = "gzip, deflate"
+    def get_connection(self):
+        if not self.is_connected():
             try:
                 # TODO: use proxy_from_url if proxy handling is needed
-                self._connection_pool = urllib3.connection_from_url(url, timeout=1, headers=headers)
+                self._connection_pool = urllib3.connection_from_url(self._url, timeout=1, headers=self._headers)
             except Exception as e:
                 logging.error("Error getting persistent HTTP connection: %s", str(e))
             else:
@@ -155,7 +155,7 @@ class PersistentHTTPConnection(object):
         return self._connection_pool
 
     def is_valid(self):
-        return self._connection_pool
+        return self._connection_pool is not None
 
     def is_connected(self):
         return self._connection_pool and self._connection_pool.num_connections > 0
@@ -166,45 +166,42 @@ class PersistentHTTPConnection(object):
     def num_requests(self):
         return self._connection_pool.num_requests if self._connection_pool else 0
 
-    def _onEndQuasimode(self):
-        """
-        Close any HTTP1.1 persistent connections and invalidate connection pool
-        on quasimode-end event
-        """
-        #print self._connection_pool
+    def close_connections(self):
+        """Close any HTTP1.1 persistent connections and invalidate connection pool"""
         if self._connection_pool is not None:
             with suppress(Exception):
                 #print "Closing current HTTP1.1 persistent connection"
                 self._connection_pool.close()
             #print "Invalidating connection pool"
             self._connection_pool = None
-        self.__eventManager.removeResponder(self._onEndQuasimode)
-                 
-               
+
+    def _onEndQuasimode(self):
+        """Close all connections on 'endQuasimode' event"""
+        try:
+            self.close_connections()
+        finally:
+            self.__eventManager.removeResponder(self._onEndQuasimode)
+
+
 # ----------------------------------------------------------------------------
 # CommandParameterWebSuggestionsMixin
 # ----------------------------------------------------------------------------
  
 class CommandParameterWebSuggestionsMixin(object):
-    """
-    CommandParameterWebSuggestionsMixin provides web-query based suggestions
-    ability for an Enso command object.
-    It can be used in commands that implement ArbitraryPostfixFactory.
+    """CommandParameterWebSuggestionsMixin provides web-query based suggestions
+    ability for an Enso command object. It can be used in commands that implement
+    ArbitraryPostfixFactory.
 
     Two abstract methods which must be overriden:
 
     getSuggestionsUrl()
     decodeSuggestions()
 
-    This mixin monitors typed parameters text and queries specified web URL 
+    This mixin monitors typed parameters text and queries specified web URL
     (returned by getSuggestionsUrl() method) for suggestions.
     If any suggestions are returned and parsed (by decodeSuggestions() method),
     it will show the command suggestions (calls setParameterSuggestions() of
     ArbitraryPostfixFactory).
-    
-    TODO:
-        * Implement memory caching for quasimode session. Save to disk only on quasimode end
-        * Refactor the mixin so that the class namespace is not polluted
     """
     
     __metaclass__ = ABCMeta
@@ -218,7 +215,7 @@ class CommandParameterWebSuggestionsMixin(object):
             self.__stop_suggestion_thread = False
             self.__last_text_for_suggestions = None
             
-            self._persistent_connection = None
+            self._connection_manager = None
     
             self._update_queue = Queue()
             self.quasimodeId = 0.0
@@ -245,13 +242,13 @@ class CommandParameterWebSuggestionsMixin(object):
             self._cache_id = value
 
         def onParameterModified(self, keyCode, oldText, newText, quasimodeId=0.0):
-            """
-            This method is called automatically whenever the command parameter text
+            """This method is called automatically whenever the command parameter text
             changes, i.e. when user is typing or deleting the parameter text.
             (These calls are performed from quasimode module on every command that
             implements this method)
     
-            It will initialize the suggestion-thread if and feed it with changed text.
+            It will first initialize the suggestion-thread and then feed it with changed text
+            on subsequent calls.
             """
             self.quasimodeId = quasimodeId
             
@@ -292,8 +289,7 @@ class CommandParameterWebSuggestionsMixin(object):
             self.__stopSuggestionThread()
 
         def __startSuggestionThread(self):
-            """
-            Start suggestion thread if not yet started.
+            """Start suggestion thread if not yet started.
             Register responder to stop the thread on "endQuasimode" event.
             """
             if self.__suggestion_thread is None:
@@ -305,20 +301,16 @@ class CommandParameterWebSuggestionsMixin(object):
                 self.__eventManager.registerResponder(self.onEndQuasimode, "endQuasimode")
     
         def __stopSuggestionThread(self):
-            """
-            Issue stop request to the suggestion thread
-            """
+            """Issue stop request to the suggestion thread"""
             #print "Stopping suggestion thread"
             self.__stop_suggestion_thread = True
             # Provoke queue update with empty task so that suggestion thread unblocks
             self._update_queue.put_nowait(None)
             
         def __suggestion_thread_func(self):
-            """
-            Suggestions thread.
-            
-            This thread waits for text and if the text changed from last time,
-            it calls the self.__suggest(test) function.
+            """Suggestions thread. This thread waits for text and if the text
+            has changed between the calls, it calls the self.__suggest(text)
+            function.
     
             It polls for text changes only every 100ms to avoid overloading
             of the webservice used for suggestions.
@@ -329,96 +321,80 @@ class CommandParameterWebSuggestionsMixin(object):
     
             try:
                 while not self.__stop_suggestion_thread:
+                    # Act only on valid text.
                     if not text:
                         try:
-                            #print "WAITING FOR TEXT"
                             # Blocking wait for first update request
                             text = self._update_queue.get(block=True)
                         finally:
                             self._update_queue.task_done()
-                    # Act only on valid text.
-                    # text == None is issued only on thread stop request in order to wakeup the initial blocking queue.get()
-                    if text is not None:
-                        # print "GOT TEXT: '%s'" % text
-                        if text is not None and text != last_typed_text:
-                            #if text != self.__last_text_for_suggestions:
-                            # Get the suggestions from webservice
-                            suggestions = self.__suggest(text)
-                            last_typed_text = text
-                            if suggestions:
-                                #print "UPDATING"
-                                self.__last_text_for_suggestions = text
-                                # If we got any suggestions, update the command parameter suggestions
-                                self.caller.setParameterSuggestions(suggestions)
-                                #self.quasimode.forceRedraw()
-                        text = None
-                        # Wait for any additional requests to accumulate before updating
-                        # Loop for 100ms and collect the most recently typed text
-                        started = datetime.datetime.now()
-                        elapsed_ms = 0
-                        while elapsed_ms < self.polling_interval:
-                            time_to_wait = self.polling_interval - elapsed_ms
-                            #print "TO WAIT: ", time_to_wait
-                            if time_to_wait > 0:
-                                with suppress(Empty):
-                                    text = self._update_queue.get(block=True, timeout=time_to_wait / 1000)
-                                    self._update_queue.task_done()
-                            tdiff = datetime.datetime.now() - started
-                            elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0
-                        else:
-                            pass
-                        #print elapsed_ms
+                    # text == None is issued only on thread stop request in order to wakeup the initial
+                    # blocking queue.get().
+                    if text is None:
+                        continue
+                    if text != last_typed_text:
+                        # If text differs, get the suggestions from webservice
+                        suggestions = self.__suggest(text)
+                        last_typed_text = text
+                        if suggestions:
+                            self.__last_text_for_suggestions = text
+                            # If we got any suggestions, update the command parameter suggestions
+                            self.caller.setParameterSuggestions(suggestions)
+                    text = None
+                    # Wait for any additional requests to accumulate before updating
+                    # Loop for 100ms and collect the most recently typed text
+                    started = datetime.datetime.now()
+                    elapsed_ms = 0
+                    while elapsed_ms < self.polling_interval:
+                        time_to_wait = self.polling_interval - elapsed_ms
+                        if time_to_wait > 0:
+                            with suppress(Empty):
+                                text = self._update_queue.get(block=True, timeout=time_to_wait / 1000)
+                                self._update_queue.task_done()
+                        tdiff = datetime.datetime.now() - started
+                        elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0
+                    else:
+                        pass
             finally:
-                #print "Suggestion thread stopped"
                 self.__suggestion_thread = None
 
         def __suggest(self, text):
+            """Get list of suggestions based on text arg.
+            This queries the suggestions webservice.
             """
-            Get the suggestions list based on text from webservice
-            """
+            if not text:
+                return None
+
             try:
                 url_or_request = self.caller.getSuggestionsUrl(text)
                 if not url_or_request:
+                    # Abstract method can return invalid URL on purpose to avoid suggestions
                     return None
                 assert isinstance(url_or_request, basestring) or isinstance(url_or_request, urllib2.Request)
-            except Exception, e:
+            except Exception as e:
                 logging.error("Getting the suggestion url/request failed: %s", e)
                 return None
-            
-            suggestions = []
-            data = None
-    
+
+            # First try to get cached result. This should always return hit on backtracking (user deleting characters)
             if cache_manager:
                 suggestions = cache_manager.get_data(text, self.cache_id, session_id=str(self.quasimodeId))
                 if suggestions:
                     #print "Returning %d cached results for query '%s'" % (len(suggestions), text)
                     return suggestions
     
-            """
-            if not hasattr(self, "_http_opener"):
-                if hasattr(config, "HTTP_PROXY_URL") and config.HTTP_PROXY_URL is not None:
-                    if config.HTTP_PROXY_URL == "":
-                        # Force no-proxy
-                        proxy_handler = urllib2.ProxyHandler({})
-                    else:
-                        proxy_handler = urllib2.ProxyHandler({"http":config.HTTP_PROXY_URL})
-                        self._http_opener = urllib2.build_opener(proxy_handler)
-                else:
-                    self._http_opener = urllib2.build_opener()
+            suggestions = []
+            data = None
     
-            try:
-                with closing(self._http_opener.open(url_or_request, timeout=1)) as resp:
-                    data = resp.read()
-            """
             if isinstance(url_or_request, basestring):
                 url = url_or_request
             else:
                 url = url_or_request.get_full_url()
+
             try:
-                # Lazy opening of persistent connection to the webservice
-                if self._persistent_connection is None:
-                    self._persistent_connection = PersistentHTTPConnection(url_or_request)
-                conn = self._persistent_connection.get()
+                # Lazily open persistent connection to the webservice
+                if self._connection_manager is None:
+                    self._connection_manager = PersistentHTTPConnectionManager(url_or_request)
+                conn = self._connection_manager.get_connection()
                 resp = conn.urlopen('GET', url, release_conn=True)
                 data = resp.data
             except Exception as e:
@@ -428,9 +404,10 @@ class CommandParameterWebSuggestionsMixin(object):
                 if data:
                     try:
                         suggestions = self.caller.decodeSuggestions(data, resp.headers)
-                    except Exception, e:
+                    except Exception as e:
                         logging.error("Suggest response parsing failed: %s", e)
     
+            # Cache suggestions even when empty is returned to avoid re-query the web service with invalid input
             if cache_manager:
                 #print "Cached %d results for query '%s'" % (len(suggestions), text)
                 cache_manager.set_data(text, suggestions, self.cache_id, session_id=str(self.quasimodeId))
@@ -449,10 +426,12 @@ class CommandParameterWebSuggestionsMixin(object):
 
     @abstractmethod
     def getSuggestionsUrl(self, text):
-        """
-        Override this method.
+        """Abstract method which should return suggestion webservice URL
+        as string or a Request object.
 
-        It must return URL for suggestions query based on given text.
+        Always override this method.
+
+        Return URL for suggestions query based on given text.
         This method is called each time the command parameter text is changed.
         It can return either URL as a string, or urllib2.Request instance.
 
@@ -462,17 +441,15 @@ class CommandParameterWebSuggestionsMixin(object):
 
           query = urllib.quote_plus(text.encode("ISO-8859-1"))
           return "http://clients1.google.com/complete/search?hl=en&gl=en&client=firefox&q=%s" % query
-
         """
         pass
 
     @abstractmethod
     def decodeSuggestions(self, data, headers=None):
-        """
-        Override this method.
+        """Decode the output from the suggestions webservice
+        and return the suggestions as a simple list of strings.
 
-        It must parse data returned by suggestions URL query
-        and return the suggestions as list of strings.
+        Always override this method.
 
         Example (implementing google suggest, simplified):
 
@@ -481,27 +458,32 @@ class CommandParameterWebSuggestionsMixin(object):
               return = json_data[1]
           else:
               return []
-
         """
         pass
 
     @abstractmethod
     def onSuggestQueryError(self, url_or_request, exception):
+        """This is called whenever error occurs on call to the suggestion
+        web service.
+
+        Optionally override. By default it does nothing.
+        """
         pass
 
     def onParameterModified(self, keyCode, oldText, newText, quasimodeId=0.0):
-        """
-        This method is called automatically whenever the command parameter text
+        """This method is called automatically whenever the command parameter text
         changes, i.e. when user is typing or deleting the parameter text.
         (These calls are performed from quasimode module on every command that
         implements this method)
 
-        It will initialize the suggestion-thread and feed it with changed text.
+        It will first initialize the suggestion-thread and then feed it with changed text
+        on subsequent calls.
         """
         self.quasimodeId = quasimodeId
         self.__impl.onParameterModified(keyCode, oldText, newText, quasimodeId)
 
     def setSuggestionsPollingInterval(self, interval_in_ms):
+        """Override the default polling interval"""
         if interval_in_ms < _MINIMAL_SUGGESTIONS_POLLING_INTERVAL:
             raise Exception(
                 "The polling interval can't go below %d ms (%d)!"
@@ -510,8 +492,9 @@ class CommandParameterWebSuggestionsMixin(object):
         self.__impl.setPollingInterval(interval_in_ms)
 
     def setCacheId(self, cacheId):
-        """
-        Optionally set cacheId for cache manager.
+        """Optionally set cacheId for cache manager.
         By default it is set to caller.__class__.__name__
+        
+        cacheId is used for properly naming the cache directories.
         """
         self.__impl.cache_id = cacheId
