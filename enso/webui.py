@@ -17,7 +17,7 @@ from enso.messages import displayMessage as display_xml_message
 
 
 def serve_install_js(request):
-    jspath = os.path.join(os.path.split(__file__)[0], "enso-install.js")
+    jspath = os.path.join(os.path.split(__file__)[0], "webui", "install.js")
     with open(jspath, "r") as fp:
         js = fp.read()
     request.send_response(200)
