@@ -1,4 +1,4 @@
-__updated__ = "2017-03-03"
+__updated__ = "2017-03-06"
 
 from enso._version_local import VERSION as VERSION_LOCAL
 from enso._version_remote import VERSION as VERSION_REMOTE
@@ -222,7 +222,7 @@ PLUGIN_WEBSEARCH_GOOGLEIMAGES = {
     "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
             "gl=%(langcode)s&client=img&ie=%(charset)s&oe=%(charset)s&pq=%(query)s&hl=%(langcode)s&q=%(query)s",
     "is_json": True,
-    "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
+    "result_parser": lambda json: (i[0] for i in json[1]) if json and len(json) > 1 and json[1] else [],
 }
 PLUGIN_WEBSEARCH_YOUTUBE = {
     "name": "Youtube",

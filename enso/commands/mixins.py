@@ -224,9 +224,25 @@ class CommandParameterWebSuggestionsMixin(object):
             self.quasimodeId = 0.0
         
             self.__eventManager = EventManager.get()
+            
+            self._cache_id = None
 
         def setPollingInterval(self, interval_in_ms):
-            self.polling_interval = interval_in_ms 
+            self.polling_interval = interval_in_ms
+
+        @property
+        def cache_id(self):
+            """
+            Optionally set cacheId for cache manager.
+            By default it is set to caller.__class__.__name__
+            """
+            if self._cache_id:
+                return self._cache_id
+            return self.caller.__class__.__name__
+
+        @cache_id.setter
+        def cache_id(self, value):
+            self._cache_id = value
 
         def onParameterModified(self, keyCode, oldText, newText, quasimodeId=0.0):
             """
@@ -351,7 +367,7 @@ class CommandParameterWebSuggestionsMixin(object):
                             elapsed_ms = (tdiff.days * 24 * 60 * 60 + tdiff.seconds) * 1000 + tdiff.microseconds / 1000.0
                         else:
                             pass
-                        #print elapsed_ms 
+                        #print elapsed_ms
             finally:
                 #print "Suggestion thread stopped"
                 self.__suggestion_thread = None
@@ -373,8 +389,7 @@ class CommandParameterWebSuggestionsMixin(object):
             data = None
     
             if cache_manager:
-                cache_id = self.caller.__class__.__name__
-                suggestions = cache_manager.get_data(text, cache_id, session_id=str(self.quasimodeId))
+                suggestions = cache_manager.get_data(text, self.cache_id, session_id=str(self.quasimodeId))
                 if suggestions:
                     #print "Returning %d cached results for query '%s'" % (len(suggestions), text)
                     return suggestions
@@ -418,7 +433,7 @@ class CommandParameterWebSuggestionsMixin(object):
     
             if cache_manager:
                 #print "Cached %d results for query '%s'" % (len(suggestions), text)
-                cache_manager.set_data(text, suggestions, cache_id, session_id=str(self.quasimodeId))
+                cache_manager.set_data(text, suggestions, self.cache_id, session_id=str(self.quasimodeId))
             
             return suggestions
 
@@ -493,3 +508,10 @@ class CommandParameterWebSuggestionsMixin(object):
                 % (_MINIMAL_SUGGESTIONS_POLLING_INTERVAL, interval_in_ms)
             )
         self.__impl.setPollingInterval(interval_in_ms)
+
+    def setCacheId(self, cacheId):
+        """
+        Optionally set cacheId for cache manager.
+        By default it is set to caller.__class__.__name__
+        """
+        self.__impl.cache_id = cacheId

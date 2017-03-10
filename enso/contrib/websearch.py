@@ -53,6 +53,7 @@ import urllib2
 import webbrowser
 from abc import ABCMeta
 from contextlib import closing
+from functools import partial
 
 try:
     import regex as re
@@ -74,6 +75,7 @@ from enso.commands.mixins import CommandParameterWebSuggestionsMixin
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.messages import displayMessage
 from enso.utils.decorators import suppress
+from enso.utils.html_tools import strip_html_tags
 
 
 # Default suggestions polling interval in milliseconds (minimum allowed is 100)
@@ -332,6 +334,11 @@ class CommandlinefuUsingCommandFactory(AbstractSearchCommandFactory):
 
 class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
 
+    remove_google_jsonp_wrapper = partial(
+        re.compile(r"^(?:window.google.ac.h\()?(.*?)\)?$").sub,
+        r"\1"
+    )
+    
     def __init__(
             self,
             command_name,
@@ -352,6 +359,11 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
         self.suggestions_url = suggestions_url
         self.parser = parser
         self.is_json = is_json
+        self.setCacheId(
+            "ConfigurableSearch%s" % re.sub(
+                r"[^A-Za-z0-9]", "", command_prefix.strip()
+            ).title()
+        )
 
     def getSuggestionsUrl(self, text):
         if not self.do_suggestions:
@@ -397,14 +409,15 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
                 "%s-suggest query unicode decoding failed: %s", self.name, e)
         else:
             try:
-                #decoded = re.sub(r".*AutoFill\._do\((.*)\)", r"\1", decoded)
+                # Optionally remove JSONP function wrapper (google searches)
+                decoded = self.remove_google_jsonp_wrapper(decoded)
                 json = jsonlib.loads(decoded)
             except Exception as e:
                 logging.error(
                     u"Error parsing JSON data: %s; data: '%s'", e, decoded)
             else:
                 if json:
-                    suggestions = self.parser(json)
+                    suggestions = [strip_html_tags(i) for i in self.parser(json)]
         return suggestions
 
 
