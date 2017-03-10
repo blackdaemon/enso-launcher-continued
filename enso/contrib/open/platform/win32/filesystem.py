@@ -1,5 +1,5 @@
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
-    
+
 #
 # "jaraco.windows" is written by Jason R. Coombs.  It is licensed under an
 # MIT-style permissive license:
@@ -39,6 +39,8 @@ from ctypes.wintypes import (
     WORD,
 )
 from itertools import ifilter, imap, izip
+
+from enso.contrib.open.platform.win32.error import WindowsError
 
 
 MAX_PATH = 260
@@ -81,7 +83,7 @@ GetFileAttributes.restype = DWORD
 GetFinalPathNameByHandle = windll.kernel32.GetFinalPathNameByHandleW
 GetFinalPathNameByHandle.argtypes = (
     HANDLE, LPWSTR, DWORD, DWORD,
-    )
+)
 GetFinalPathNameByHandle.restype = DWORD
 
 CreateFile = windll.kernel32.CreateFileW
@@ -93,26 +95,26 @@ CreateFile.argtypes = (
     DWORD,
     DWORD,
     HANDLE,
-    )
+)
 CreateFile.restype = HANDLE
 
 CloseHandle = windll.kernel32.CloseHandle
 CloseHandle.argtypes = (HANDLE,)
 CloseHandle.restype = BOOLEAN
 
-
+ERROR_NO_MORE_FILES = 0x12
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400
-IO_REPARSE_TAG_SYMLINK = 0xA000000C
-FSCTL_GET_REPARSE_POINT = 0x900a8
-FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
-INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF
-INVALID_HANDLE_VALUE = HANDLE(-1).value
 FILE_FLAG_BACKUP_SEMANTICS = 0x2000000
-OPEN_EXISTING = 3
-NULL = 0
+FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+FILE_SHARE_DELETE = 4
 FILE_SHARE_READ = 1
 FILE_SHARE_WRITE = 2
-FILE_SHARE_DELETE = 4
+FSCTL_GET_REPARSE_POINT = 0x900a8
+INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF
+INVALID_HANDLE_VALUE = HANDLE(-1).value
+IO_REPARSE_TAG_SYMLINK = 0xA000000C
+NULL = 0
+OPEN_EXISTING = 3
 VOLUME_NAME_DOS = 0
 
 LPDWORD = ctypes.POINTER(wintypes.DWORD)
@@ -129,7 +131,7 @@ _DeviceIoControl.argtypes = [
     LPDWORD,
     LPOVERLAPPED,
 ]
-    
+
 _DeviceIoControl.restype = wintypes.BOOL
 
 wchar_size = ctypes.sizeof(wintypes.WCHAR)
@@ -147,7 +149,7 @@ class REPARSE_DATA_BUFFER(ctypes.Structure):
         ('flags', ctypes.c_ulong),
         ('path_buffer', ctypes.c_byte * 1),
     ]
-    
+
     def get_print_name(self):
         arr_typ = wintypes.WCHAR * (self.print_name_length // wchar_size)
         data = ctypes.byref(self.path_buffer, self.print_name_offset)
@@ -184,7 +186,7 @@ def DeviceIoControl(device, io_control_code, in_buffer, out_buffer, overlapped=N
         out_buffer, out_buffer_size,
         returned_bytes,
         overlapped,
-        )
+    )
 
     handle_nonzero_success(res)
     handle_nonzero_success(returned_bytes)
@@ -294,7 +296,7 @@ def readlink(link):
     path = rdb.get_substitute_name()
     if not os.path.exists(path):
         path = rdb.get_print_name()
-    return rdb.get_print_name() #path
+    return rdb.get_print_name()  # path
 
 
 def find_files(filepath):
@@ -321,9 +323,9 @@ def find_files(filepath):
             yield fd
             fd = WIN32_FIND_DATA()
             res = FindNextFile(handle, byref(fd))
-            if res == 0: # error
+            if res == 0:  # error
                 error = WindowsError()
-                if error.code == api.ERROR_NO_MORE_FILES:
+                if error.code == ERROR_NO_MORE_FILES:
                     break
                 else:
                     raise error
@@ -379,13 +381,13 @@ def get_final_path(path):
     """
     hFile = CreateFile(
         path,
-        NULL, # desired access
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, # share mode
-        LPSECURITY_ATTRIBUTES(), # NULL pointer
+        NULL,  # desired access
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,  # share mode
+        LPSECURITY_ATTRIBUTES(),  # NULL pointer
         OPEN_EXISTING,
         FILE_FLAG_BACKUP_SEMANTICS,
         NULL,
-        )
+    )
 
     if hFile == INVALID_HANDLE_VALUE:
         raise WindowsError()
