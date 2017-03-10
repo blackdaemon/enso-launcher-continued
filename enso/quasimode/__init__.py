@@ -220,103 +220,134 @@ class Quasimode(object):
     def setParameterSuggestions(self, suggestions):
         self.__parameterSuggestionList.setSuggestions(suggestions)
 
+    def onKeyEventQuasimodeStart(self, eventType, keyCode):
+        #assert not self._inQuasimode
+        # self.__quasimodeBegin()
+        if not self._inQuasimode:
+            self.__quasimodeBegin()
+
+    def onKeyEventQuasimodeEnd(self, eventType, keyCode):
+        #assert self._inQuasimode
+        # self.__quasimodeEnd()
+        if self._inQuasimode:
+            self.__quasimodeEnd()
+        else:
+            self.__quasimodeEnd()
+                
+    def onKeyEventQuasimodeCancel(self, eventType, keyCode):
+        self.__suggestionList.clearState()
+        self.__quasimodeEnd()
+
+    def onKeyEventTabComplete(self, eventType, keyCode):
+        oldText = self.__suggestionList.getUserText()
+        if self.__parameterSuggestionList.isActive():
+            self.__parameterSuggestionList.cycleActiveSuggestion(1)
+            suggestion = self.__parameterSuggestionList.getActiveSuggestion()
+            # print suggestion
+            activeCmd = self.__suggestionList.getActiveCommand()
+            with suppress(Exception):
+                userText = "%s%s" % (
+                    activeCmd.PREFIX,
+                    suggestion)
+                self.__suggestionList.setUserText(userText)
+            # self.__parameterSuggestionList.setSuggestions([])
+        else:
+            # Allow handlers to act upon Tab key even if the text
+            # has not been modified
+            self.__eventMgr.triggerEvent(
+                "textModified", keyCode, oldText, oldText, quasimodeId=self.__quasimodeID)
+            self.__suggestionList.autoType()
+
+    def onKeyEventReturn(self, eventType, keyCode):
+        self.__suggestionList.autoType()
+    
+    def onKeyEventEscape(self, eventType, keyCode):
+        self.__suggestionList.clearState()
+        self.__parameterSuggestionList.setSuggestions([])
+    
+    def onKeyEventDelete(self, eventType, keyCode):
+        oldText = self.__suggestionList.getUserText()
+        self.__onDelete()
+        self.__onParameterModified(
+            keyCode, oldText, self.__suggestionList.getUserText())
+
+    def onKeyEventBack(self, eventType, keyCode):
+        oldText = self.__suggestionList.getUserText()
+        # Backspace has been pressed.
+        self.__onBackspace()
+        self.__onParameterModified(
+            keyCode, oldText, self.__suggestionList.getUserText())
+
+    def onKeyEventDown(self, eventType, keyCode):
+        # The user has pressed the down arrow; change which of the
+        # suggestions is "active" (i.e., will be executed upon
+        # termination of the quasimode)
+        self.__suggestionList.cycleActiveSuggestion(1)
+        if self.__parameterSuggestionList.isActive() and self.__suggestionList.getActiveIndex() > 0:
+            self.__parameterSuggestionList.setSuggestions([])
+            #self.__parameterSuggestionList.cycleActiveSuggestion( 1 )
+        self.__nextRedrawIsFull = True
+
+    def onKeyEventUp(self, eventType, keyCode):
+        # Up arrow; change which suggestion is active.
+        self.__suggestionList.cycleActiveSuggestion(-1)
+        if self.__parameterSuggestionList.isActive() and self.__suggestionList.getActiveIndex() > 0:
+            self.__parameterSuggestionList.setSuggestions([])
+            #self.__parameterSuggestionList.cycleActiveSuggestion( -1 )
+        self.__nextRedrawIsFull = True
+
+    def onKeyEventHome(self, eventType, keyCode):
+        # The user has pressed the down arrow; change which of the
+        # suggestions is "active" (i.e., will be executed upon
+        # termination of the quasimode)
+        if self.__parameterSuggestionList.isActive():
+            self.__parameterSuggestionList.setActiveSuggestion(0)
+
+    def onKeyEventEnd(self, eventType, keyCode):
+        # Up arrow; change which suggestion is active.
+        if self.__parameterSuggestionList.isActive():
+            self.__parameterSuggestionList.setActiveSuggestion(-1)
+
     def onKeyEvent(self, eventType, keyCode):
-        """
-        Handles a key event of particular type.
-        """
+        """Handles a key event of particular type"""
+        FUNC_CALL_MAP = {
+            input.EVENT_KEY_QUASIMODE: {  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_QUASIMODE_START: self.onKeyEventQuasimodeStart,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_QUASIMODE_END: self.onKeyEventQuasimodeEnd,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_QUASIMODE_CANCEL: self.onKeyEventQuasimodeCancel,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_QUASIMODE_CANCEL2: self.onKeyEventQuasimodeCancel,  # IGNORE:E1101 @UndefinedVariable
+            },
+            input.EVENT_KEY_DOWN: {  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                input.KEYCODE_TAB: self.onKeyEventTabComplete,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_RIGHT: self.onKeyEventTabComplete,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_RETURN: self.onKeyEventReturn,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_ESCAPE: self.onKeyEventEscape,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_DELETE: self.onKeyEventDelete,  # IGNORE:E1101 @UndefinedVariable
+                input.KEYCODE_BACK: self.onKeyEventBack,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                input.KEYCODE_DOWN: self.onKeyEventDown,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                input.KEYCODE_UP: self.onKeyEventUp,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                input.KEYCODE_HOME: self.onKeyEventHome,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                input.KEYCODE_END: self.onKeyEventEnd,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+            },
+        }
 
         if eventType == input.EVENT_KEY_QUASIMODE:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-
-            if keyCode == input.KEYCODE_QUASIMODE_START:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                #assert not self._inQuasimode
-                # self.__quasimodeBegin()
-                if not self._inQuasimode:
-                    self.__quasimodeBegin()
-            elif keyCode == input.KEYCODE_QUASIMODE_END:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                #assert self._inQuasimode
-                # self.__quasimodeEnd()
-                if self._inQuasimode:
-                    self.__quasimodeEnd()
-                else:
-                    self.__quasimodeEnd()
-            # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-            elif keyCode in [input.KEYCODE_QUASIMODE_CANCEL, input.KEYCODE_QUASIMODE_CANCEL2]:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                self.__suggestionList.clearState()
-                self.__quasimodeEnd()
-
+            FUNC_CALL_MAP[eventType][keyCode](eventType, keyCode)
         elif eventType == input.EVENT_KEY_DOWN and self._inQuasimode:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-            # The user has typed a character, and we need to redraw the
-            # quasimode.
-            oldText = self.__suggestionList.getUserText()
-
-            if keyCode in (input.KEYCODE_TAB, input.KEYCODE_RIGHT):  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                if self.__parameterSuggestionList.isActive():
-                    self.__parameterSuggestionList.cycleActiveSuggestion(1)
-                    suggestion = self.__parameterSuggestionList.getActiveSuggestion()
-                    # print suggestion
-                    activeCmd = self.__suggestionList.getActiveCommand()
-                    with suppress(Exception):
-                        userText = "%s%s" % (
-                            activeCmd.PREFIX,
-                            suggestion)
-                        self.__suggestionList.setUserText(userText)
-                    # self.__parameterSuggestionList.setSuggestions([])
-                else:
-                    # Allow handlers to act upon Tab key even if the text
-                    # has not been modified
-                    self.__eventMgr.triggerEvent(
-                        "textModified", keyCode, oldText, oldText, quasimodeId=self.__quasimodeID)
-                    self.__suggestionList.autoType()
-            elif keyCode == input.KEYCODE_RETURN:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                self.__suggestionList.autoType()
-            elif keyCode == input.KEYCODE_ESCAPE:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                self.__suggestionList.clearState()
-                self.__parameterSuggestionList.setSuggestions([])
-            elif keyCode == input.KEYCODE_DELETE:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                self.__onDelete()
-                self.__onParameterModified(
-                    keyCode, oldText, self.__suggestionList.getUserText())
-            elif keyCode == input.KEYCODE_BACK:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                # Backspace has been pressed.
-                self.__onBackspace()
-                self.__onParameterModified(
-                    keyCode, oldText, self.__suggestionList.getUserText())
-            elif keyCode == input.KEYCODE_DOWN:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                # The user has pressed the down arrow; change which of the
-                # suggestions is "active" (i.e., will be executed upon
-                # termination of the quasimode)
-                self.__suggestionList.cycleActiveSuggestion(1)
-                if self.__parameterSuggestionList.isActive() and self.__suggestionList.getActiveIndex() > 0:
-                    self.__parameterSuggestionList.setSuggestions([])
-                    #self.__parameterSuggestionList.cycleActiveSuggestion( 1 )
-                self.__nextRedrawIsFull = True
-            elif keyCode == input.KEYCODE_UP:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                # Up arrow; change which suggestion is active.
-                self.__suggestionList.cycleActiveSuggestion(-1)
-                if self.__parameterSuggestionList.isActive() and self.__suggestionList.getActiveIndex() > 0:
-                    self.__parameterSuggestionList.setSuggestions([])
-                    #self.__parameterSuggestionList.cycleActiveSuggestion( -1 )
-                self.__nextRedrawIsFull = True
-            elif keyCode == input.KEYCODE_HOME:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                # The user has pressed the down arrow; change which of the
-                # suggestions is "active" (i.e., will be executed upon
-                # termination of the quasimode)
-                if self.__parameterSuggestionList.isActive():
-                    self.__parameterSuggestionList.setActiveSuggestion(0)
-            elif keyCode == input.KEYCODE_END:  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                # Up arrow; change which suggestion is active.
-                if self.__parameterSuggestionList.isActive():
-                    self.__parameterSuggestionList.setActiveSuggestion(-1)
+            if keyCode in FUNC_CALL_MAP[eventType]:
+                FUNC_CALL_MAP[eventType][keyCode](eventType, keyCode)
+                self.__needsRedraw = True
             elif keyCode in ALLOWED_KEYCODES:  # IGNORE:E1101
                 # The user has typed a valid key to add to the userText.
+                oldText = self.__suggestionList.getUserText()
                 self.__addUserChar(keyCode)
                 self.__onParameterModified(
                     keyCode, oldText, self.__suggestionList.getUserText())
+                # The user has typed a character, and we need to redraw the quasimode
+                self.__needsRedraw = True
             else:
-                # The user has pressed a key that is not valid.
+                # The user has pressed a key that is not valid
                 pass
-
-            self.__needsRedraw = True
 
     def __onParameterModified(self, keyCode, oldText, newText):
         cmd = self.__suggestionList.getActiveCommand()
@@ -426,8 +457,7 @@ class Quasimode(object):
         assert self._inQuasimode
 
     def __onTick(self, timePassed):
-        """
-        Timer event responder.  Re-draws the quasimode, if it needs it.
+        """Timer event responder.  Re-draws the quasimode, if it needs it.
         Only registered while in the quasimode.
 
         NOTE: Drawing the quasimode takes place in __onTick() for
