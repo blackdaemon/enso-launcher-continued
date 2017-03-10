@@ -1,0 +1,60 @@
+from __future__ import division
+
+import math
+
+from enso.contrib.calc.fourfn import evaluate
+
+
+def test_fourfn():
+    assert evaluate("9") == (9, "9")
+    assert evaluate("-9") == (-9, "-9")
+    assert evaluate("-E") == (-math.e, "-E")
+    assert evaluate("9 + 3 + 6") == (9 + 3 + 6, "9 + 3 + 6")
+    assert evaluate("9 pLUs 3 aDD 6") == (9 + 3 + 6, "9 plus 3 add 6")
+    assert evaluate("9 + 3 / 11") == (9 + 3.0 / 11, "9 + 3 / 11")
+    assert evaluate("(9 + 3)") == ((9 + 3), "(9 + 3)")
+    assert evaluate("9 - 12 - 6") == (9 - 12 - 6, "9 - 12 - 6")
+    assert evaluate("9 minus 12 SUBTRACT 6") == (9 - 12 - 6, "9 minus 12 subtract 6")
+    assert evaluate("9 sub 12 SUBsTRACT 6") == (9 - 12 - 6, "9 sub 12 substract 6")
+    assert evaluate("(9+3) / 11") == ((9 + 3.0) / 11, "(9 + 3) / 11")
+    assert evaluate("9 - (12 - 6)") == (9 - (12 - 6), "9 - (12 - 6)")
+    assert evaluate("2*3.14159") == (2 * 3.14159, "2 * 3.14159")
+    assert evaluate("3.1415926535*3.1415926535 / 10") == (3.1415926535 *
+                                                          3.1415926535 / 10, "3.1415926535 * 3.1415926535 / 10")
+    assert evaluate("PI * PI / 10") == (math.pi * math.pi / 10, "PI * PI / 10")
+    assert evaluate("pi times pi divide 10") == (math.pi * math.pi / 10, "PI times PI divide 10")
+    assert evaluate("PI*PI/10") == (math.pi * math.pi / 10, "PI * PI / 10")
+    assert evaluate("PI^2") == (math.pi**2, "PI ^ 2")
+    assert evaluate("pi power 2") == (math.pi**2, "PI power 2")
+    assert evaluate("round(PI^2)") == (round(math.pi**2), "round(PI ^ 2)")
+    assert evaluate("6.02E23 * 8.048") == (6.02E23 * 8.048, "6.02E23 * 8.048")
+    assert evaluate("e / 3") == (math.e / 3, "E / 3")
+    assert evaluate("sin(PI/2)") == (math.sin(math.pi / 2), "sin(PI / 2)")
+    assert evaluate("trunc(E)") == (int(math.e), "trunc(E)")
+    assert evaluate("trunc(-E)") == (int(-math.e), "trunc(-E)")
+    assert evaluate("round(E)") == (round(math.e), "round(E)")
+    assert evaluate("round(-E)") == (round(-math.e), "round(-E)")
+    assert evaluate("E^pi") == (math.e**math.pi, "E ^ PI")
+    assert evaluate("2^3^2") == (2**3**2, "2 ^ 3 ^ 2")
+    assert evaluate("2^3+2") == (2**3 + 2, "2 ^ 3 + 2")
+    assert evaluate("2^9") == (2**9, "2 ^ 9")
+    assert evaluate("2**3**2") == (2**3**2, "2 ** 3 ** 2")
+    assert evaluate("2**3+2") == (2**3 + 2, "2 ** 3 + 2")
+    assert evaluate("2**9") == (2**9, "2 ** 9")
+    assert evaluate("sgn(-2)") == (-1, "sgn(-2)")
+    assert evaluate("sgn(0)") == (0, "sgn(0)")
+    assert evaluate("sgn(0.1)") == (1, "sgn(0.1)")
+    assert evaluate("1232 // 2.3") == (1232 // 2.3, "1232 // 2.3")
+    assert evaluate("10.3 % 6") == (10.3 % 6, "10.3 % 6")
+    assert evaluate("10 xor 24") == (10 ^ 24, "10 xor 24")
+    assert evaluate("6 or 1") == (6 | 1, "6 or 1")
+    assert evaluate("7 and 3") == (7 & 3, "7 and 3")
+    assert evaluate("sqrt(16)") == (4, "sqrt(16)")
+    assert evaluate("squared(4)") == (4 * 4, "squared(4)")
+    assert evaluate("cubed(4)") == (4 * 4 * 4, "cubed(4)")
+    assert evaluate("one plus one") == (1 + 1, "1 plus 1")
+    assert evaluate("thirty plus hundred") == (30 + 100, "30 plus 100")
+
+    # Not passing tests:
+    #assert evaluate( "9^9^2") == (float(9**9**2), "9 ^ 9 ^ 2")
+    #assert evaluate("--9") == (9, "9")
