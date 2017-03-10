@@ -1,6 +1,9 @@
-__updated__ = "2017-03-06"
+__updated__ = "2017-03-10"
 
-from enso._version_local import VERSION as VERSION_LOCAL
+try:
+    from enso._version_local import VERSION as VERSION_LOCAL
+except ImportError:
+    VERSION_LOCAL = ""
 from enso._version_remote import VERSION as VERSION_REMOTE
 from enso.platform import CURRENT_PLATFORM, PLATFORM_NAME_LINUX
 

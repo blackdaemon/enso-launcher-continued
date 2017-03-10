@@ -2,6 +2,8 @@
 # vim:set tabstop=4 shiftwidth=4 expandtab:
 # -*- coding: utf-8 -*-
 
+__updated__ = "2017-02-23"
+
 import logging
 import os
 import socket
@@ -10,9 +12,9 @@ import threading
 from optparse import OptionParser
 
 import enso.config
-from enso.messages import displayMessage
+import enso.version
 
-
+_ = enso.version  # Keep pyLint happy
 ENSO_DIR = os.path.realpath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 
 
@@ -171,7 +173,7 @@ def main(argv=None):
             # platform
             try:
                 import pythoncom  # @UnresolvedImport
-                from win32com.shell import shell, shellcon  # @UnresolvedImport
+                from win32com.shell import shell, shellcon  # @UnresolvedImport @UnusedImport
                 link = pythoncom.CoCreateInstance(  # @UndefinedVariable
                     shell.CLSID_ShellLink,
                     None,
