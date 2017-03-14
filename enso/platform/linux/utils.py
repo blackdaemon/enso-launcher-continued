@@ -39,18 +39,19 @@ import os
 from gtk.gdk import keyval_from_name
 from Xlib.display import Display
 
-_DISPLAYS = {}
-
 
 def get_display():
     # TODO: Can multiple displays exist?
     global _DISPLAYS
-    display_id = os.environ["DISPLAY"]
     # Cache the Display object as creating it is expensive
     # and this function is called from many places
-    if display_id not in _DISPLAYS:
-        _DISPLAYS[display_id] = Display(display_id)
-    return _DISPLAYS[display_id]
+    try:
+        display_id = os.environ["DISPLAY"]
+        return _DISPLAYS[display_id]
+    except (NameError, KeyError) as e:
+        if isinstance(e, NameError):
+            _DISPLAYS = {}
+        return _DISPLAYS.setdefault(display_id, Display(display_id))
 
 
 def get_keycode(key, display=None):
