@@ -31,7 +31,7 @@
 #   enso
 #
 # ----------------------------------------------------------------------------
-__updated__ = "2017-02-24"
+__updated__ = "2017-03-14"
 
 import logging
 import os
@@ -143,8 +143,15 @@ class ScriptCommandTracker(object):
                     del self._quasimodeStartEvents[info["cmdName"]]
                 if hasattr(info["func"], "on_text_modified"):
                     del self._textModifiedEvents[info["cmdName"]]
-                self._cmdMgr.unregisterCommand(info["cmdExpr"])
-                del self._cmdExprs[self._cmdExprs.index(info["cmdExpr"])]
+                # Both below can fail and it should be tolerated
+                try:
+                    self._cmdMgr.unregisterCommand(info["cmdExpr"])
+                except RuntimeError:
+                    logging.warn("Error unregistering command '%s'" % info["cmdExpr"])
+                try:
+                    del self._cmdExprs[self._cmdExprs.index(info["cmdExpr"])]
+                except Exception:
+                    logging.warn("Error deleting command '%s'" % info["cmdExpr"])
                 # FIXME: remove generator from _genMgr
         else:
             for cmdExpr in self._cmdExprs:
