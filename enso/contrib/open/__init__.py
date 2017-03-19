@@ -319,13 +319,7 @@ class LearnAsOpenCommandFactory(ArbitraryPostfixFactory):
     DESCRIPTION = "Learn to open a document or application as {name}"
 
     def __init__(self):
-        """
-        Instantiantes the command factory.
-
-        Must be called by overriden constructors.
-        """
-
-        ArbitraryPostfixFactory.__init__(self)
+        super(LearnAsOpenCommandFactory, self).__init__()
 
     def _generateCommandObj(self, postfix):
         cmd = LearnAsOpenCommand(postfix)
@@ -344,6 +338,10 @@ class OpenCommandFactory(GenericPrefixFactory):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Continue typing to open an application or document"
 
+    def __init__(self):
+        super(OpenCommandFactory, self).__init__()
+        self.postfixes_updated_on = 0
+
     def _generateCommandObj(self, parameter=None):
         cmd = OpenCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
@@ -351,14 +349,12 @@ class OpenCommandFactory(GenericPrefixFactory):
 
     @safetyNetted
     def update(self):
-        if not hasattr(self, "postfixes_updated_on"):
-            self.postfixes_updated_on = 0
-
         shortcuts_dict = open_command_impl.get_shortcuts()
-        if self.postfixes_updated_on < shortcuts_dict.updated_on:
-            with utils.Timer("Setting postfixes for 'open' command."):
-                self.setPostfixes(shortcuts_dict.keys())
-            self.postfixes_updated_on = shortcuts_dict.updated_on
+        if self.postfixes_updated_on >= shortcuts_dict.updated_on:
+            return
+        with utils.Timer("Setting postfixes for 'open' command."):
+            self.setPostfixes(shortcuts_dict.keys())
+        self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
 class OpenWithCommandFactory(GenericPrefixFactory):
@@ -372,6 +368,10 @@ class OpenWithCommandFactory(GenericPrefixFactory):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Opens your currently selected file(s) or folder with the specified application"
 
+    def __init__(self):
+        super(OpenWithCommandFactory, self).__init__()
+        self.postfixes_updated_on = 0
+
     def _generateCommandObj(self, parameter=None):
         cmd = OpenWithCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
@@ -379,16 +379,14 @@ class OpenWithCommandFactory(GenericPrefixFactory):
 
     @safetyNetted
     def update(self):
-        if not hasattr(self, "postfixes_updated_on"):
-            self.postfixes_updated_on = 0
-
         shortcuts_dict = open_command_impl.get_shortcuts()
-        if self.postfixes_updated_on < shortcuts_dict.updated_on:
-            with utils.Timer("Setting postfixes for 'open with' command."):
-                self.setPostfixes(
-                    [s.name for s in shortcuts_dict.values()
-                     if s.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE])
-            self.postfixes_updated_on = shortcuts_dict.updated_on
+        if self.postfixes_updated_on >= shortcuts_dict.updated_on:
+            return
+        with utils.Timer("Setting postfixes for 'open with' command."):
+            self.setPostfixes(
+                [s.name for s in shortcuts_dict.values()
+                 if s.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE])
+        self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
 class UnlearnOpenCommandFactory(GenericPrefixFactory):
@@ -402,6 +400,10 @@ class UnlearnOpenCommandFactory(GenericPrefixFactory):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = u" Unlearn \u201copen {name}\u201d command "
 
+    def __init__(self):
+        super(UnlearnOpenCommandFactory, self).__init__()
+        self.postfixes_updated_on = 0
+
     def _generateCommandObj(self, parameter=None):
         cmd = UnlearnOpenCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
@@ -409,14 +411,12 @@ class UnlearnOpenCommandFactory(GenericPrefixFactory):
 
     @safetyNetted
     def update(self):
-        if not hasattr(self, "postfixes_updated_on"):
-            self.postfixes_updated_on = 0
-
         shortcuts_dict = open_command_impl.get_shortcuts()
-        if self.postfixes_updated_on < shortcuts_dict.updated_on:
-            with utils.Timer("Setting postfixes for 'unlearn open' command."):
-                self.setPostfixes(shortcuts_dict.keys())
-            self.postfixes_updated_on = shortcuts_dict.updated_on
+        if self.postfixes_updated_on >= shortcuts_dict.updated_on:
+            return
+        with utils.Timer("Setting postfixes for 'unlearn open' command."):
+            self.setPostfixes(shortcuts_dict.keys())
+        self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
 class RecentCommandFactory(GenericPrefixFactory):
@@ -430,6 +430,10 @@ class RecentCommandFactory(GenericPrefixFactory):
     NAME = "%s{name}" % PREFIX
     DESCRIPTION = "Continue typing to open recent application or document"
 
+    def __init__(self):
+        super(RecentCommandFactory, self).__init__()
+        self.postfixes_updated_on = 0
+
     def _generateCommandObj(self, parameter=None):
         cmd = RecentCommand(parameter)
         cmd.setDescription(self.DESCRIPTION)
@@ -437,14 +441,12 @@ class RecentCommandFactory(GenericPrefixFactory):
 
     @safetyNetted
     def update(self):
-        if not hasattr(self, "postfixes_updated_on"):
-            self.postfixes_updated_on = 0
-
         shortcuts_dict = recent_command_impl.get_shortcuts()
-        if self.postfixes_updated_on < shortcuts_dict.updated_on:
-            with utils.Timer("Setting postfixes for 'recent' command."):
-                self.setPostfixes(shortcuts_dict.keys())
-            self.postfixes_updated_on = shortcuts_dict.updated_on
+        if self.postfixes_updated_on >= shortcuts_dict.updated_on:
+            return
+        with utils.Timer("Setting postfixes for 'recent' command."):
+            self.setPostfixes(shortcuts_dict.keys())
+        self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
 # ----------------------------------------------------------------------------
