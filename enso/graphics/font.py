@@ -262,26 +262,40 @@ class Font(object):
                 }[font_antialias]
             )
         except Exception as e:
-            logging.error("Error setting the font antialiasing method to %s; %s", font_antialias, e)
+            do_once(
+                logging.warning,
+                "Error setting the font antialiasing method to %s; %s",
+                font_antialias,
+                e
+            )
         else:
             font_options_set = True
 
         try:
             fo.set_hint_metrics(cairo.HINT_METRICS_ON)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-            font_hint_style = config.FONT_HINTING.lower()
-            fo.set_hint_style(
-                {
-                    "default": cairo.HINT_STYLE_DEFAULT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                    "none": cairo.HINT_STYLE_NONE,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                    "slight": cairo.HINT_STYLE_SLIGHT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                    "medium": cairo.HINT_STYLE_MEDIUM,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                    "full": cairo.HINT_STYLE_FULL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                }[font_hint_style]
-            )
         except Exception as e:
-            logging.error("Error setting the font hinting method to %s; %s", font_hint_style, e)
+            do_once(
+                logging.warning,
+                "Error enabling the font hint metrics: %s",
+                e
+            )
         else:
-            font_options_set = True
+            font_hint_style = None
+            try:
+                font_hint_style = config.FONT_HINTING.lower()
+                fo.set_hint_style(
+                    {
+                        "default": cairo.HINT_STYLE_DEFAULT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                        "none": cairo.HINT_STYLE_NONE,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                        "slight": cairo.HINT_STYLE_SLIGHT,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                        "medium": cairo.HINT_STYLE_MEDIUM,  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                        "full": cairo.HINT_STYLE_FULL  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+                    }[font_hint_style]
+                )
+            except Exception as e:
+                logging.error("Error setting the font hinting method to %s; %s", font_hint_style, e)
+            else:
+                font_options_set = True
 
         if font_options_set:
             try:
@@ -321,7 +335,7 @@ class FontGlyph(object):
         'yMax',
         'yMin',
     )
-    
+
     def __init__(self, char, font, cairoContext):
         """
         Creates the font glyph corresponding to the given Unicode
