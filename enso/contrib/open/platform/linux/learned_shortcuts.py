@@ -44,13 +44,14 @@ from watchdog.observers import Observer
 from enso.contrib.open import shortcuts
 from enso.contrib.open.platform.linux.utils import get_file_type
 
+from os.path import splitext, basename, expanduser, isdir, join as pathjoin
 
 SHORTCUT_CATEGORY = "learned"
-my_documents_dir = os.path.expanduser('~/Documents')
-LEARN_AS_DIR = os.path.join(my_documents_dir, u"Enso")
+my_documents_dir = expanduser('~/Documents')
+LEARN_AS_DIR = pathjoin(my_documents_dir, u"Enso")
 
 # Check if Learn-as dir exist and create it if not
-if (not os.path.isdir(LEARN_AS_DIR)):
+if (not isdir(LEARN_AS_DIR)):
     os.makedirs(LEARN_AS_DIR)
 
 _dir_monitor = None
@@ -112,8 +113,8 @@ def get_learned_shortcuts():
     logging.info("Loading learn-as shortcuts")
     result = []
     for f in os.listdir(LEARN_AS_DIR):
-        name = os.path.basename(f).lower()
-        filepath = os.path.join(LEARN_AS_DIR, f)
+        name = splitext(basename(f).lower())[0]
+        filepath = pathjoin(LEARN_AS_DIR, f)
         t = get_file_type(filepath)
         shortcut = shortcuts.Shortcut(name, t, filepath, shortcut_filename=filepath, category=SHORTCUT_CATEGORY)
         result.append(shortcut)
