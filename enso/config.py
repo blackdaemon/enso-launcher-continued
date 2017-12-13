@@ -1,4 +1,4 @@
-__updated__ = "2017-03-10"
+__updated__ = "2017-12-13"
 
 try:
     from enso._version_local import VERSION as VERSION_LOCAL
@@ -267,6 +267,25 @@ PLUGIN_WEBSEARCH_URBANDICTIONARY = {
     "suggestions_url": "http://api.urbandictionary.com/v0/autocomplete?term=%(query)s",
     "is_json": True,
     "result_parser": lambda json: json if json else [],
+}
+
+from enso.utils.html_tools import strip_html_tags, unescape_html_entities
+
+PLUGIN_WEBSEARCH_COMMANDLINEFU = {
+    "name": "CommandlineFu",
+    "prefix": "commandlinefu using ",
+    "argument": "search term",
+    "base_url": "http://www.commandlinefu.com/commands/using/%(query)s/sort-by-votes/",
+    "suggest": False,  # Suggestions will not work here unless we are able to parse URLs from suggestions and pass them to the command (not yet implemented)
+    "suggestions_url": "http://www.commandlinefu.com/commands/using/%(query)s/sort-by-votes/json",
+    "minimum_chars": 2,
+    "is_json": True,
+    "result_parser": lambda json:
+        [
+            unescape_html_entities("%s (%s votes) [%s]" % (strip_html_tags(entry['summary']), entry['votes'], entry['id']))
+            #unescape_html_entities(strip_html_tags(entry['summary']))
+            for _, entry in zip(range(min(len(json), 10)), json)
+        ],
 }
 
 # Proxy used for HTTP protocol

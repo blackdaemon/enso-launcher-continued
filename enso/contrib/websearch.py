@@ -140,15 +140,6 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
         self.command_name = command_name
         self.parameter = None
         self.do_suggestions = suggest
-
-        if not self.do_suggestions:
-            logging.info(
-                "%s search-suggestions are turned off in config. "
-                "Enable 'PLUGIN_%s_OFFER_SUGGESTIONS' "
-                "in your .ensorc to turn it on." % (
-                    command_name, self.config_key)
-            )
-
         self.setSuggestionsPollingInterval(polling_interval)
 
     @safetyNetted
@@ -226,109 +217,6 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
         return self
 
 
-"""
-@warn_overriding
-class CommandlinefuMatchingCommandFactory(AbstractSearchCommandFactory):
-    HELP_TEXT = "search terms"
-    PREFIX = "commandlinefu matching "
-    NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
-    BASE_URL = "http://www.commandlinefu.com/commands/matching/%(query)s/%(query64)s/sort-by-votes"
-
-    def getSuggestionsUrl(self, text):
-        if not self.do_suggestions:
-            return None
-        
-        if text is None or len(text.strip()) < 2:
-            return None
-
-        charset = "utf-8"
-        url = "http://www.commandlinefu.com/commands/matching/%(query)s/%(query64)s/sort-by-votes/json" % {
-            "query": urllib.quote_plus(text.encode(charset)),
-            "query64": base64.b64encode(bytes(text.encode(charset)))
-        }
-
-        request = urllib2.Request(url, headers=HTTP_HEADERS)
-        
-        return request
-
-    def decodeSuggestions(self, data, headers=None):
-        suggestions = []
-        charset = "utf-8"
-        if headers:
-            with suppress(Exception):
-                content_type = headers.get(
-                    "Content-Type", headers.get("content-type", "")).lower()
-                if content_type and "charset=" in content_type:
-                    charset = content_type.split("charset=")[-1]
-        try:
-            decoded = data.decode(charset)
-        except Exception, e:
-            logging.error(
-                "CommandlineFu-suggest query unicode decoding failed: %s", e)
-        else:
-            try:
-                json = jsonlib.loads(decoded)
-            except Exception as e:
-                logging.error(
-                    u"Error parsing JSON data: %s; data: '%s'", e, decoded)
-            else:
-                if json and len(json) > 1 and json[1]:
-                    it = (unescape_html_entities("%s (%s votes) [%s]" % (strip_html_tags(entry['summary']), entry['votes'], entry['id'])) for entry in json)
-                    suggestions = list(next(it) for _ in range(10))
-        return suggestions
-
-
-@warn_overriding
-class CommandlinefuUsingCommandFactory(AbstractSearchCommandFactory):
-    HELP_TEXT = "search terms"
-    PREFIX = "commandlinefu using "
-    NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
-    BASE_URL = "http://www.commandlinefu.com/commands/using/%(query)s/sort-by-votes/"
-
-    def getSuggestionsUrl(self, text):
-        if not self.do_suggestions:
-            return None
-        
-        if text is None or len(text.strip()) < 2:
-            return None
-
-        charset = "utf-8"
-        url = "http://www.commandlinefu.com/commands/using/%(query)s/sort-by-votes/json" % {
-            "query": urllib.quote_plus(text.encode(charset)),
-        }
-
-        request = urllib2.Request(url, headers=HTTP_HEADERS)
-        
-        return request
-
-    def decodeSuggestions(self, data, headers=None):
-        suggestions = []
-        charset = "utf-8"
-        if headers:
-            with suppress(Exception):
-                content_type = headers.get(
-                    "Content-Type", headers.get("content-type", "")).lower()
-                if content_type and "charset=" in content_type:
-                    charset = content_type.split("charset=")[-1]
-        try:
-            decoded = data.decode(charset)
-        except Exception, e:
-            logging.error(
-                "CommandlineFu-suggest query unicode decoding failed: %s", e)
-        else:
-            try:
-                json = jsonlib.loads(decoded)
-            except Exception as e:
-                logging.error(
-                    u"Error parsing JSON data: %s; data: '%s'", e, decoded)
-            else:
-                if json and len(json) > 1 and json[1]:
-                    it = (unescape_html_entities("%s (%s votes) [%s]" % (strip_html_tags(entry['summary']), entry['votes'], entry['id'])) for entry in json)
-                    suggestions = list(next(it) for _ in range(10))
-        return suggestions
-"""
-
-
 class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
 
     remove_google_jsonp_wrapper = partial(
@@ -346,6 +234,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
             suggestions_url,
             parser,
             is_json,
+            minimum_chars,
             polling_interval):
         super(ConfigurableSearchCommandFactory, self).__init__(
             command_name, suggest, polling_interval)
@@ -356,6 +245,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
         self.suggestions_url = suggestions_url
         self.parser = parser
         self.is_json = is_json
+        self.minimum_chars = max(1, minimum_chars)
         self.setCacheId(
             "ConfigurableSearch%s" % re.sub(
                 r"[^A-Za-z0-9]", "", command_prefix.strip()
@@ -366,7 +256,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
         if not self.do_suggestions:
             return None
 
-        if text is None or len(text.strip()) == 0:
+        if text is None or len(text.strip()) < self.minimum_chars:
             return None
 
         charset = "utf-8"
@@ -414,7 +304,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
                     u"Error parsing JSON data: %s; data: '%s'", e, decoded)
             else:
                 if json:
-                    suggestions = [strip_html_tags(i) for i in self.parser(json)]
+                    suggestions = [strip_html_tags(s) for s in self.parser(json)][:10]  # Limit number of suggestions
         return suggestions
 
 
@@ -425,8 +315,9 @@ def load():
     PLUGIN_CONFIG_PREFIX = "PLUGIN_WEBSEARCH"
     RE_PLUGIN_CONFIG = re.compile(r"^%s_([a-zA-Z0-9]+)" % PLUGIN_CONFIG_PREFIX)
     for plugin_name in (RE_PLUGIN_CONFIG.sub(r"\1", e) for e in dir(enso.config) if RE_PLUGIN_CONFIG.match(e)):
+        config_key = "%s_%s" % (PLUGIN_CONFIG_PREFIX, plugin_name)
         try:
-            conf = getattr(enso.config, "%s_%s" % (PLUGIN_CONFIG_PREFIX, plugin_name))
+            conf = getattr(enso.config, config_key)
             command = ConfigurableSearchCommandFactory(
                 command_name=conf["name"],
                 command_prefix=conf["prefix"],
@@ -436,16 +327,24 @@ def load():
                 suggestions_url=conf["suggestions_url"],
                 parser=conf["result_parser"],
                 is_json=conf["is_json"],
+                minimum_chars=conf.get(
+                    "minimum_chars", 1),
                 polling_interval=conf.get(
-                    "polling_interval", SUGGESTIONS_POLLING_INTERVAL)
+                    "polling_interval", SUGGESTIONS_POLLING_INTERVAL),
             )
             CommandManager.get().registerCommand(
                 command.NAME,
                 command
             )
+            if not conf["suggest"]:
+                logging.info(
+                    "%s command search-suggestions are turned off. "
+                    "To turn it on, modify 'suggest' parameter of %s entry "
+                    "in your .ensorc configuration file." %
+                    (conf["name"], config_key)
+                )
         except Exception as e:
             logging.error(
                 "Error parsing/registering websearch command from enso.config: %s; %s",
-                "%s_%s" % (PLUGIN_CONFIG_PREFIX, plugin_name),
-                e
+                config_key, e
             )
