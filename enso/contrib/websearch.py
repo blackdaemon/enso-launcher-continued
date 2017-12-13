@@ -42,9 +42,6 @@
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
-from __future__ import with_statement
-
-import base64
 import locale
 import logging
 import threading
@@ -425,11 +422,11 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
 # Plugin initialization
 # ---------------------------------------------------------------------------
 def load():
-    TAG_NAME = "PLUGIN_WEBSEARCH"
-    RE_SEARCHENGINE = re.compile(r"^%s_([a-zA-Z0-9]+)" % TAG_NAME)
-    for engine in (RE_SEARCHENGINE.sub(r"\1", e) for e in dir(enso.config) if RE_SEARCHENGINE.match(e)):
+    PLUGIN_CONFIG_PREFIX = "PLUGIN_WEBSEARCH"
+    RE_PLUGIN_CONFIG = re.compile(r"^%s_([a-zA-Z0-9]+)" % PLUGIN_CONFIG_PREFIX)
+    for plugin_name in (RE_PLUGIN_CONFIG.sub(r"\1", e) for e in dir(enso.config) if RE_PLUGIN_CONFIG.match(e)):
         try:
-            conf = getattr(enso.config, "%s_%s" % (TAG_NAME, engine))
+            conf = getattr(enso.config, "%s_%s" % (PLUGIN_CONFIG_PREFIX, plugin_name))
             command = ConfigurableSearchCommandFactory(
                 command_name=conf["name"],
                 command_prefix=conf["prefix"],
@@ -449,6 +446,6 @@ def load():
         except Exception as e:
             logging.error(
                 "Error parsing/registering websearch command from enso.config: %s; %s",
-                engine,
+                "%s_%s" % (PLUGIN_CONFIG_PREFIX, plugin_name),
                 e
             )
