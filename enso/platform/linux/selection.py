@@ -47,15 +47,12 @@ from gio import File  # @UnresolvedImport Keep PyLint and PyDev happy
 from enso.platform.linux.utils import get_display, get_keycode
 from enso.platform.linux.weaklib import DbusWeakCallback
 
-__updated__ = "2017-02-23"
+__updated__ = "2017-12-13"
 
 """
 Class to handle Nautilus file-selection notifications in Linux Gnome desktop
 """
-
-
 class NautilusFileSelection(object):
-
     def __init__(self):
         self.paths = []
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -72,7 +69,15 @@ class NautilusFileSelection(object):
         # File selection changed (user clicked on file/directory or selected
         # a group of files/directories.
         # Update internal variable
-        self.paths = filter(None, [File(uri).get_path() for uri in selection])
+        focus = get_focused_window(get_display())
+        if focus.get_wm_class() is None:  # or wmname is None:
+            focus = focus.query_tree().parent
+        # Capture the file selection from focused window only.
+        # Nautilus sends paths of files focused in all opened windows
+        # every time the file selection changes in any of them.
+        if window_id == focus.id:
+            self.paths = filter(None, [File(uri).get_path() for uri in selection])
+
 
 nautilus_file_selection = NautilusFileSelection()
 
