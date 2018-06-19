@@ -31,10 +31,11 @@
 #   enso
 #
 # ----------------------------------------------------------------------------
-__updated__ = "2017-03-14"
+__updated__ = "2018-06-19"
 
 import logging
 import os
+import re
 import time
 import types
 from os.path import basename
@@ -58,7 +59,12 @@ from enso.utils import do_once
 SCRIPTS_FILE_NAME = os.path.expanduser("~/.ensocommands")
 # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
 # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS
+_SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS  # @UndefinedVariable
+
+# String to search for in the file to determine if it contains any command definitions
+COMMAND_FILE_CHECK = re.compile(
+    r"^def %s[a-zA-Z0-9_]" % cmdretriever.SCRIPT_PREFIX,
+    re.MULTILINE)
 
 
 class ScriptCommandTracker(object):
@@ -238,7 +244,7 @@ class ScriptTracker(object):
         for file_name in commandFiles:
             try:
                 with open(file_name, "r") as fd:
-                    text = fd.read().replace('\r\n', '\n') + "\n"
+                    file_contents = fd.read().replace('\r\n', '\n') + "\n"
             except IOError as e:
                 if file_name == SCRIPTS_FILE_NAME:
                     do_once(
@@ -252,8 +258,15 @@ class ScriptTracker(object):
                 logging.error(e)
                 continue
 
+            # Do not bother to parse files which does not contain command definitions
+            if not COMMAND_FILE_CHECK.search(file_contents):
+                logging.warning(
+                    "Skipping file %s as it does not contain any command definitions",
+                    file_name)
+                continue
+
             allGlobals = self._getGlobalsFromSourceCode(
-                text,
+                file_contents,
                 file_name
             )
 
