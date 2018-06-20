@@ -1,5 +1,6 @@
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
 import shutil
+from six import BytesIO
 
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
@@ -40,7 +41,7 @@ import shutil
 
 __author__ = "pavelvitis@gmail.com"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2017-03-02"
+__updated__ = "2018-06-20"
 
 #==============================================================================
 # Imports
@@ -55,7 +56,7 @@ import urllib
 import struct
 import time
 
-from urllib2 import URLError
+from urllib2 import URLError, HTTPError
 from httplib import HTTPException
 from socket import error as SocketError
 from contextlib import closing
@@ -89,6 +90,8 @@ try:
     from iniparse import SafeConfigParser
 except ImportError:
     from ConfigParser import SafeConfigParser
+
+from enso.utils.decorators import suppress
 
 
 #==============================================================================
@@ -309,6 +312,7 @@ DEFAULT_CURRENCY_LIST = {
 class NotModifiedSince(Exception):
     pass
 
+
 def _decompress_response(resp):
     # FIXME: This code should go to a library, it is repeated too many times
     assert isinstance(resp, urllib.addinfourl)
@@ -316,22 +320,22 @@ def _decompress_response(resp):
         "Content-Encoding",
         resp.info().get("content-encoding", None)
     )
+    result_html = None
     data = resp.read()
     if data and 'gzip' == content_encoding:
         try:
-            result_html = gzip.GzipFile(fileobj=_StringIO(data)).read()
+            result_html = gzip.GzipFile(fileobj=BytesIO(data)).read()
         except (EOFError, IOError, struct.error) as e:
             logging.error(e)
             # IOError can occur if the gzip header is bad.
             # struct.error can occur if the data is damaged.
-            result_html = None
             if isinstance(e, struct.error):
                 # A gzip header was found but the data is corrupt.
                 # Ideally, we should re-request the feed without the
                 # 'Accept-encoding: gzip' header, but we don't.
                 result_html = None
         else:
-            assert logging.debug("bmw.py decompressing gzipped response %d->%d" % (len(data), len(result_html))) or True
+            assert logging.debug("currency updater decompressing gzipped response %d->%d" % (len(data), len(result_html))) or True
     elif data and 'deflate' == content_encoding:
         try:
             result_html = zlib.decompress(data)
@@ -341,7 +345,6 @@ def _decompress_response(resp):
                 result_html = zlib.decompress(data, -15)
             except zlib.error as e:
                 logging.error(e)
-                result_html = None
         else:
             assert logging.debug("bmw.py decompressing deflated response %d->%d" %
                                  (len(data), len(result_html))) or True
@@ -358,14 +361,27 @@ def _download_data(url, modifiedsince=None):
                 '%a, %d %b %Y %H:%M:%S GMT', time.gmtime(modifiedsince))
         request = urllib2.Request(url, None, HTTP_HEADERS)
         with closing(urllib2.urlopen(request, None, 5)) as resp:
-            # This should avoid blocking the main thread
-            # For details see:
-            # http://bugs.python.org/issue14562#msg165927
             print resp.headers
             if resp.code == 304:
                 raise NotModifiedSince()
+            # This should avoid blocking the main thread
+            # For details see:
+            # http://bugs.python.org/issue14562#msg165927
             resp.fp._rbufsize = 0
             data = _decompress_response(resp)
+            """
+            charset = "utf-8"
+            with suppress(Exception):
+                content_type = resp.headers.get(
+                    "Content-Type", resp.headers.get("content-type", "")).lower()
+                if content_type and "charset=" in content_type:
+                    charset = content_type.split("charset=")[-1]
+            try:
+                decoded = data.decode(charset)
+            except Exception as e:
+                logging.error(
+                    "currency updater unicode decoding failed: %s", e)
+            """
     except (URLError, HTTPException, SocketError), e:
         logging.error(e)
         raise
@@ -379,73 +395,108 @@ def download_actual_rates():
     if not os.path.isdir(os.path.dirname(RATES_FILE)):
         os.makedirs(os.path.dirname(RATES_FILE))
 
-    currencies_url = "http://finance.yahoo.com/webservice/v1/symbols/allcurrencies/quote?format=json"
-    try:
-        mtime = os.path.getmtime(CURRENCIES_FILE) if os.path.isfile(CURRENCIES_FILE) else 0
-        currencies_json = _download_data(currencies_url, mtime)
-        currencies = ujson.loads(currencies_json)
-        if currencies and currencies['list']['meta']['count'] == 0:
-            logging.warning("Service returned 0 currencies.")
-    except Exception as e:
-        logging.error(e)
-
-    symbols = []
-    # Limit one query to 200 items
-    max_rates_per_request = 200
-    # Format is:
-    # s:    Symbol
-    # l1:   Last Trade (Price Only)
-    # b:    Bid
-    # a:    Ask
-    # d1:   Last Trade Date
-    # t1:   Last Trade Time
-    url = "http://download.finance.yahoo.com/d/quotes.csv?f=sl1bad1t1&e=.csv&s=%(params)s"
-    csv = ""
     mtime = os.path.getmtime(RATES_FILE) if os.path.isfile(RATES_FILE) else 0
-    currency_symbols = [
-        cr['resource']['fields']['symbol'].split("=")[0]
-        for cr in currencies['list']['resources']
-        if cr['resource']['fields'] and cr['resource']['fields']['type'] == 'currency' 
-    ]
-    if "USD" not in currency_symbols:
-        currency_symbols.append("USD")
-        
+    # Skip bothering the web service if latest download is not older than 1 hour
+    if ((time.time() - mtime) / 60 < 60):
+        logging.warning("Skipping the rates download for now due to exceeded limit (maximum of 100 queries per hour)")
+        return
+
+    currencies = {}
+    if (not os.path.isfile(CURRENCIES_FILE) or
+        os.path.getsize(CURRENCIES_FILE) == 0 or
+        (time.time() - os.path.getmtime(CURRENCIES_FILE)) / 60 / 60 > 24
+        ):
+        currencies_url = "http://free.currencyconverterapi.com/api/v5/currencies"
+        try:
+            mtime = os.path.getmtime(CURRENCIES_FILE) if os.path.isfile(CURRENCIES_FILE) else 0
+            currencies_json = _download_data(currencies_url, mtime).decode("utf-8")
+            currencies = ujson.loads(currencies_json)
+            if currencies and currencies.get('results', None):
+                currencies = currencies['results']
+            else:
+                logging.warning("Service returned 0 currencies.")
+                return
+        except HTTPError as e:
+            if e.code == 403:
+                # Exceeded limit
+                raise Exception("Currency converter service free limit exceeded (100 queries per hour)")
+        except Exception as e:
+            logging.error(e)
+        else:
+            try:
+                with open("%s.new" % CURRENCIES_FILE, "wb") as fd:
+                    fd.write(currencies_json.encode("utf-8", "ignore"))
+            except Exception as e:
+                raise
+            else:
+                shutil.move("%s.new" % CURRENCIES_FILE, CURRENCIES_FILE)
+    else:
+        with open(CURRENCIES_FILE, "rb") as fd:
+            currencies_json = ujson.load(fd)
+            if currencies_json:
+                currencies = currencies_json.get('results', [])
+
+    mtime = os.path.getmtime(RATES_FILE) if os.path.isfile(RATES_FILE) else 0
+    currency_symbols = currencies.keys()
+
     if not currency_symbols:
         currency_symbols = DEFAULT_CURRENCY_LIST.keys()
 
+    if "USD" not in currency_symbols:
+        currency_symbols.append("USD")
+
+    symbols = []
+    # Limit one query to 2 items
+    max_rates_per_request = 2
+    url = "https://free.currencyconverterapi.com/api/v5/convert?compact=ultra&q=%(params)s"
+    csv = ""
+
     for symbol in currency_symbols:
-        symbols.append("EUR%s=X" % symbol)
+        symbols.append("EUR_%s" % symbol)
         if len(symbols) == max_rates_per_request:
             try:
+                data = _download_data(url % {"params": ",".join(symbols)}, mtime)
+                rd = eval(data.strip(), {}, {})
                 csv = ("" if not csv or csv.endswith("\n") else "\n").join(
-                    (csv, _download_data(url % {"params": "+".join(symbols)}, mtime)))
+                    [csv,] + ["%s,%f\n" % (r[0].split("_")[1], r[1]) for r in rd.items()]
+                )
+            except HTTPError as e:
+                if e.code == 403:
+                    # Exceeded limit
+                    raise Exception("Currency converter service free limit exceeded (100 queries per hour)")
             except Exception as e:
                 logging.error("Error downloading rates file: %s", e)
-            symbols = []
+                raise
+            del symbols[:]
     else:
         if len(symbols) > 0:
             try:
+                data = _download_data(url % {"params": ",".join(symbols)}, mtime)
+                rd = eval(data.strip(), {}, {})
                 csv = ("" if not csv or csv.endswith("\n") else "\n").join(
-                    (csv, _download_data(url % {"params": "+".join(symbols)}, mtime)))
+                    [csv,] + ["%s,%f\n" % (r[0].split("_")[1], r[1]) for r in rd.items()]
+                )
+            except HTTPError as e:
+                if e.code == 403:
+                    # Exceeded limit
+                    raise Exception("Currency converter service free limit exceeded (100 queries per hour)")
             except Exception as e:
                 logging.error("Error downloading rates file: %s", e)
-            symbols = []
+                raise
+            del symbols[:]
 
     if not csv:
         return 0
 
     try:
-        with open("%s.new" % CURRENCIES_FILE, "wb") as fd:
-            fd.write(currencies_json.encode("utf-8"))
         with open("%s.new" % RATES_FILE, "wb") as fd:
             fd.write(csv.encode("utf-8"))
     except Exception as e:
         raise
     else:
-        shutil.move("%s.new" % CURRENCIES_FILE, CURRENCIES_FILE)
         shutil.move("%s.new" % RATES_FILE, RATES_FILE)
 
-    return 1
+    return len(currency_symbols)
 
 
 def main(argv=None):

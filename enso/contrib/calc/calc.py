@@ -45,7 +45,7 @@ from xml.sax.saxutils import escape as xml_escape
 
 from enso import selection
 from enso.contrib.calc import fourfn
-from enso.contrib.calc import currconv
+from enso.contrib.calc.exchangerates import converter
 
 from enso.commands import CommandManager, CommandObject
 from enso.commands.factories import ArbitraryPostfixFactory
@@ -347,17 +347,17 @@ class SetHomeCurrencyCommand(CommandObject):
     @safetyNetted
     def run(self):
         if self.code is None:
-            curr = currconv.get_home_currency()
+            curr = converter.get_home_currency()
             ensoapi.display_message(
-                u"%s: %s" % (curr, currconv.RATES.exchange_rates[curr]["name"]),
+                u"%s: %s" % (curr, converter.get_currency_rates().exchange_rates[curr]["name"]),
                 u"Your current home currency")
-        elif not currconv.is_supported_currency(self.code):
+        elif not converter.is_supported_currency(self.code):
             ensoapi.display_message(
                 u"\"%s\" is not a valid ISO-currency-code!" % self.code)
         else:
-            currconv.set_home_currency(self.code)
+            converter.set_home_currency(self.code)
             ensoapi.display_message(
-                u"%s: %s" % (self.code, currconv.RATES.exchange_rates[self.code]["name"]),
+                u"%s: %s" % (self.code, converter.get_currency_rates().exchange_rates[self.code]["name"]),
                 u"Home currency have been set to")
 
 

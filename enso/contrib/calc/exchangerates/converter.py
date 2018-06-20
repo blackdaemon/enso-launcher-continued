@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2017-03-02"
+__updated__ = "2018-06-20"
 
 #==============================================================================
 # Imports
@@ -73,11 +73,19 @@ from enso.quasimode import Quasimode
 from enso.contrib.calc.ipgetter import myip
 from enso.net import inetcache
 
+__all__ = [
+    'get_home_currency',
+    'set_home_currency',
+    'guess_home_currency',
+    'get_currency_rates',
+    'convert_currency',
+]
+
+
 #==============================================================================
 # Constants
 #==============================================================================
 
-CACHED_RATES_TIMEOUT = 60 * 60  # 1 hour
 
 HTTP_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.12) Gecko/20101028 Firefox/3.6.12',
@@ -126,6 +134,15 @@ class ExchangeRates(object):
             self.callback_func = callback_func
             self.filenames = filenames
 
+        def on_modified(self, event):
+            if event.is_directory:
+                return
+            if self.filenames:
+                if event.src_path in self.filenames:
+                    self.run_callback_func(event)
+            else:
+                self.run_callback_func(event)
+
         def on_moved(self, event):
             if event.is_directory:
                 return
@@ -155,6 +172,7 @@ class ExchangeRates(object):
         self.updated_on = 0
 
         self.parse_rates_file(RATES_FILENAME)
+        self.rates_file_mtime = os.path.getmtime(RATES_FILENAME)
 
         self._file_changed_event_handler = ExchangeRates._FileChangedEventHandler(
             [RATES_FILENAME],
@@ -165,21 +183,44 @@ class ExchangeRates(object):
         self._dir_monitor.start()
 
     def rates_file_updated(self, event):
-        self.parse_rates_file(RATES_FILENAME)
+        if self.updated_on != os.path.getmtime(RATES_FILENAME):
+            self.parse_rates_file(RATES_FILENAME)
 
-    def parse_rate(self, ratedef):
-        code = None
+    def parse_rates_file(self, filename):
+        updates = 0
         try:
-            code, rate_s, bid, offer, last_date, last_time = ratedef.strip().split(",")
-            _, _ = bid, offer
-            symbol = code.strip("\"")[3:6].upper()
+            with open(filename, "r") as fd:
+                mtime = os.path.getmtime(filename)
+                for line in fd:
+                    if not line:
+                        continue
+                    symbol, definition = self.parse_rate(line, mtime)
+                    if symbol and definition:
+                        self.exchange_rates[symbol] = definition
+                        updates += 1
+        except Exception as e:
+            logging.error(e)
+        else:
+            if updates:
+                self.updated_on = os.path.getmtime(filename)
+                logging.info("Currency exchange rates updated for %d currencies on %s",
+                             updates,
+                             time.ctime(self.updated_on)
+                             )
+
+    def parse_rate(self, ratedef, update_ts=None):
+        symbol = None
+        try:
+            symbol, rate_s = ratedef.strip().split(",")
             try:
                 rate = float(rate_s)
             except ValueError, e:
                 logging.warn(
                     "Currency exchange rate returned for code '%s' is not parseable: %s",
-                    str(code), rate_s)
+                    str(symbol), rate_s)
                 rate = float(0)
+            # TODO: This service does not provide date/time
+            last_date = "N/A"
             last_date = last_date.strip("\"")
             updated = None
             if last_date != "N/A":
@@ -187,6 +228,8 @@ class ExchangeRates(object):
                 #updated = datetime.strptime(last_datetime, "%m/%d/%Y %I:%M%p")
 
                 month, day, year = map(int, last_date.split("/"))
+                # TODO: This service does not provide date/time
+                last_time = "N/A"
                 last_time = last_time.strip("\"")
                 if last_time != "N/A":
                     hour, minute = last_time.split(":")
@@ -200,38 +243,19 @@ class ExchangeRates(object):
             if rate == 0.0:
                 logging.warning(
                     "Currency exchange data returned for code '%s' unhandled; empty data received.",
-                    code
+                    symbol
                 )
             return symbol, {
                 #"name":name,
                 "name": symbol,
                 "rate": rate,
-                "updated": updated
+                "updated": updated if updated else datetime.fromtimestamp(update_ts) if update_ts else 0
             }
-        except Exception, e:
+        except Exception as e:
             logging.error(
                 "Currency exchange data returned for code '%s' are not parseable: %s",
-                str(code), e)
+                str(symbol), e)
             return None, None
-
-    def parse_rates_file(self, filename):
-        updates = 0
-        try:
-            with open(filename, "r") as fd:
-                for line in fd:
-                    symbol, definition = self.parse_rate(line)
-                    if symbol and definition:
-                        self.exchange_rates[symbol] = definition
-                        updates += 1
-        except Exception as e:
-            logging.error(e)
-        else:
-            if updates:
-                self.updated_on = os.path.getmtime(filename)
-                logging.info("Currency exchange rates updated for %d currencies on %s",
-                             updates,
-                             time.ctime(self.updated_on)
-                             )
 
 
 RATES = ExchangeRates()
@@ -346,6 +370,10 @@ def get_home_currency():
     return Globals.HOME_CURRENCY
 
 
+def get_currency_rates():
+    return RATES
+
+
 def set_home_currency(curr):
     Globals.HOME_CURRENCY = curr
     config = SafeConfigParser()
@@ -359,7 +387,7 @@ def set_home_currency(curr):
         config.write(fp)
 
 
-def currency(amount, from_curr, to_curr):
+def convert_currency(amount, from_curr, to_curr):
     # TODO: Convert following assertions into custom exceptions
     assert from_curr in RATES.exchange_rates, "Unknown source currency code: %s" % from_curr
     assert to_curr in RATES.exchange_rates, "Unknown target currency code: %s" % to_curr
@@ -401,7 +429,7 @@ def currency(amount, from_curr, to_curr):
     #result2 = currency1(amount, from_curr, to_curr)
     # if result2 != result:
     #    print "Currency computed: %f; currency Google: %f" % (result, result2)
-    
+
     rate_updated_str = ""
     if rate_updated:
         if rate_updated.date() == datetime.today().date():
@@ -452,22 +480,30 @@ def argv_to_locale(argv):
 
 def spawn_exchangerates_updater():
     global _last_exchangerate_update_check
-    
+
     now = time.time()
-    if now - _last_exchangerate_update_check < 5 * 60:
+    if now - _last_exchangerate_update_check < 60 * 60:
         return 0
 
     try:
         try:
             if CURRENT_PLATFORM == PLATFORM_NAME_LINUX:
-                import gobject
-                cmdline = ["python", os.path.join(_get_enso_directory(), "enso", "contrib", "calc", "exchangerates_updater.py")]
+                import gobject  # @UnresolvedImport
+                cmdline = ["python", 
+                    os.path.join(_get_enso_directory(), "enso", "contrib", "calc",
+                        "exchangerates", "updater.py"
+                    )
+                ]
                 argv = argv_to_locale(cmdline)
                 pid = gobject.spawn_async (argv, #working_directory=workdir,
                         flags=gobject.SPAWN_SEARCH_PATH | gobject.SPAWN_STDOUT_TO_DEV_NULL)
                 return pid
             else:
-                cmdline = ["python.exe", os.path.join(_get_enso_directory(), "enso", "contrib", "calc", "exchangerates_updater.py")]
+                cmdline = ["python.exe", 
+                    os.path.join(_get_enso_directory(), "enso", "contrib", "calc", 
+                        "exchangerates", "updater.py"
+                    )
+                ]
                 pid = subprocess.Popen(cmdline, shell=False, stdout=None).pid  # Only on windows: , creationflags=os.P_NOWAIT
                 return pid
         except Exception as e:

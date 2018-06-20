@@ -52,7 +52,11 @@ import operator
 import re
 
 import pyparsing
-from currconv import RATES, currency, get_home_currency
+from enso.contrib.calc.exchangerates.converter import (
+    get_currency_rates,
+    get_home_currency,
+    convert_currency
+)
 from dateutil.relativedelta import relativedelta
 from pyparsing import (
     CaselessLiteral,
@@ -70,7 +74,7 @@ from pyparsing import (
 )
 from text2num import text2num
 
-__updated__ = "2017-02-23"
+__updated__ = "2018-06-20"
 __all__ = ["evaluate"]
 
 RE_ROMAN_NUMERALS = '[IVXLCDMivxlcdm]+'
@@ -412,7 +416,7 @@ fn = {"sin": math.sin,
       "sgn": lambda a: 0 if a == 0 else 1 if abs(a) > epsilon and cmp(a, 0) > 0 else -1,
       "invert": operator.invert,
       "~": operator.invert,
-      "currency": currency
+      "currency": convert_currency
       }
 
 
@@ -487,7 +491,7 @@ def evaluateStack(s):
         curr_from, expr1 = evaluateStack(s)
         curr_from = curr_from.upper()
         curr_amount, expr0 = evaluateStack(s)
-        val, expr, rate, rate_updated = currency(
+        val, expr, rate, rate_updated = convert_currency(
             curr_amount, curr_from, curr_to)
         # "%s %s %s %s" % (curr_amount, curr_from, op.strip(), curr_to)
         return round(val, 4), expr
