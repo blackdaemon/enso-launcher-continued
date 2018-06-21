@@ -43,6 +43,7 @@
 # ----------------------------------------------------------------------------
 
 import inspect
+import logging
 import sys
 from contextlib import contextmanager
 
@@ -86,6 +87,24 @@ except ImportError:
 
     # Deprecated
     ignored = suppress
+
+
+class log_once():
+    """ Decorator for logging the function result once. """
+    _cache = {}
+
+    def __init__(self, text):
+        self.__text = text
+
+    def __call__(self, func):
+        def log_func(*args, **kwargs):
+            result = func(*args, **kwargs)
+            if not self._cache.get(result, None):
+                logging.info(self.__text % result)
+                self._cache[result] = True
+            return result
+
+        return log_func
 
 
 def finalizeWrapper(origFunc, wrappedFunc, decoratorName):
