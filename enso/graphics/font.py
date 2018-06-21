@@ -51,7 +51,7 @@ import sys
 
 import enso
 from enso import cairo, config
-from enso.utils import do_once
+from enso.utils import do_once, do_once_for_given_args
 from enso.utils.memoize import memoized
 
 _graphics = enso.providers.getInterface("graphics")
@@ -95,7 +95,7 @@ class Font(object):
         self.isItalic = isItalic
         self.font_name = None
         self.font_opts = {}
-        
+
         if self.isItalic:
             self.slant = cairo.FONT_SLANT_ITALIC  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
         else:
@@ -176,12 +176,12 @@ class Font(object):
             font_detail = _graphics.FontRegistry.get().get_font_detail(font_id)
             if font_detail:
                 font_name = font_detail.filepath
-                do_once(
+                do_once_for_given_args(
                     logging.info,
                     u"Font used: %s" % repr(font_detail)
                 )
             else:
-                do_once(
+                do_once_for_given_args(
                     logging.error,
                     u"Specified font was not found in the system: %s" % font_id
                 )
@@ -238,12 +238,12 @@ class Font(object):
 
         # Log the used font name once            
         if self.isItalic:
-            do_once(
+            do_once_for_given_args(
                 logging.info,
                 "Using font (italic): {0}".format(self.font_name)
             )
         else:
-            do_once(
+            do_once_for_given_args(
                 logging.info,
                 "Using font (normal): {0}".format(self.font_name)
             )
