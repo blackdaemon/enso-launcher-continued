@@ -60,6 +60,7 @@ import logging
 import time
 
 from enso import input
+from enso.utils import call_once_for_given_args
 
 
 # ----------------------------------------------------------------------------
@@ -76,13 +77,31 @@ EVENT_TYPES = [
     "dismissal",
     "traymenu",
     "idle",
+    "session_lock",  # TODO: Implement session lock detection
+    "session_unlock",  # TODO: Implement session unlock detection
+    "screensaver_start",  # TODO: Implement screensaver-start detection
+    "screensaver_stop",  # TODO: Implement screensaver-stop detection
     "init",
     "mousemove",
     "somekey"
 ]
 
 # "idle" event will be triggered on user inactivity
-IDLE_TIMEOUT = 5 * 60
+IDLE_TIMEOUT_10M = 10 * 60
+IDLE_TIMEOUT_5M = 5 * 60
+IDLE_TIMEOUT_1M = 1 * 60
+IDLE_TIMEOUT_30S = 30
+IDLE_TIMEOUT_20S = 20
+IDLE_TIMEOUT_10S = 10
+IDLE_TIMEOUT_5S = 5
+
+# Default timeout is 5 minutes (legacy)
+IDLE_TIMEOUT = IDLE_TIMEOUT_5M
+
+# Scale of timeouts from largest to smallest. Used internally.
+_IDLE_TIMEOUT_SCALE = list(
+    reversed(sorted(globals()[v] for v in globals().keys() if v.startswith("IDLE_TIMEOUT_")))
+)
 
 
 class EventResponderFuncWrapper(object):
@@ -99,12 +118,21 @@ class EventResponderFuncWrapper(object):
     def is_running(self):
         return self.__is_running
 
+    def get_function(self):
+        return self.__func
+
     def __call__(self, *args, **kwargs):
         self.__is_running = True
         try:
             return self.__func(*args, **kwargs)
         finally:
             self.__is_running = False
+
+    def __repr__(self):
+        return repr(self.__func)
+
+    def __str__(self):
+        return str(self.__func)
 
     """ Mandatory functions for a wrapper """
 
@@ -187,7 +215,7 @@ class EventManager(input.InputManager):
             self.__responders[evt] = []
 
         self.__currIdleTime = 0
-        self.__idling = False
+        self.__idlingStage = 0
 
     def createEventType(self, typeName):
         """
@@ -241,7 +269,7 @@ class EventManager(input.InputManager):
         assert eventType in self._dynamicEventTypes,\
             "dynamic-event-type '%s' is uknown" % eventType
         assert responderFunc not in self.getResponders(eventType),\
-            "responder-function '%s' for event-type '%s' is already registered in the responder"\
+            "responder-function '%s' for event-type '%s' is already registered in the responder" \
             % (responderFunc.__name__, eventType)
 
         responderList = self.__responders[eventType]
@@ -279,7 +307,7 @@ class EventManager(input.InputManager):
                         "Error calling is_running() function for responder-wrapper %s",
                         responderFunc
                     )
-            
+
         for eventType in self.__responders.keys():
             # Save the original list...
             responderList = self.__responders[eventType]
@@ -310,13 +338,26 @@ class EventManager(input.InputManager):
     # robust registerResponder method outlined above.
     # ----------------------------------------------------------------------
 
-    def _onIdle(self):
+    def _onIdle(self, idle_seconds):
         """
         High-level event handler called whenever we haven't received
         any useful input events for IDLE_TIMEOUT seconds.
         """
+        @call_once_for_given_args
+        def report_function_call_deprecation(func):
+            logging.warning(
+                    "\"idle\" event handling function without an argument is deprecated (function {}() in module {})!".format(
+                        func.get_function().__name__, func.get_function().__module__)
+            )
+
         for func in self.__responders["idle"]:
-            func()
+            try:
+                func(idle_seconds)
+            except TypeError as e:
+                report_function_call_deprecation(func)
+                # Call legacy onidle handler only on default interval of 5 minutes
+                if idle_seconds == IDLE_TIMEOUT:
+                    func()
 
     def onInit(self):
         """
@@ -341,15 +382,19 @@ class EventManager(input.InputManager):
         """
         self.__currIdleTime += msPassed
 
-        if self.__currIdleTime >= 1000 * IDLE_TIMEOUT:
-            if not self.__idling:
-                self.__idling = True
-                try:
-                    self._onIdle()
-                except Exception as e:
-                    logging.error(e)
-        elif self.__idling:
-            self.__idling = False
+        for timeout in _IDLE_TIMEOUT_SCALE:
+            if self.__currIdleTime >= timeout * 1000:
+                if self.__idlingStage < timeout:
+                    self.__idlingStage = timeout
+                    try:
+                        print "triggering onIdle(%d)" % timeout
+                        self._onIdle(timeout)
+                    except Exception as e:
+                        logging.error(e)
+                break
+        else:
+            if self.__idlingStage > 0:
+                self.__idlingStage = 0
 
         for func in self.__responders["timer"]:
             func(msPassed)
@@ -369,7 +414,7 @@ class EventManager(input.InputManager):
         movement, or mouse button click is made.
         """
         self.__currIdleTime = 0
-        self.__idling = False
+        self.__idlingStage = 0
 
         for func in self.__responders["dismissal"]:
             func()
@@ -380,7 +425,7 @@ class EventManager(input.InputManager):
         is made.
         """
         self.__currIdleTime = 0
-        self.__idling = False
+        self.__idlingStage = 0
 
         self._onDismissalEvent()
         for func in self.__responders["key"]:
