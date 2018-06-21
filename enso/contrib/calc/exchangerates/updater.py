@@ -41,7 +41,7 @@ from six import BytesIO
 
 __author__ = "pavelvitis@gmail.com"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-06-20"
+__updated__ = "2018-06-21"
 
 #==============================================================================
 # Imports
@@ -495,6 +495,7 @@ def download_actual_rates():
         raise
     else:
         shutil.move("%s.new" % RATES_FILE, RATES_FILE)
+        os.utime(RATES_FILE)
 
     return len(currency_symbols)
 
