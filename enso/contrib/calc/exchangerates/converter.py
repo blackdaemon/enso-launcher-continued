@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-06-20"
+__updated__ = "2018-06-21"
 
 #==============================================================================
 # Imports
@@ -68,7 +68,7 @@ except ImportError:
 
 from enso.platform import *
 from enso.contrib.scriptotron.ensoapi import EnsoApi
-from enso.events import EventManager
+from enso.events import EventManager, IDLE_TIMEOUT_10S
 from enso.quasimode import Quasimode
 from enso.contrib.calc.ipgetter import myip
 from enso.net import inetcache
@@ -86,6 +86,12 @@ __all__ = [
 # Constants
 #==============================================================================
 
+
+# Minimum interval to wait between checks
+CURRENCY_RATES_CHECK_INTERVAL = 60 * 60
+
+# Start check for currency changes 10 seconds after user is idle
+CURRENCY_RATES_CHECK_AFTER_IDLE = IDLE_TIMEOUT_10S
 
 HTTP_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.12) Gecko/20101028 Firefox/3.6.12',
@@ -122,8 +128,6 @@ RATES_FILENAME = os.path.join(CACHE_DIR, "rates.csv")
 _dir_monitor = None
 _file_changed_event_handler = None
 
-_last_exchangerate_update_check = 0
-
 
 class ExchangeRates(object):
 
@@ -143,6 +147,7 @@ class ExchangeRates(object):
             else:
                 self.run_callback_func(event)
 
+        """
         def on_moved(self, event):
             if event.is_directory:
                 return
@@ -151,6 +156,7 @@ class ExchangeRates(object):
                     self.run_callback_func(event)
             else:
                 self.run_callback_func(event)
+        """
 
         def on_created(self, event):
             if event.is_directory:
@@ -478,11 +484,23 @@ def argv_to_locale(argv):
             for A in argv]
 
 
-def spawn_exchangerates_updater():
+def is_update_check_due():
     global _last_exchangerate_update_check
+    try:
+        return time.time() - _last_exchangerate_update_check >= CURRENCY_RATES_CHECK_INTERVAL
+    except NameError:
+        _last_exchangerate_update_check = 0
+        return True
 
-    now = time.time()
-    if now - _last_exchangerate_update_check < 60 * 60:
+
+def reset_update_check_time():
+    global _last_exchangerate_update_check
+    _last_exchangerate_update_check = time.time()
+
+
+def spawn_exchangerates_updater():
+    if not is_update_check_due():
+        print "Time is low, skipping"
         return 0
 
     try:
@@ -512,10 +530,16 @@ def spawn_exchangerates_updater():
         logging.error("Error spawning exchangerates_updater process: %s", e)
         return 0
     finally:
-        _last_exchangerate_update_check = now
+        reset_update_check_time()
 
 
-def on_idle():
+def on_idle(idle_seconds):
+    if idle_seconds != CURRENCY_RATES_CHECK_AFTER_IDLE:
+        return
+
+    if not is_update_check_due():
+        return
+
     try:
         spawn_exchangerates_updater()
     except Exception as e:
