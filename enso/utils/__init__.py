@@ -11,7 +11,7 @@ def __do_once(ignore_args, func, *args, **kwargs):
     stack.pop()
     code_location = "|".join(str(i) for i in stack.pop()[:-1])
 
-    cache_id = "{}|{}|{}".format(
+    cache_id = "{0}|{1}|{2}".format(
         code_location,
         func,
         "|".join(str(arg) for arg in args) if not ignore_args else "",
