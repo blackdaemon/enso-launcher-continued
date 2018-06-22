@@ -41,7 +41,7 @@ from six import BytesIO
 
 __author__ = "pavelvitis@gmail.com"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-06-21"
+__updated__ = "2018-06-22"
 
 #==============================================================================
 # Imports
@@ -448,7 +448,7 @@ def download_actual_rates():
     symbols = []
     # Limit one query to 2 items
     max_rates_per_request = 2
-    url = "https://free.currencyconverterapi.com/api/v5/convert?compact=ultra&q=%(params)s"
+    url = "http://free.currencyconverterapi.com/api/v5/convert?compact=ultra&q=%(params)s"
     csv = ""
 
     for symbol in currency_symbols:
@@ -495,7 +495,7 @@ def download_actual_rates():
         raise
     else:
         shutil.move("%s.new" % RATES_FILE, RATES_FILE)
-        os.utime(RATES_FILE)
+        os.utime(RATES_FILE, None)
 
     return len(currency_symbols)
 

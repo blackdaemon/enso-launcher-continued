@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-06-21"
+__updated__ = "2018-06-22"
 
 #==============================================================================
 # Imports
@@ -137,11 +137,21 @@ class ExchangeRates(object):
             assert callback_func is None or callable(callback_func)
             self.callback_func = callback_func
             self.filenames = filenames
+            self.last_change_time = time.time()
 
         def on_modified(self, event):
             if event.is_directory:
-                return
-            if self.filenames:
+                # On Linux, we get directory change event if file inside changes
+                for f in self.filenames:
+                    try:
+                        mtime = os.path.getmtime(f)
+                    except:
+                        pass
+                    else:
+                        if mtime > self.last_change_time:
+                            self.last_change_time = mtime
+                            self.run_callback_func(event)
+            elif self.filenames:
                 if event.src_path in self.filenames:
                     self.run_callback_func(event)
             else:
@@ -178,7 +188,10 @@ class ExchangeRates(object):
         self.updated_on = 0
 
         self.parse_rates_file(RATES_FILENAME)
-        self.rates_file_mtime = os.path.getmtime(RATES_FILENAME)
+        try:
+            self.rates_file_mtime = os.path.getmtime(RATES_FILENAME)
+        except IOError:
+            self.rates_file_mtime = 0
 
         self._file_changed_event_handler = ExchangeRates._FileChangedEventHandler(
             [RATES_FILENAME],
