@@ -1,0 +1,6 @@
+pycairo
+python-gobject
+python-gtk2
+python-xlib
+gi
+xprintidle
