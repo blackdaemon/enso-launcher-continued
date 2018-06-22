@@ -32,7 +32,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-__updated__ = "2017-02-23"
+__updated__ = "2018-06-22"
 
 import atexit
 import logging
@@ -41,10 +41,12 @@ from threading import Thread
 
 import gobject
 import gtk
+
 from CharMaps import STANDARD_ALLOWED_KEYCODES as CASE_INSENSITIVE_KEYCODE_MAP
 from Xlib import X
 from shutilwhich import which
 from utils import get_display, get_keycode, get_cmd_output, sanitize_char
+from xprintidle import idle_time
 
 from enso.utils.decorators import suppress
 
@@ -508,6 +510,9 @@ class InputManager (object):
     def getModality(self):
         return self.__isModal
 
+    def getIdleTime(self):
+        return idle_time()
+        
     def setCapsLockMode(self, caps_lock_enabled):
         if caps_lock_enabled:
             self.__keyListener.enable_caps_lock()

@@ -214,7 +214,6 @@ class EventManager(input.InputManager):
         for evt in self._dynamicEventTypes:
             self.__responders[evt] = []
 
-        self.__currIdleTime = 0
         self.__idlingStage = 0
 
     def createEventType(self, typeName):
@@ -326,7 +325,7 @@ class EventManager(input.InputManager):
             numDismissResponders = len(self.__responders["dismissal"])
             if (numMouseResponders + numDismissResponders) == 0:
                 self.enableMouseEvents(False)  # IGNORE:E1101
-
+        
     def run(self):
         """
         Runs the main event loop.
@@ -380,10 +379,8 @@ class EventManager(input.InputManager):
         number of milliseconds passed since the last onTick() call is
         passed in, although this value may not be 100% accurate.
         """
-        self.__currIdleTime += msPassed
-
         for timeout in _IDLE_TIMEOUT_SCALE:
-            if self.__currIdleTime >= timeout * 1000:
+            if self.getIdleTime() >= timeout * 1000:
                 if self.__idlingStage < timeout:
                     self.__idlingStage = timeout
                     try:
@@ -413,7 +410,6 @@ class EventManager(input.InputManager):
         High-level event handler called whenever a keypress, mouse
         movement, or mouse button click is made.
         """
-        self.__currIdleTime = 0
         self.__idlingStage = 0
 
         for func in self.__responders["dismissal"]:
@@ -424,9 +420,6 @@ class EventManager(input.InputManager):
         Low-level event handler called whenever a quasimodal keypress
         is made.
         """
-        self.__currIdleTime = 0
-        self.__idlingStage = 0
-
         self._onDismissalEvent()
         for func in self.__responders["key"]:
             func(eventType, keyCode)
