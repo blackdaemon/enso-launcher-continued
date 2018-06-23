@@ -9,6 +9,7 @@
 .sconsign.*
 *.dll
 *.lib
+*.manifest
 
 /.cache/
 /.ensorc
