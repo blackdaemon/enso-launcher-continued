@@ -379,6 +379,8 @@ class EventManager(input.InputManager):
         number of milliseconds passed since the last onTick() call is
         passed in, although this value may not be 100% accurate.
         """
+        super(EventManager, self).onTick(msPassed)
+        
         for timeout in _IDLE_TIMEOUT_SCALE:
             if self.getIdleTime() >= timeout * 1000:
                 if self.__idlingStage < timeout:
@@ -420,6 +422,7 @@ class EventManager(input.InputManager):
         Low-level event handler called whenever a quasimodal keypress
         is made.
         """
+        super(EventManager, self).onKeypress(eventType, keyCode)
         self._onDismissalEvent()
         for func in self.__responders["key"]:
             func(eventType, keyCode)
@@ -433,6 +436,7 @@ class EventManager(input.InputManager):
         event.  The absolute position of the mouse cursor on-screen is
         passed in.
         """
+        super(EventManager, self).onMouseMove(x, y)
         self._onDismissalEvent()
         for func in self.__responders["mousemove"]:
             func(x, y)
@@ -442,6 +446,7 @@ class EventManager(input.InputManager):
         Low-level event handler called whenever any mouse button is
         pressed.
         """
+        super(EventManager, self).onSomeMouseButton()
         self._onDismissalEvent()
 
     def onSomeKey(self):
@@ -449,6 +454,7 @@ class EventManager(input.InputManager):
         Low-level event handler called whenever a non-quasimodal
         keypress is made.
         """
+        super(EventManager, self).onSomeKey()
         for func in self.__responders["somekey"]:
             func()
         self._onDismissalEvent()
