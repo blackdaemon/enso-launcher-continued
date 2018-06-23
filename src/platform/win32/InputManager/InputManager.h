@@ -262,6 +262,18 @@ public:
     getQuasimodeKeycode( int quasimodeKeycode );
 
     /* --------------------------------------------------------------------
+     * Returns the user idle time.
+     * ....................................................................
+     *
+     * The idle time is based on the detection of mouse and keyboard
+     * events.
+     *
+     * ------------------------------------------------------------------*/
+
+    int
+    getIdleTime( void );
+
+    /* --------------------------------------------------------------------
      * Maps the given quasimode keycode to the given physical keycode.
      * ....................................................................
      *
@@ -351,6 +363,9 @@ private:
     /* Timer ID of the tick timer. */
     UINT_PTR _timerId;
 
+    /* Idle time. */
+    int _idleTime;
+    
     /* Flag that is set to terminate the event thread. */
     volatile bool _terminating;
 #endif

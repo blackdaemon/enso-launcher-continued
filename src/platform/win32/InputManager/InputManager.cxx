@@ -55,7 +55,8 @@
 
 InputManager::InputManager( void ) :
     _terminating( false ),
-    _timerId( 0 )
+    _timerId( 0 ),
+    _idleTime( 0 )
 {
     _threadId = GetCurrentThreadId();
 
@@ -118,22 +119,27 @@ InputManager::_handleThreadMessage( UINT msg,
     switch ( msg ) {
     case WM_TIMER:
         if ( wParam == _timerId )
+            _idleTime += TICK_TIMER_INTRVL;
             onTick( TICK_TIMER_INTRVL );
         break;
 
     case WM_USER_MOUSEMOVE:
+        _idleTime = 0;
         onMouseMove( wParam, lParam );
         break;
 
     case WM_USER_SOMEMOUSEBTN:
+        _idleTime = 0;
         onSomeMouseButton();
         break;
 
     case WM_USER_SOMEKEY:
+        _idleTime = 0;
         onSomeKey();
         break;
 
     case WM_USER_KEYPRESS:
+        _idleTime = 0;
         onKeypress( wParam, lParam );
         break;
 
@@ -481,4 +487,15 @@ void
 InputManager::setModality( int isModal )
 {
     ::setModality( isModal );
+}
+
+/* ------------------------------------------------------------------------
+ * Returns the user idle time (when no mouse or keyboard events were detected).
+ * ........................................................................
+ * ----------------------------------------------------------------------*/
+
+int
+InputManager::getIdleTime( void )
+{
+    return _idleTime;
 }
