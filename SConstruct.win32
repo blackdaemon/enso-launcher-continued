@@ -77,7 +77,6 @@ ccBaseFlags = [
     "/EHsc",    # Synchronous exception handling, assume extern C functions
                 # never throw exceptions.
     "/W3",      # Set warning level (max is 4, min is 0)
-    "/WX",      # Treat all warnings as errors
     "/nologo",  # Suppress display of sign-on banner
     "/arch:SSE",
     ]
