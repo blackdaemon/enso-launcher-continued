@@ -79,9 +79,6 @@ ccBaseFlags = [
     "/W3",      # Set warning level (max is 4, min is 0)
     "/WX",      # Treat all warnings as errors
     "/nologo",  # Suppress display of sign-on banner
-    "/Zi",      # Produce a program database (PDB) that contains type
-                # information and symbolic debugging information for use
-                # with the debugger.
     "/arch:SSE",
     ]
 
@@ -94,6 +91,9 @@ ccDebugFlags = [
                 # we don't really need the debugging support provided by
                 # the CRT.
     "/Od",      # Disable optimization
+    "/Zi",      # Produce a program database (PDB) that contains type
+                # information and symbolic debugging information for use
+                # with the debugger.
     ]
 
 ccNoDebugFlags = [
@@ -113,11 +113,11 @@ ccNoDebugFlags = [
 
 linkBaseFlags = [
     "/nologo",
-    "/DEBUG",   # Create .pdb file containing debugging information
     "/MACHINE:X86",
     ]
 
 linkDebugFlags = [
+    "/DEBUG",   # Create .pdb file containing debugging information
     ]
 
 linkNoDebugFlags = [
@@ -196,13 +196,14 @@ baseEnv.addLib(
     )
 
 # Handle virtualenv, sys.prefix is not pointing to Python dir
+orig_prefix = None
 try:
    import os
    with open(os.path.join(sys.prefix, "Lib", "orig-prefix.txt"), "r") as f:
       orig_prefix = f.read()
 except:
    pass
-finally:
+else:
    if orig_prefix:
       print "orig-prefix:",orig_prefix
       baseEnv.addLib(
