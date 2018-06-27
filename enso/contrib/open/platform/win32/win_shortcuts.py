@@ -245,7 +245,7 @@ class PyShellLink(_AbstractPyShortcut):
                 if iditem and len(iditem) > 5 and iditem.startswith(u"\u8061"):
                     iditem = iditem[1:].strip(u"\x00")
                     if iditem.startswith(("http://", "https://", "hcp://")):
-        target = iditem
+                        target = iditem
                         #shortcut_type = SHORTCUT_TYPE_URL
         return target
 
