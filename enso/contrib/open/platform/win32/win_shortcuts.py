@@ -37,6 +37,9 @@ import pythoncom
 from win32com.shell import shell, shellcon
 
 
+REPORT_UNICODE_DECODE_FAILURE = False
+
+
 class _AbstractPyShortcut( object ):
     __metaclass__ = ABCMeta
 
@@ -236,12 +239,13 @@ class PyShellLink(_AbstractPyShortcut):
                         try:
                             iditem = idlist[1].decode("UTF-8")
                         except UnicodeDecodeError as e:
-                            logging.error(e)
+                            if REPORT_UNICODE_DECODE_FAILURE:
+                                logging.error(e)
                 #FIXME: Is this format always same? u"\u8061\x00\x00{URL}\x00\x00"
                 if iditem and len(iditem) > 5 and iditem.startswith(u"\u8061"):
                     iditem = iditem[1:].strip(u"\x00")
                     if iditem.startswith(("http://", "https://", "hcp://")):
-                        target = iditem
+        target = iditem
                         #shortcut_type = SHORTCUT_TYPE_URL
         return target
 

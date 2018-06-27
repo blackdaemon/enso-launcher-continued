@@ -92,6 +92,8 @@ __updated__ = "2017-04-17"
 
 logger = logging.getLogger(__name__)
 
+REPORT_UNRESOLVABLE_TARGETS = False
+
 EXECUTABLE_EXTS = ['.exe', '.com', '.cmd', '.bat', '.py', '.pyw']
 EXECUTABLE_EXTS.extend(
     [ext for ext
@@ -368,7 +370,8 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                         shortcut_filepath)
                     shortcut_filename = basename(shortcut_filepath)
                 except WindowsError as e:
-                    logging.error(
+                    if REPORT_UNRESOLVABLE_TARGETS:
+                        logging.warning(
                             "Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
                     continue
 
@@ -388,8 +391,8 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                     # print type(target)
                     if isinstance(target, str):
                         target = target.encode("string_escape")
-                    else:
-                        print target.replace("\\", "\\\\")
+                    #else:
+                    #    print target.replace("\\", "\\\\")
                     if safe_isdir(target):
                         shortcut_type = SHORTCUT_TYPE_FOLDER
                     elif safe_isfile(target):
@@ -782,9 +785,11 @@ class OpenCommandImpl(AbstractOpenCommand):
         )
         """
         shortcuts = []
+        """
         import cProfile
         cProfile.runctx(
             'list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
+        """
         with Timer("Loaded common-desktop shortcuts"):
             shortcuts.extend(get_shortcuts_from_dir(common_desktop_dir,
                                                     max_depth=0, collect_dirs=True

@@ -301,3 +301,5 @@ HTTPS_PROXY_URL = None
 # folder placement.
 # SCRIPTS_FOLDER_NAME = "c:\\documents\\ensocommands")
 # import os; SCRIPTS_FOLDER_NAME = os.path.expanduser("~/.enso_commands")
+
+DEBUG_REPORT_TIMINGS = False

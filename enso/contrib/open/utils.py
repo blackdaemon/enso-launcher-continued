@@ -1,5 +1,5 @@
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
-    
+
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -31,15 +31,18 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import time
 from contextlib import contextmanager
 
+from enso import config
 
 @contextmanager
 def Timer(name):
     start = time.clock()
     yield
-    print u"%s: %0.4Fs" % (name, time.clock() - start)
+    if config.DEBUG_REPORT_TIMINGS:
+        logging.info(u"%s: %0.4Fs" % (name, time.clock() - start))
 
 
 if __name__ == "__main__":
