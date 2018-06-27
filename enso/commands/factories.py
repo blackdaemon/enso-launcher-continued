@@ -369,17 +369,15 @@ class GenericPrefixFactory(AbstractCommandFactory):
         if (len(commandName) > len(prefix)) and commandName.startswith(prefix):
             parameter = commandName.split(self.PREFIX, 1)[1]
             try:
-                # TODO: This must not crash Enso
                 return self._generateCommandObj(parameter)
-            except Exception, e:
+            except Exception as e:
                 logging.error(
                     "Error in command-factory generating command object: %s", e)
         elif commandName.startswith(prefix) or prefix.startswith(commandName):
             parameter = None
             try:
-                # TODO: This must not crash Enso
                 return self._generateCommandObj(parameter)
-            except Exception, e:
+            except Exception as e:
                 logging.error(
                     "Error in command-factory generating command object: %s", e)
                 return None

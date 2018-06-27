@@ -295,7 +295,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     app = applications.applications_dict.get(shortcut.name, None)
                 if app:
                     """
-                    #TODO: Finish switching to already open app window by title search(?)
+                    # LONGTERM TODO: Finish switching to already open app window by title search(?)
                     try:
                         win_list = windows_list.get_windows_by_app(app)
                         if len(win_list) > 1:

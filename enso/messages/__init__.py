@@ -592,6 +592,7 @@ def displayMessage(msgXml, primaryMsg=True, miniMsg=False, miniMsgXml=None,
             waitTime=primaryWaitTime
         )
 
+    assert msg
     MessageManager.get().newMessage(msg, onDismissal)
 
 

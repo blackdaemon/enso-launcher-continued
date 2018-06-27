@@ -77,7 +77,7 @@ from enso.quasimode.layout import (
 from enso.quasimode.linewindows import TextWindow
 from enso.quasimode.layout import SCALE_FACTOR
 
-# TODO: Implement variable position (maybe floating dynamcally)
+# TODO: Implement variable position (maybe floating dynamically)
 POSITION = (0, 0)
 
 # ----------------------------------------------------------------------------
@@ -144,7 +144,7 @@ class QuasimodeWindow(object):
 
     def setPosition(self, x, y):
         self.__descriptionWindow.setPosition(x, y)
-        
+
     def hide(self):
         self.__descriptionWindow.hide()
         self.__userTextWindow.hide()

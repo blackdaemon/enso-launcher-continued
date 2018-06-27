@@ -77,10 +77,10 @@ EVENT_TYPES = [
     "dismissal",
     "traymenu",
     "idle",
-    "session_lock",  # TODO: Implement session lock detection
-    "session_unlock",  # TODO: Implement session unlock detection
-    "screensaver_start",  # TODO: Implement screensaver-start detection
-    "screensaver_stop",  # TODO: Implement screensaver-stop detection
+#    "session_lock",  # TODO: Implement session lock detection
+#    "session_unlock",  # TODO: Implement session unlock detection
+#    "screensaver_start",  # TODO: Implement screensaver-start detection
+#    "screensaver_stop",  # TODO: Implement screensaver-stop detection
     "init",
     "mousemove",
     "somekey"
@@ -325,7 +325,7 @@ class EventManager(input.InputManager):
             numDismissResponders = len(self.__responders["dismissal"])
             if (numMouseResponders + numDismissResponders) == 0:
                 self.enableMouseEvents(False)  # IGNORE:E1101
-        
+
     def run(self):
         """
         Runs the main event loop.
@@ -380,7 +380,7 @@ class EventManager(input.InputManager):
         passed in, although this value may not be 100% accurate.
         """
         super(EventManager, self).onTick(msPassed)
-        
+
         for timeout in _IDLE_TIMEOUT_SCALE:
             if self.getIdleTime() >= timeout * 1000:
                 if self.__idlingStage < timeout:

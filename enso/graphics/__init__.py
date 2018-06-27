@@ -57,7 +57,7 @@ def refreshWorkareaInfo():
 
 
 def getDesktopOffset(force_refresh=False):
-    """ Return primary monitor desktop offset in points. 
+    """ Return primary monitor desktop offset in points.
     WARNING: This is very expensive operation on Linux
     We cache it here. Call refreshWorkareaSize() to refresh the cache.
     """
@@ -68,7 +68,7 @@ def getDesktopOffset(force_refresh=False):
 
 
 def getDesktopSize(force_refresh=False):
-    """ Return primary monitor desktop size in points. 
+    """ Return primary monitor desktop size in points.
     WARNING: This is very expensive operation on Linux
     We cache it here. Call refreshWorkareaSize() to refresh the cache.
     """
@@ -83,7 +83,7 @@ def getWorkareaOffset(force_refresh=False):
     Return primary monitor workarea offset in points.
     Workarea is the desktop area not covered with taskbar and appbars.
     WARNING: This is very expensive operation on Linux
-    We cache it here. Call refreshWorkareaSize() to refresh the cache.
+    We cache it here. Call refreshWorkareaOffset() to refresh the cache.
     """
     global __workarea_offset
     if __workarea_offset is None or force_refresh:

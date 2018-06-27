@@ -39,7 +39,7 @@ from win32com.shell import shell, shellcon
 
 class _AbstractPyShortcut( object ):
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, base, filename=None):
         self._base = base
         self._base_loaded = False
@@ -58,7 +58,7 @@ class _AbstractPyShortcut( object ):
         try:
             self._base.QueryInterface( pythoncom.IID_IPersistFile ).Load( self.__filename ) #, win32com.storagecon.STGM_READ )
             self._base_loaded = True
-        except Exception, e: #IGNORE:W0703
+        except Exception as e: #IGNORE:W0703
             self._base_loaded = False
             logging.error("Error loading shell-link for file %s", self.__filename)
             logging.error(e)
@@ -72,7 +72,7 @@ class _AbstractPyShortcut( object ):
         try:
             self._base.QueryInterface( pythoncom.IID_IPersistFile ).Save( self.__filename, 0 )
             self._base_loaded = True
-        except Exception, e: #IGNORE:W0703
+        except Exception as e: #IGNORE:W0703
             self._base_loaded = False
             logging.error("Error saving shell-link for file %s", self.__filename)
             logging.error(e)
@@ -227,15 +227,15 @@ class PyShellLink(_AbstractPyShortcut):
                 iditem = None
                 try:
                     iditem = idlist[1].decode("UTF-16LE")
-                except UnicodeDecodeError, e:
-                    logging.error(e)
+                except UnicodeDecodeError as e:
+                    #logging.error(e)
                     try:
                         iditem = idlist[1].decode("UTF-16")
-                    except UnicodeDecodeError, e:
-                        logging.error(e)
+                    except UnicodeDecodeError as e:
+                        #logging.error(e)
                         try:
                             iditem = idlist[1].decode("UTF-8")
-                        except UnicodeDecodeError, e:
+                        except UnicodeDecodeError as e:
                             logging.error(e)
                 #FIXME: Is this format always same? u"\u8061\x00\x00{URL}\x00\x00"
                 if iditem and len(iditem) > 5 and iditem.startswith(u"\u8061"):

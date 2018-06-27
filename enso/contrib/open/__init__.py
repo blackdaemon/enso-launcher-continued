@@ -131,7 +131,7 @@ class LearnAsOpenCommand(CommandObject):
     def run(self):
         seldict = ensoapi.get_selection()
         if seldict.get('files'):
-            #TODO: Handle opening of multiple files
+            # LONGTERM TODO: Handle opening of multiple files
             filename = seldict['files'][0]
         elif seldict.get('text'):
             filename = seldict['text'].strip()

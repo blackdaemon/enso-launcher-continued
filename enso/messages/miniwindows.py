@@ -77,10 +77,10 @@ class MiniMessageQueue(object):
     """
 
     # Mode/state constants; the class is always in one of these states.
-    EMPTY = 0
-    POLLING = 1
-    APPEARING = 2
-    VANISHING = 3
+    STATUS_EMPTY = 0
+    STATUS_POLLING = 1
+    STATUS_APPEARING = 2
+    STATUS_VANISHING = 3
 
     def __init__(self, msgMan, eventManager):
         self.__evtManager = eventManager
@@ -90,7 +90,7 @@ class MiniMessageQueue(object):
 
         self.__isPolling = False
 
-        self.__status = self.EMPTY
+        self.__status = self.STATUS_EMPTY
         self.__changingIndex = None
         self.__hidingAll = False
 
@@ -112,11 +112,11 @@ class MiniMessageQueue(object):
         else:
             self.__newMessages.append(msg)
             # Switch to polling to trigger the animation.
-            if self.__status == self.EMPTY:
+            if self.__status == self.STATUS_EMPTY:
                 self.__startPolling()
 
     def onMouseMove(self, x, y):
-        if self.__status != self.POLLING:
+        if self.__status != self.STATUS_POLLING:
             return
 
         if self.__mousePos != (x, y):
@@ -172,7 +172,7 @@ class MiniMessageQueue(object):
         self.__mouseoverIndex = newIndex
 
     def onTick(self, msPassed):
-        if self.__status == self.POLLING:
+        if self.__status == self.STATUS_POLLING:
             self.__onMouseMove()
 
             if len(self.__visibleMessages) == 0 \
@@ -188,16 +188,15 @@ class MiniMessageQueue(object):
                 for index in range(len(self.__visibleMessages)):
                     if self.__visibleMessages[index].message.isFinished():
                         self.__startVanishing(index)
-        elif self.__status == self.APPEARING:
+        elif self.__status == self.STATUS_APPEARING:
             # Update the appearing animation.
             self.__onAppearingTick(msPassed)
-        elif self.__status == self.VANISHING:
+        elif self.__status == self.STATUS_VANISHING:
             # Update the appearing animation.
             self.__onVanishingTick(msPassed)
         else:
-            # LONGTERM TODO: Decide whether this should raise an assertion
-            # error, or just set the status to polling.
-            raise Exception("What's going on!?")
+            assert False, "Unhandled status value!"
+            pass
 
     def __showHelpMessage(self, xPos, yPos, rounded):
         if self.__helpWindow is None:
@@ -228,7 +227,7 @@ class MiniMessageQueue(object):
             topMsg.roundTopLeftCorner()
 
     def __startPolling(self):
-        self.__status = self.POLLING
+        self.__status = self.STATUS_POLLING
 
         if self.__isPolling:
             return
@@ -240,14 +239,14 @@ class MiniMessageQueue(object):
                                                 "mousemove")
 
     def __stopPolling(self):
-        assert self.__status == self.POLLING, "status != POLLING"
+        assert self.__status == self.STATUS_POLLING, "status != STATUS_POLLING"
         assert self.__isPolling, "isPolling is False"
 
         self.__isPolling = False
         self.__hidingAll = False
         self.__evtManager.removeResponder(self.onTick)
         self.__evtManager.removeResponder(self.onMouseMove)
-        self.__status = self.EMPTY
+        self.__status = self.STATUS_EMPTY
 
     def __startAppearing(self, msg):
         # FIXME: This is slowing it down, call it only when it changes
@@ -277,7 +276,7 @@ class MiniMessageQueue(object):
         newWindow = MiniMessageWindow(msg, xPos, yPos)
         self.__visibleMessages.append(newWindow)
         self.__changingIndex = len(self.__visibleMessages) - 1
-        self.__status = self.APPEARING
+        self.__status = self.STATUS_APPEARING
         self.__roundTopWindow()
 
     def __stopAppearing(self):
@@ -292,7 +291,7 @@ class MiniMessageQueue(object):
             miniWind._wind.update()
             self.__hideHelpMessage()
 
-        self.__status = self.VANISHING
+        self.__status = self.STATUS_VANISHING
 
     def __stopVanishing(self):
         self.__visibleMessages.pop(self.__changingIndex)

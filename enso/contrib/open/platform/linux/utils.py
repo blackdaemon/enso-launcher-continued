@@ -61,17 +61,12 @@ def get_file_type(text):
     content_type = None
     try:
         content_type = gio.content_type_guess(filename, sample, want_uncertain=False)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-        #print content_type
         can_execute = gio.content_type_can_be_executable(content_type)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
     except Exception as e:
         logging.error("Error guessing file type: %s", e)
     if not can_execute:
-        #print "not executable? ", content_type
         if os.access(filename, os.X_OK):
-            #print "has executable perms"
             return shortcuts.SHORTCUT_TYPE_EXECUTABLE
-    # FIXME: If is executable but has not execute perms, issue warning
     if can_execute and os.access(filename, os.X_OK):
-        #print "is executable"
         return shortcuts.SHORTCUT_TYPE_EXECUTABLE
     return shortcuts.SHORTCUT_TYPE_DOCUMENT

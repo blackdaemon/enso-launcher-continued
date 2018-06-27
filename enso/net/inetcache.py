@@ -59,9 +59,9 @@ def is_online():
         # Trying to open the socket seems to be better than pinging as the ICMP
         # protocol is sometimes blocked either on the OS level (on RHEL you have to be root)
         # or by various antivirus or firewall software, or also by routers across network.
-        # Whereas DNS lookup should always be available. If it is not, for any reason, 
+        # Whereas DNS lookup should always be available. If it is not, for any reason,
         # we additionally try HTTP connect to reliable servers.
-        
+
         #TODO: Parameterize following hosts/ports
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
             """
@@ -91,7 +91,7 @@ def is_online():
         return False
     else:
         return True
-        
+
 # TODO: Finish the online retrieval function with offline data caching
 def retrieve_online_data(retrieval_func, offline_result_func, retry_count=1, retry_wait=5.0, async=False):
     assert retry_count > 0
@@ -106,12 +106,12 @@ def retrieve_online_data(retrieval_func, offline_result_func, retry_count=1, ret
             except Exception as e:
                 retry -= 1
                 time.sleep(retry_wait)
-                
+
         return offline_result_func()
-            
+
     if async:
         t = threading.Thread(
-            target=_retrieval_func, 
+            target=_retrieval_func,
             args=(retrieval_func, offline_result_func, retry_count, retry_wait))
         t.setDaemon(True)
         t.start()
@@ -120,6 +120,5 @@ def retrieve_online_data(retrieval_func, offline_result_func, retry_count=1, ret
         return _retrieval_func(retrieval_func, offline_result_func, retry_count, retry_wait)
 
 isonline = is_online()
-print "ISONLINE:", isonline
 
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:

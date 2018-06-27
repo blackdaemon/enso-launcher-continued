@@ -83,7 +83,7 @@ class Suggestion(object):
         '__end',
         '_nearness',
     )
-    
+
     def __init__(
             self,
             originalText,
@@ -132,29 +132,6 @@ class Suggestion(object):
 
     def getHelpText(self):
         return self.__helpText
-
-    """
-    TODO:This is broken because the __transform() function has been optimized
-    and is not setting __completion variable.
-    It is not used anywhere in the code anyway...
-
-    def toNextWord( self ):
-        ""
-        Returns the simple string representation of the suggestion, i.e.,
-        the exact suggested text.
-
-        Example:
-
-          >>> s = Suggestion( 'fo', 'foo bar' )
-          >>> s.toNextWord()
-          'foo '
-        ""
-
-        if self.__completion is None:
-            self.__transform()
-
-        return self.__completion
-    """
 
     def toText(self):
         """

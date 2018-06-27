@@ -335,7 +335,7 @@ def _decompress_response(resp):
                 # 'Accept-encoding: gzip' header, but we don't.
                 result_html = None
         else:
-            assert logging.debug("currency updater decompressing gzipped response %d->%d" % (len(data), len(result_html))) or True
+            assert logging.debug("Currency-updater decompressing gzipped response %d->%d" % (len(data), len(result_html))) or True
     elif data and 'deflate' == content_encoding:
         try:
             result_html = zlib.decompress(data)
@@ -346,7 +346,7 @@ def _decompress_response(resp):
             except zlib.error as e:
                 logging.error(e)
         else:
-            assert logging.debug("bmw.py decompressing deflated response %d->%d" %
+            assert logging.debug("Currency-updater decompressing deflated response %d->%d" %
                                  (len(data), len(result_html))) or True
     else:
         result_html = data

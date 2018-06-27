@@ -336,7 +336,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                         'NFKD', unicode(shortcut_directory)).encode('ascii', 'ignore')
                     # if shortcut_name != old_name:
                     #    print "NORMALIZED:", old_name, shortcut_name
-                except Exception, e:  # IGNORE:W0703
+                except Exception as e:  # IGNORE:W0703
                     logging.error(u"%s; directory:%s", e, target)  # dirpath)
                 else:
                     try:
@@ -348,7 +348,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                             category=category,
                             flags=flags
                         )
-                    except AssertionError, e:
+                    except AssertionError as e:
                         logging.error(e)
 
         for shortcut_filename in shortcut_filenames:
@@ -369,7 +369,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                     shortcut_filename = basename(shortcut_filepath)
                 except WindowsError as e:
                     logging.error(
-                        "Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
+                            "Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
                     continue
 
             # rdp is remote-desktop shortcut
@@ -446,7 +446,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                         category=category,
                         flags=flags
                     )
-                except AssertionError, e:
+                except AssertionError as e:
                     logging.error(e)
                 #really_processed += 1
     # print "Total files to process:", total_files_processed, ", really processed:", really_processed
@@ -454,7 +454,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
 
 
 def get_special_folders(use_categories=True):
-    # TODO:Use sublasses here (something like SpecialShortcut, or
+    # TODO: Use subclasses here (something like SpecialShortcut, or
     # FixedShortcut)
     with suppress():
         yield Shortcut(
@@ -970,7 +970,6 @@ class OpenCommandImpl(AbstractOpenCommand):
 class RecentCommandImpl(AbstractOpenCommand):
 
     def __init__(self, use_categories=True):
-        print "RecentCommandIMpl.__init__()"
         self.shortcut_dict = None
         self.use_categories = use_categories
         super(RecentCommandImpl, self).__init__()
