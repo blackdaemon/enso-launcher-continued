@@ -407,8 +407,8 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                     elif target.startswith(("http://", "https://", "hcp://")):
                         shortcut_type = SHORTCUT_TYPE_URL
                 else:
-                    #shortcut_type = SHORTCUT_TYPE_DOCUMENT
-                    continue
+                    target = shortcut_filepath
+                    shortcut_type = SHORTCUT_TYPE_DOCUMENT
             elif shortcut_ext == ".url":
                 url_link = win_shortcuts.PyInternetShortcut(shortcut_filepath)
                 target = url_link.get_target()
