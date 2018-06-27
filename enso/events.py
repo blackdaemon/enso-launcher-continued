@@ -386,7 +386,6 @@ class EventManager(input.InputManager):
                 if self.__idlingStage < timeout:
                     self.__idlingStage = timeout
                     try:
-                        print "triggering onIdle(%d)" % timeout
                         self._onIdle(timeout)
                     except Exception as e:
                         logging.error(e)
