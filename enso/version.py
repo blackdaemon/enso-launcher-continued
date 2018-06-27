@@ -1,4 +1,4 @@
-__updated__ = "2017-03-10"
+__updated__ = "2018-06-20"
 
 import os
 import sys
@@ -74,13 +74,26 @@ def get_git_remote_version():
     """Get current remote version (origin/master) of Enso git repository
     """
     try:
-        rc, stdout = _get_cmd_output(
-            'echo -n "origin/master $(git describe --tags --always origin/master | sed -rn "s/-[0-9a-z]+$//p") [$(git show -s --format=%ci origin/master)]"',
-            cwd=_get_enso_directory())
-        if rc == 0:
-            return stdout.strip()
+        if sys.platform.startswith("win"):
+            rc, version = _get_cmd_output(
+                'git describe --tags --always origin/master', # | sed -rn "s/-[0-9a-z]+$//p") [$(git show -s --format=%ci origin/master)]"',
+                cwd=_get_enso_directory())
+            if rc != 0:
+                raise Exception("Error running command: (%d) %s" % (rc, version))
+            rc, build_time = _get_cmd_output(
+                'git show -s --format=%ci origin/master',
+                cwd=_get_enso_directory())
+            if rc != 0:
+                raise Exception("Error running command: (%d) %s" % (rc, build_time))
+            return "%s [%s]" % (version, build_time)
         else:
-            raise Exception("Error running command: (%d) %s" % (rc, stdout))
+            rc, stdout = _get_cmd_output(
+                'echo -n "origin/master $(git describe --tags --always origin/master | sed -rn "s/-[0-9a-z]+$//p") [$(git show -s --format=%ci origin/master)]"',
+                cwd=_get_enso_directory())
+            if rc == 0:
+                return stdout.strip()
+            else:
+                raise Exception("Error running command: (%d) %s" % (rc, stdout))
     except Exception as e:
         # It can fail if git command does not exist
         print "Error determining git repo remote version; %s" % e
