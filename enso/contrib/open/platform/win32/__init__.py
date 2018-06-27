@@ -88,7 +88,7 @@ if utils.platform_windows_vista() or utils.platform_windows_7():
 else:
     from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
 
-__updated__ = "2017-03-02"
+__updated__ = "2017-04-17"
 
 logger = logging.getLogger(__name__)
 
@@ -306,7 +306,7 @@ def dirwalk(top, max_depth=None):
                     yield x
 
 
-def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_dirs=False, category=None):
+def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_dirs=False, category=None, flags=0):
     assert max_depth is None or max_depth >= 0
 
     if not os.path.isdir(directory):
@@ -341,7 +341,13 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                 else:
                     try:
                         yield Shortcut(
-                            shortcut_name.lower(), SHORTCUT_TYPE_FOLDER, target, target)
+                            shortcut_name.lower(),
+                            SHORTCUT_TYPE_FOLDER,
+                            target,
+                            target,
+                            category=category,
+                            flags=flags
+                        )
                     except AssertionError, e:
                         logging.error(e)
 
@@ -433,7 +439,13 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
             else:
                 try:
                     yield Shortcut(
-                        shortcut_name, shortcut_type, target, shortcut_path)
+                        shortcut_name,
+                        shortcut_type,
+                        target,
+                        shortcut_path,
+                        category=category,
+                        flags=flags
+                    )
                 except AssertionError, e:
                     logging.error(e)
                 #really_processed += 1
@@ -862,8 +874,9 @@ class OpenCommandImpl(AbstractOpenCommand):
         with Timer("Loaded Enso learn-as shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(LEARN_AS_DIR,
-                                       max_depth=0
+                                       max_depth=0,
                                        #,category="learned" if self.use_categories else None
+                                       flags=SHORTCUT_FLAG_LEARNED
                                        ))
             if directory_watcher:
                 directory_watcher.manager.register_handler(

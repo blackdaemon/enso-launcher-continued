@@ -241,7 +241,6 @@ class AbstractOpenCommand(IOpenCommand):
         Unregister shortcut.
         Undo functionality is implemented here.
         """
-        # FIXME: Do not offer non-unlearnable shortcuts to "unlearn open" command
         shortcut = self.shortcut_dict[shortcut_name]
         if shortcut.flags & shortcuts.SHORTCUT_FLAG_CANTUNLEARN:
             raise Exception("Shortcut can't be unlearned: %s" % shortcut.target)

@@ -415,7 +415,10 @@ class UnlearnOpenCommandFactory(GenericPrefixFactory):
         if self.postfixes_updated_on >= shortcuts_dict.updated_on:
             return
         with utils.Timer("Setting postfixes for 'unlearn open' command."):
-            self.setPostfixes(shortcuts_dict.keys())
+            self.setPostfixes(
+                s[0] for s in shortcuts_dict.iteritems()
+                if s[1].flags & shortcuts.SHORTCUT_FLAG_LEARNED
+            )
         self.postfixes_updated_on = shortcuts_dict.updated_on
 
 

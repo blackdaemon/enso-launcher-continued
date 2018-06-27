@@ -1,5 +1,5 @@
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
-    
+
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
 #
@@ -44,6 +44,7 @@ SHORTCUT_TYPE_DOCUMENT = 'd'  # All other shortcuts
 SHORTCUT_TYPE_VIRTUAL = 'v'  # Virtual folders/links in Vista/Win7
 
 SHORTCUT_FLAG_CANTUNLEARN = 1
+SHORTCUT_FLAG_LEARNED = 2
 
 
 _SHORTCUT_TYPES = (
@@ -71,8 +72,8 @@ class Shortcut(object):
         'target',
         'type',
     )
-    
-    def __init__(self, name, target_type, target, shortcut_filename=None, category=None):
+
+    def __init__(self, name, target_type, target, shortcut_filename=None, category=None, flags=0):
         assert name, "Name must not be empty"
         assert target_type in _SHORTCUT_TYPES, "Type must be valid type: %s (name=%s)" % (target_type, name)
         assert target if target_type in _SHORTCUT_TYPES_WITH_MANDATORY_TARGET else True, \
@@ -87,13 +88,13 @@ class Shortcut(object):
         self.category = category
 
         # TODO:Implement special shortcuts (not learned, not unlearnable) as a subclasses
-        self.flags = 0
+        self.flags = flags
         if not shortcut_filename or target_type in SHORTCUT_TYPE_CONTROL_PANEL:
             self.flags |= SHORTCUT_FLAG_CANTUNLEARN
 
     def __str__(self):
-        return "Shortcut '%s' of type %s and category '%s' saved at '%s' having target '%s'" % (
-            self.name, self.type, self.category, self.shortcut_filename, self.target)
+        return "Shortcut '%s' of type %s and category '%s' saved at '%s' having target '%s' and flags %d" % (
+            self.name, self.type, self.category, self.shortcut_filename, self.target, self.flags)
 
 
 class ShortcutsDict(dict):
