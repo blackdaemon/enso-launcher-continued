@@ -209,9 +209,9 @@ PLUGIN_WEBSEARCH_GOOGLE = {
     "name": "Google",
     "prefix": "google ",
     "argument": "search terms",
-    "base_url": "http://www.google.%(tld)s/search?q=%(query)s",
+    "base_url": "http://www.google.%(google_tld)s/search?q=%(query)s",
     "suggest": True,
-    "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
+    "suggestions_url": "http://clients1.google.%(google_tld)s/complete/search?"
             "hl=%(langcode)s&gl=en&client=firefox&ie=%(charset)s&oe=%(charset)s&q=%(query)s",
     "is_json": True,
     "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
@@ -220,9 +220,9 @@ PLUGIN_WEBSEARCH_GOOGLEIMAGES = {
     "name": "Google Images",
     "prefix": "images ",
     "argument": "search terms",
-    "base_url": "http://images.google.%(tld)s/images?um=1&hl=%(langcode)s&rlz=1C1GGLS_en-USCZ294&safeui=off&btnG=Search+Images&q=%(query)s",
+    "base_url": "http://images.google.%(google_tld)s/images?um=1&hl=%(langcode)s&rlz=1C1GGLS_en-USCZ294&safeui=off&btnG=Search+Images&q=%(query)s",
     "suggest": True,
-    "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
+    "suggestions_url": "http://clients1.google.%(google_tld)s/complete/search?"
             "gl=%(langcode)s&client=img&ie=%(charset)s&oe=%(charset)s&pq=%(query)s&hl=%(langcode)s&q=%(query)s",
     "is_json": True,
     "result_parser": lambda json: (i[0] for i in json[1]) if json and len(json) > 1 and json[1] else [],
@@ -233,7 +233,7 @@ PLUGIN_WEBSEARCH_YOUTUBE = {
     "argument": "search terms",
     "base_url": "http://www.youtube.com/results?search_type=&aq=0&nofeather=True&oq=&search_query=%(query)s",
     "suggest": True,
-    "suggestions_url": "http://clients1.google.%(tld)s/complete/search?"
+    "suggestions_url": "http://clients1.google.%(google_tld)s/complete/search?"
             "hl=%(langcode)s&ds=yt&client=firefox&hjson=t&ie=%(charset)s&oe=%(charset)s&q=%(query)s",
     "is_json": True,
     "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],

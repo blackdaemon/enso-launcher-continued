@@ -109,7 +109,7 @@ def ensure_cache_dir_exists(cache_id):
 
 
 def write_list_to_cache_file(fname, lst):
-    with open(fname, "wbt") as f:
+    with open(fname, "wb") as f:
         f.write(u"\n".join(lst).encode("UTF-8"))
 
 

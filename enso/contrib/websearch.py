@@ -122,14 +122,14 @@ t.start()
 @warn_overriding
 class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, ArbitraryPostfixFactory):
     """
-    Implementation of the 'google' command.
+    Implementation of the web-search command.
     """
 
     __metaclass__ = ABCMeta
 
     def __init__(self, command_name, suggest, polling_interval):
         """
-        Initializes the google command.
+        Initializes the web-search command.
         """
         assert isinstance(command_name, basestring)
         assert len(command_name) > 0
@@ -145,7 +145,7 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
     @safetyNetted
     def run(self):
         """
-        Runs the google command.
+        Runs the web-search command.
         """
 
         if self.parameter is not None:
@@ -180,13 +180,13 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
             language = languageCode.split("_")[0]
         else:
             language = "en"
-        
+
         # The following is standard convention for transmitting
         # unicode through a URL.
         text = urllib.quote_plus(text.encode("utf-8"))
 
         url = self.BASE_URL % {
-            "tld": GOOGLE_DOMAIN,
+            "google_tld": GOOGLE_DOMAIN, # Used just for Google services
             "langcode": language,
             "query": text,
         }
@@ -195,7 +195,7 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
         # without any reason
         try:
             webbrowser.open_new_tab(url)
-        except Exception, e:
+        except Exception as e:
             logging.warning(e)
 
     def onSuggestQueryError(self, url_or_request, exception):
@@ -203,16 +203,15 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
 
     def _generateCommandObj(self, parameter=None):
         self.parameter = parameter
-        article = "an" if self.command_name[0].lower() in "aeiou" else "a"
         if self.parameter is not None:
             self.setDescription(
-                u"Performs %s %s search for \u201c%s\u201d."
-                % (article, self.command_name, self.parameter)
+                u"Performs %s search for \u201c%s\u201d."
+                % (self.command_name, self.parameter)
             )
         else:
             self.setDescription(
-                u"Performs %s %s search on the selected or typed text." % (
-                    article, self.command_name)
+                u"Performs %s search on the selected or typed text." % (
+                    self.command_name)
             )
         return self
 
@@ -223,7 +222,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
         re.compile(r"^(?:window.google.ac.h\()?(.*?)\)?$").sub,
         r"\1"
     )
-    
+
     def __init__(
             self,
             command_name,
@@ -268,7 +267,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
             language = languageCode.split("_")[0]
         else:
             language = "en"
-            
+
         url = self.suggestions_url % {
             "query": query,
             "charset": charset,
