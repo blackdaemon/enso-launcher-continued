@@ -99,8 +99,8 @@ IDLE_TIMEOUT_5S = 5
 IDLE_TIMEOUT = IDLE_TIMEOUT_5M
 
 # Scale of timeouts from largest to smallest. Used internally.
-_IDLE_TIMEOUT_SCALE = list(
-    reversed(sorted(globals()[v] for v in globals().keys() if v.startswith("IDLE_TIMEOUT_")))
+_IDLE_TIMEOUT_SCALE = tuple(
+    reversed(sorted(var[1] for var in globals().items() if var[0].startswith("IDLE_TIMEOUT_")))
 )
 
 
