@@ -322,6 +322,52 @@ def dirwalk(top, max_depth=None):
                     yield x
 
 
+def get_shortcut_type_and_target(shortcut_filepath, shortcut_ext):
+    """ Determine the shortcut type and its target (real file it points to).
+    If it can't determine the type, it returns None, None.
+    """
+    shortcut_type, target = None, None
+
+    if shortcut_ext == ".lnk":
+        shell_link = win_shortcuts.PyShellLink(shortcut_filepath)
+        # FIXME: Maybe extracting of path could be done lazily in the Shortcut object itself
+        # bottom-line here is: we need to extract it to get the type
+        # type could be also get lazily, but the advantage is then void
+        target = shell_link.get_target()
+        if target:
+        # print type(target)
+            if isinstance(target, str):
+                target = target.encode("string_escape") #else:
+            #    print target.replace("\\", "\\\\")
+            if safe_isdir(target):
+                shortcut_type = SHORTCUT_TYPE_FOLDER
+            elif safe_isfile(target):
+                target_ext = splitext(target)[1].lower()
+                if target_ext in EXECUTABLE_EXTS | set([".ahk"]):
+                    shortcut_type = SHORTCUT_TYPE_EXECUTABLE
+                elif target_ext == ".url":
+                    shortcut_type = SHORTCUT_TYPE_URL
+                else:
+                    shortcut_type = SHORTCUT_TYPE_DOCUMENT #shortcut_type = get_file_type(target)
+            elif target.startswith(("http://", "https://", "hcp://")):
+                shortcut_type = SHORTCUT_TYPE_URL
+        else:
+            target = shortcut_filepath
+            shortcut_type = SHORTCUT_TYPE_DOCUMENT
+    elif shortcut_ext == ".url":
+        url_link = win_shortcuts.PyInternetShortcut(shortcut_filepath)
+        target = url_link.get_target()
+        shortcut_type = SHORTCUT_TYPE_URL
+    elif shortcut_ext == ".rdp":
+        target = shortcut_filepath
+        shortcut_type = SHORTCUT_TYPE_DOCUMENT
+    elif shortcut_ext == ".vmcx":
+        target = shortcut_filepath
+        shortcut_type = SHORTCUT_TYPE_DOCUMENT
+
+    return shortcut_type, target
+
+
 def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_dirs=False, category=None, flags=0):
     assert max_depth is None or max_depth >= 0
 
@@ -368,8 +414,6 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                         logging.error(e)
 
         for shortcut_filename in shortcut_filenames:
-            target = None
-
             shortcut_filepath = pathjoin(shortcut_dirpath, shortcut_filename)
 
             if re_ignored and re_ignored.search(shortcut_filepath):
@@ -378,62 +422,27 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
             shortcut_name, shortcut_ext = splitext(shortcut_filename)
             shortcut_ext = shortcut_ext.lower()
 
-            if filesystem.is_symlink(shortcut_filepath):
-                try:
-                    shortcut_filepath = filesystem.trace_symlink_target(
-                        shortcut_filepath)
-                    shortcut_filename = basename(shortcut_filepath)
-                except WindowsError as e:
-                    if REPORT_UNRESOLVABLE_TARGETS:
-                        logging.warning(
-                            "Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
+            try:
+                if filesystem.is_symlink(shortcut_filepath):
+                    try:
+                        shortcut_filepath = filesystem.trace_symlink_target(
+                            shortcut_filepath)
+                        shortcut_filename = basename(shortcut_filepath)
+                    except WindowsError as e:
+                        if REPORT_UNRESOLVABLE_TARGETS:
+                            logging.warning(
+                                u"Unresolvable symbolic link; target file does not exists: \"%s\"" % shortcut_filepath)
+                        continue
+            except Exception as e:
+                logging.error(u"Error determining if the target is a symlink: %s", str(e))
+                continue
+
+            try:
+                shortcut_type, target = get_shortcut_type_and_target(shortcut_filepath, shortcut_ext)
+                if shortcut_type is None:
                     continue
-
-            # rdp is remote-desktop shortcut
-            # if not shortcut_ext in (".lnk", ".url", ".rdp"):
-            #    continue
-            # print shortcut_name, shortcut_ext
-            shortcut_type = SHORTCUT_TYPE_DOCUMENT
-
-            if shortcut_ext == ".lnk":
-                shell_link = win_shortcuts.PyShellLink(shortcut_filepath)
-                # FIXME: Maybe extracting of path could be done lazily in the Shortcut object itself
-                # bottom-line here is: we need to extract it to get the type
-                # type could be also get lazily, but the advantage is then void
-                target = shell_link.get_target()
-                if target:
-                    # print type(target)
-                    if isinstance(target, str):
-                        target = target.encode("string_escape")
-                    #else:
-                    #    print target.replace("\\", "\\\\")
-                    if safe_isdir(target):
-                        shortcut_type = SHORTCUT_TYPE_FOLDER
-                    elif safe_isfile(target):
-                        target_ext = splitext(target)[1].lower()
-                        if target_ext in EXECUTABLE_EXTS | set([".ahk"]):
-                            shortcut_type = SHORTCUT_TYPE_EXECUTABLE
-                        elif target_ext == ".url":
-                            shortcut_type = SHORTCUT_TYPE_URL
-                        else:
-                            shortcut_type = SHORTCUT_TYPE_DOCUMENT
-                        #shortcut_type = get_file_type(target)
-                    elif target.startswith(("http://", "https://", "hcp://")):
-                        shortcut_type = SHORTCUT_TYPE_URL
-                else:
-                    target = shortcut_filepath
-                    shortcut_type = SHORTCUT_TYPE_DOCUMENT
-            elif shortcut_ext == ".url":
-                url_link = win_shortcuts.PyInternetShortcut(shortcut_filepath)
-                target = url_link.get_target()
-                shortcut_type = SHORTCUT_TYPE_URL
-            elif shortcut_ext == ".rdp":
-                target = shortcut_filepath
-                shortcut_type = SHORTCUT_TYPE_DOCUMENT
-            elif shortcut_ext == ".vmcx":
-                target = shortcut_filepath
-                shortcut_type = SHORTCUT_TYPE_DOCUMENT
-            else:
+            except Exception as e:
+                logging.error(u"Error determining the shortcut type: %s", str(e))
                 continue
 
             #shortcuts.append((shortcut_type, shortcut_name.lower(), os.path.join(dirpath, filename)))
