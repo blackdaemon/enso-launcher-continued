@@ -137,12 +137,12 @@ class IOpenCommand(object):
         open another files.
         This is used to identify correct shortcuts for 'open with' command.
         """
-        return None
+        _ = shortcut_name  # Keep Pylint happy
 
     @abstractmethod
     def add_shortcut(self, shortcut_name, target):
         """ Register shortcut """
-        return
+        _ = shortcut_name, target  # Keep Pylint happy
 
     @abstractmethod
     def remove_shortcut(self, shortcut_name):
@@ -150,7 +150,7 @@ class IOpenCommand(object):
         Unregister shortcut.
         Undo functionality should be implemented here.
         """
-        return
+        _ = shortcut_name  # Keep Pylint happy
 
     @abstractmethod
     def undo_remove_shortcut(self):
@@ -160,7 +160,7 @@ class IOpenCommand(object):
     @abstractmethod
     def run_shortcut(self, shortcut_name):
         """ Run the program/document represented by shortcut """
-        return
+        _ = shortcut_name  # Keep Pylint happy
 
     @abstractmethod
     def open_with_shortcut(self, shortcut_name, targets):
@@ -168,7 +168,7 @@ class IOpenCommand(object):
         Open target(s) (file(s)) with the application represented
         by runnable shortcut.
         """
-        return
+        _ = shortcut_name, targets  # Keep Pylint happy
 
 
 class AbstractOpenCommand(IOpenCommand):
@@ -297,7 +297,7 @@ class AbstractOpenCommand(IOpenCommand):
                 shortcuts.SHORTCUT_TYPE_EXECUTABLE,
                 'iexplore.exe')
         """
-        return
+        _ = shortcuts_dict  # Keep Pylint happy
 
     @abstractmethod
     def _get_learn_as_dir(self):
@@ -309,21 +309,21 @@ class AbstractOpenCommand(IOpenCommand):
     @abstractmethod
     def _save_shortcut(self, name, target):
         """ Register shortcut """
-        return
+        _ = name, target  # Keep Pylint happy
 
     @abstractmethod
     def _remove_shortcut(self, shortcut):
         """ Unregister shortcut """
-        return
+        _ = shortcut  # Keep Pylint happy
 
     @abstractmethod
     def _run_shortcut(self, shortcut):
         """ Run the program/document represented by shortcut """
-        return
+        _ = shortcut  # Keep Pylint happy
 
     @abstractmethod
     def _get_shortcut_type(self, file_name):
-        return None
+        _ = file_name  # Keep Pylint happy
 
     @abstractmethod
     def _is_runnable(self, shortcut):
@@ -331,11 +331,11 @@ class AbstractOpenCommand(IOpenCommand):
         open another files.
         This is used to identify correct shortcuts for 'open with' command.
         """
-        return None
+        _ = shortcut  # Keep Pylint happy
 
     @abstractmethod
     def _open_with_shortcut(self, name, file_names):
         """ Open target(s) (file(s)) with the application represented
         by runnable shortcut.
         """
-        return
+        _ = name, file_names  # Keep Pylint happy
