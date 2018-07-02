@@ -5,7 +5,11 @@ try:
 except ImportError:
     VERSION_LOCAL = ""
 from enso._version_remote import VERSION as VERSION_REMOTE
-from enso.platform import CURRENT_PLATFORM, PLATFORM_NAME_LINUX
+from enso.platform import (
+    CURRENT_PLATFORM,
+    PLATFORM_NAME_LINUX,
+    PLATFORM_NAME_WINDOWS
+)
 
 # Configuration settings for Enso.  Eventually this will take
 # localization into account too (or we can make a separate module for
@@ -301,5 +305,11 @@ HTTPS_PROXY_URL = None
 # folder placement.
 # SCRIPTS_FOLDER_NAME = "c:\\documents\\ensocommands")
 # import os; SCRIPTS_FOLDER_NAME = os.path.expanduser("~/.enso_commands")
+
+# It appears that the asynchronous I/O in Python is much slower on Windows
+# and it's faster to not use asynchronous refresh on startup.
+# However this was observed on Python 2.x, can't speak for Python 3.x.
+# TODO: This needs more testing.
+ASYNCHRONOUS_OPEN_SHORTCUTS_REFRESH = (CURRENT_PLATFORM != PLATFORM_NAME_WINDOWS)
 
 DEBUG_REPORT_TIMINGS = False

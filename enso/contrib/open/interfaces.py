@@ -51,6 +51,7 @@ except Exception, e:
 import enso.messages
 from enso.contrib.open import shortcuts
 from enso.contrib.open import utils
+from enso import config
 from enso.utils.decorators import timed_execution
 
 def display_message(msg):
@@ -189,12 +190,16 @@ class AbstractOpenCommand(IOpenCommand):
                 self.shortcuts_map.update(shortcuts)
                 """
 
-        # Reload shortcuts dictionary in the thread
         self._unlearn_open_undo = []
         self.shortcut_dict = shortcuts.ShortcutsDict()
-        t = threading.Thread(target=reloader_thread, args=(self,))
-        # t.setDaemon(True)
-        t.start()
+
+        # Reload shortcuts dictionary in the thread
+        if config.ASYNCHRONOUS_OPEN_SHORTCUTS_REFRESH:
+            t = threading.Thread(target=reloader_thread, args=(self,))
+            t.setDaemon(False)
+            t.start()
+        else:
+            self._reload_shortcuts(self.shortcut_dict)
 
     def get_shortcuts(self, force_reload=False):
         """ Return ShortcutsDict of all collected Shortcut objects """

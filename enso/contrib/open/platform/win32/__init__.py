@@ -81,6 +81,7 @@ from enso.utils.decorators import (
     timed_execution,
     timed,
     synchronized,
+    debounce
 )
 from enso.utils import suppress
 from enso.contrib.scriptotron.ensoapi import EnsoApi
@@ -101,6 +102,9 @@ __updated__ = "2017-04-17"
 logger = logging.getLogger(__name__)
 
 REPORT_UNRESOLVABLE_TARGETS = False
+
+# Debouncing time of shortcuts refreshes in seconds
+SHORTCUTS_REFRESH_DEBOUNCE_TIME = 4
 
 EXECUTABLE_EXTS = ['.exe', '.com', '.cmd', '.bat', '.py', '.pyw']
 EXECUTABLE_EXTS.extend(
@@ -768,6 +772,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         """
 
         @timed("Loaded common-desktop shortcuts")
+        @synchronized()
         def reload_commom_desktop_shortcuts(path=None):
             #with timed_execution("Loaded common-desktop shortcuts"):
             shortcuts_dict.update_by_dir(
@@ -780,11 +785,12 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_commom_desktop_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_commom_desktop_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_commom_desktop_shortcuts),
             ((common_desktop_dir, False),),
         )
 
         @timed("Loaded user-desktop shortcuts")
+        @synchronized()
         @initialize_pythoncom
         def reload_user_desktop_shortcuts(path=None):
             shortcuts_dict.update_by_dir(
@@ -798,11 +804,12 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_user_desktop_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_user_desktop_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_user_desktop_shortcuts),
             ((desktop_dir, False),),
         )
 
         @timed("Loaded quick-launch shortcuts")
+        @synchronized()
         @initialize_pythoncom
         def reload_quick_launch_shortcuts(path=None):
             shortcuts_dict.update_by_dir(
@@ -817,7 +824,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_quick_launch_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_quick_launch_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_quick_launch_shortcuts),
             ((quick_launch_dir, False),),
         )
 
@@ -837,6 +844,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             return "startmenu %s" % category
 
         @timed("Loaded user-start-menu shortcuts")
+        @synchronized()
         @initialize_pythoncom
         def reload_user_start_menu_shortcuts(path=None):
             shortcuts_dict.update_by_dir(
@@ -850,11 +858,12 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_user_start_menu_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_user_start_menu_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_user_start_menu_shortcuts),
             ((start_menu_dir, False),),
         )
 
         @timed("Loaded common-start-menu shortcuts")
+        @synchronized()
         @initialize_pythoncom
         def reload_common_start_menu_shortcuts(path=None):
             shortcuts_dict.update_by_dir(
@@ -868,11 +877,12 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_common_start_menu_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_common_start_menu_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_common_start_menu_shortcuts),
             ((common_start_menu_dir, False),),
         )
 
         @timed("Loaded Virtual PC machines")
+        @synchronized()
         @initialize_pythoncom
         def reload_virtual_pc_machines(path=None):
             shortcuts_dict.update_by_dir(
@@ -885,7 +895,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_virtual_pc_machines()
         dirwatcher.register_monitor_callback(
-            reload_virtual_pc_machines,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_virtual_pc_machines),
             ((virtualmachines_dir, False),)
         )
 
@@ -907,6 +917,7 @@ class OpenCommandImpl(AbstractOpenCommand):
 
         if os.path.isdir(GAMEEXPLORER_DIR):
             @timed("Loaded gameexplorer entries")
+            @synchronized()
             @initialize_pythoncom
             def reload_gameexplorer_shortcuts(path=None):
                 shortcuts_dict.update(
@@ -917,11 +928,12 @@ class OpenCommandImpl(AbstractOpenCommand):
                 )
             reload_gameexplorer_shortcuts()
             dirwatcher.register_monitor_callback(
-                reload_gameexplorer_shortcuts,
+                debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_gameexplorer_shortcuts),
                 ((GAMEEXPLORER_DIR, False),)
             )
 
         @timed("Loaded Enso learn-as shortcuts", 'reload_enso_learned_shortcuts')
+        @synchronized()
         @initialize_pythoncom
         def reload_enso_learned_shortcuts(path=None):
             shortcuts_dict.update_by_dir(
@@ -936,7 +948,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         reload_enso_learned_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_enso_learned_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_enso_learned_shortcuts),
             ((LEARN_AS_DIR, False),),
         )
 
@@ -1036,6 +1048,7 @@ class RecentCommandImpl(AbstractOpenCommand):
         self.shortcut_dict = ShortcutsDict()
 
         @timed("Loaded recent documents shortcuts")
+        @synchronized()
         @initialize_pythoncom
         def reload_recent_shortcuts(path=None):
             self.shortcut_dict.update(
@@ -1047,7 +1060,7 @@ class RecentCommandImpl(AbstractOpenCommand):
 
         reload_recent_shortcuts()
         dirwatcher.register_monitor_callback(
-            reload_recent_shortcuts,
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_recent_shortcuts),
             ((recent_documents_dir, False),)
         )
 

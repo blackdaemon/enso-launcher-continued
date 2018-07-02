@@ -70,6 +70,28 @@ from enso.utils import do_once
 # Functionality
 # ----------------------------------------------------------------------------
 
+def debounce(wait):
+    """ Decorator that will postpone a functions
+        execution until after wait seconds
+        have elapsed since the last time it was invoked. """
+    def decorator(fn):
+        @wraps(fn)
+        def debounced(*args, **kwargs):
+            def call_it():
+                print "DEBOUNCE [%s]: called" % fn.__name__
+                #print fn, args, kwargs
+                return fn(*args, **kwargs)
+            try:
+                debounced.t.cancel()
+            except(AttributeError):
+                pass
+            else:
+                print "DEBOUNCE [%s]: droped" % fn.__name__
+            debounced.t = threading.Timer(wait, call_it)
+            debounced.t.start()
+        return debounced
+    return decorator
+
 
 def log_once(text):
     """ Decorator for logging the function result once. """
