@@ -60,7 +60,7 @@ QUASIMODE_DOUBLETAP_DELAY = 0.5
 QUASIMODE_DOUBLETAP_COMMAND = "open"
 
 # Append 'open {query}' command suggestions at the end of the suggestions list
-# if the suggestions list is shorther than QUASIMODE_MAX_SUGGESTIONS
+# if the suggestions list is shorter than QUASIMODE_MAX_SUGGESTIONS
 QUASIMODE_APPEND_OPEN_COMMAND = False
 
 # Replace suggestion with 'open {query}' command if there is no command matching
@@ -93,23 +93,24 @@ QUASIMODE_DEFAULT_HELP = u"Welcome to Enso! Enter a command, " \
 # The string displayed when the user has typed some characters but there
 # is no matching command.
 QUASIMODE_NO_COMMAND_HELP = "There is no matching command. " \
-    "Use backspace to delete characters."
+    "Use Backspace or Del to delete characters."
 
-# Message XML for the Splash message shown when Enso first loads.
+# Message XML for the splash message shown when Enso first loads.
+# Set this to None in your .ensorc to disable the splash message.
 OPENING_MSG_XML = "<p>Welcome to <command>Enso</command>!</p>" \
     "<caption>Copyright &#169; 2008 Humanized, Inc.</caption>" \
-    "<p>Version: %s</p>" \
+    "<p>Parts developed by Pavel Vitis [blackdaemon] pavelvitis@gmail.com</p>" \
+    "<p>%s</p>" \
     "<p>https://github.com/blackdaemon/enso-launcher-continued</p>" \
-    % ("%s</p><p>%s" % (VERSION_LOCAL, VERSION_REMOTE) if VERSION_LOCAL else "</p><p>%s" % VERSION_REMOTE)
+    % ("Version[local]: %s</p><p>Version[remote]: %s" % (VERSION_LOCAL, VERSION_REMOTE) if VERSION_LOCAL else "Version: %s" % VERSION_REMOTE)
 
 # Message XML for the About message.
-ABOUT_MSG_XML = u"<p><command>Enso</command> Community Edition</p>" \
-    "<caption> </caption>" \
+ABOUT_MSG_XML = u"<p><command>Enso</command></p>" \
     "<p>Copyright &#169; 2008 <b>Humanized, Inc.</b></p>" \
-    "<p>Parts developed by Pavel Vitis pavelvitis@gmail.com</p>" \
-    "<p>Version: %s</p>" \
+    "<p>Parts developed by Pavel Vitis [blackdaemon] pavelvitis@gmail.com</p>" \
+    "<p>%s</p>" \
     "<p>https://github.com/blackdaemon/enso-launcher-continued</p>" \
-    % ("%s</p><p>%s" % (VERSION_LOCAL, VERSION_REMOTE) if VERSION_LOCAL else "</p><p>%s" % VERSION_REMOTE)
+    % ("Version[local]: %s</p><p>Version[remote]: %s" % (VERSION_LOCAL, VERSION_REMOTE) if VERSION_LOCAL else "Version: %s" % VERSION_REMOTE)
 
 # Message XML displayed when the mouse hovers over a mini message.
 MINI_MSG_HELP_XML = "<p>The <command>hide mini messages</command>" \
