@@ -47,11 +47,18 @@ import unicodedata
 from ctypes import wintypes
 from itertools import chain
 from xml.sax.saxutils import escape as xml_escape
+from os import listdir
 from os.path import (
     basename,
+    dirname,
+    exists,
+    expanduser,
     isdir,
     isfile,
+    islink,
     join as pathjoin,
+    normpath,
+    pathsep,
     splitext,
 )
 
@@ -109,7 +116,7 @@ SHORTCUTS_REFRESH_DEBOUNCE_TIME = 4
 EXECUTABLE_EXTS = ['.exe', '.com', '.cmd', '.bat', '.py', '.pyw']
 EXECUTABLE_EXTS.extend(
     [ext for ext
-        in os.environ['PATHEXT'].lower().split(os.pathsep)
+        in os.environ['PATHEXT'].lower().split(pathsep)
         if ext not in EXECUTABLE_EXTS])
 EXECUTABLE_EXTS = set(EXECUTABLE_EXTS)
 
@@ -124,15 +131,15 @@ def get_special_folder_path(folder_id):
         )  # .decode("iso-8859-2")
     )
 
-LEARN_AS_DIR = os.path.join(
+LEARN_AS_DIR = pathjoin(
     get_special_folder_path(shellcon.CSIDL_PERSONAL),
     u"Enso's Learn As Open Commands")
 
 # Check if Learn-as dir exist and create it if not
-if (not os.path.isdir(LEARN_AS_DIR)):
+if (not isdir(LEARN_AS_DIR)):
     os.makedirs(LEARN_AS_DIR)
 
-RECYCLE_BIN_LINK = os.path.join(LEARN_AS_DIR, "recycle bin.lnk")
+RECYCLE_BIN_LINK = pathjoin(LEARN_AS_DIR, "recycle bin.lnk")
 
 # Shortcuts in Start-Menu/Quick-Links that are ignored
 startmenu_ignored_links = re.compile(
@@ -140,7 +147,7 @@ startmenu_ignored_links = re.compile(
     "\blicense$|\bchangelog$|\brelease ?notes$)",
     re.IGNORECASE)
 
-GAMEEXPLORER_DIR = os.path.join(
+GAMEEXPLORER_DIR = pathjoin(
     get_special_folder_path(shellcon.CSIDL_LOCAL_APPDATA),
     "Microsoft", "Windows", "GameExplorer")
 
@@ -153,7 +160,7 @@ def load_cached_shortcuts():
     #cursor = None
     try:
         conn = sqlite3.connect(
-            os.path.expanduser("~/enso-open-shortcuts.db"),
+            expanduser("~/enso-open-shortcuts.db"),
             timeout=0.5
         )
         logging.info("connected " + repr(conn))
@@ -183,7 +190,7 @@ def save_shortcuts_cache(shortcuts_dict):
     try:
         conn = sqlite3.connect(
             #":memory:",
-            os.path.expanduser("~/enso-open-shortcuts.db"),
+            expanduser("~/enso-open-shortcuts.db"),
             isolation_level='DEFERRED',
             timeout=0.5
         )
@@ -245,11 +252,11 @@ def get_file_type(target):
 
     # FIXME: the file existence check must be also based on PATH search,
     # probably use "is_runnable" instead
-    if not os.path.exists(target) and interfaces.is_valid_url(target):
+    if not exists(target) and interfaces.is_valid_url(target):
         return SHORTCUT_TYPE_URL
 
     file_path = target
-    file_name, file_ext = os.path.splitext(file_path)
+    file_name, file_ext = splitext(file_path)
     file_ext = file_ext.lower()
 
     if file_ext == ".url":
@@ -258,18 +265,18 @@ def get_file_type(target):
     if file_ext == ".lnk":
         sl = win_shortcuts.PyShellLink(file_path)
         file_path = sl.get_target()
-        if file_path and os.path.exists(file_path):
-            file_name, file_ext = os.path.splitext(file_path)
+        if file_path and exists(file_path):
+            file_name, file_ext = splitext(file_path)
             file_ext = file_ext.lower()
         elif target.startswith(("http://", "https://", "hcp://")):
             return SHORTCUT_TYPE_URL
         else:
             return SHORTCUT_TYPE_DOCUMENT
 
-    if os.path.isdir(file_path):
+    if isdir(file_path):
         return SHORTCUT_TYPE_FOLDER
 
-    if (os.path.isfile(file_path) and ext in EXECUTABLE_EXTS):
+    if (isfile(file_path) and ext in EXECUTABLE_EXTS):
         return SHORTCUT_TYPE_EXECUTABLE
 
     # TODO: Finish this
@@ -286,9 +293,6 @@ def dirwalk(top, max_depth=None):
     This is adapted version from os.py in standard libraries.
     Top-down walking logic has been removed as it is not useful here.
     """
-    from os import listdir
-    # Speed optimization
-    from os.path import join, isdir, islink
 
     # We may not have read permission for top, in which case we can't
     # get a list of the files the directory contains.  os.path.walk
@@ -302,7 +306,7 @@ def dirwalk(top, max_depth=None):
 
     dirs, nondirs = [], []
     for name in names:
-        if isdir(join(top, name)):
+        if isdir(pathjoin(top, name)):
             dirs.append(name)
         else:
             nondirs.append(name)
@@ -312,7 +316,7 @@ def dirwalk(top, max_depth=None):
     if max_depth is None or max_depth > 0:
         depth = None if max_depth is None else max_depth - 1
         for name in dirs:
-            path = join(top, name)
+            path = pathjoin(top, name)
             if not islink(path):
                 for x in dirwalk(path, depth):
                     yield x
@@ -321,7 +325,7 @@ def dirwalk(top, max_depth=None):
 def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_dirs=False, category=None, flags=0):
     assert max_depth is None or max_depth >= 0
 
-    if not os.path.isdir(directory):
+    if not isdir(directory):
         return
 
     """
@@ -504,7 +508,7 @@ def get_special_folders(use_categories=True):
             get_special_folder_path(shellcon.CSIDL_MYMUSIC)
         )
 
-    if not os.path.isfile(RECYCLE_BIN_LINK):
+    if not isfile(RECYCLE_BIN_LINK):
         recycle_shortcut = pythoncom.CoCreateInstance(
             shell.CLSID_ShellLink, None,
             pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink
@@ -559,8 +563,8 @@ def get_gameexplorer_entries(use_categories=True):
             continue
 
         # Obtain the game .lnk shortcut from known directory
-        game_dir = os.path.join(GAMEEXPLORER_DIR, key, "PlayTasks", "0")
-        links = os.listdir(game_dir)
+        game_dir = pathjoin(GAMEEXPLORER_DIR, key, "PlayTasks", "0")
+        links = listdir(game_dir)
         shortcut_filename = None
         if links:
             for link in links:
@@ -595,7 +599,7 @@ def run_shortcut(shortcut):
                 work_dir = None
             else:
                 target, params = utils.splitcmdline(target)
-                target = os.path.normpath(
+                target = normpath(
                     utils.expand_win_path_variables(target))
                 params = " ".join(
                     (
@@ -610,7 +614,7 @@ def run_shortcut(shortcut):
                 # C:\Windows\system32\FlashPlayerCPLApp.cpl ,@0
                 if ".cpl" in params:
                     params = re.sub(r"(.*) (,@[0-9]+)$", "\\1\\2", params)
-                work_dir = os.path.dirname(target)
+                work_dir = dirname(target)
             logger.info(
                 "Executing '%s%s'", target, " " + params if params else "")
             try:
@@ -633,7 +637,7 @@ def run_shortcut(shortcut):
             except WindowsError, e:
                 logger.error("%d: %s", e.errno, e)
         else:
-            target = os.path.normpath(
+            target = normpath(
                 utils.expand_win_path_variables(shortcut.shortcut_filename))
             logger.info("Executing '%s'", target)
 
@@ -694,8 +698,8 @@ def open_with_shortcut(shortcut, targets):
         return
 
     executable = utils.expand_win_path_variables(shortcut.target)
-    workdir = os.path.dirname(executable)
-    _, ext = os.path.splitext(executable)
+    workdir = dirname(executable)
+    _, ext = splitext(executable)
     # If it is a shortcut, extract the executable info
     # for to be able to pass the command-line parameters
     if ext.lower() == ".lnk":
@@ -703,7 +707,7 @@ def open_with_shortcut(shortcut, targets):
         executable = sl.get_target()
         workdir = sl.get_working_dir()
         if not workdir:
-            workdir = os.path.dirname(executable)
+            workdir = dirname(executable)
     # print executable, workdir
 
     params = u" ".join((u'"%s"' % file_name for file_name in targets))
@@ -739,7 +743,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         desktop_dir = get_special_folder_path(shellcon.CSIDL_DESKTOPDIRECTORY)
         common_desktop_dir = get_special_folder_path(
             shellcon.CSIDL_COMMON_DESKTOPDIRECTORY)
-        quick_launch_dir = os.path.join(
+        quick_launch_dir = pathjoin(
             get_special_folder_path(shellcon.CSIDL_APPDATA),
             "Microsoft",
             "Internet Explorer",
@@ -747,7 +751,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         start_menu_dir = get_special_folder_path(shellcon.CSIDL_STARTMENU)
         common_start_menu_dir = get_special_folder_path(
             shellcon.CSIDL_COMMON_STARTMENU)
-        virtualmachines_dir = os.path.join(
+        virtualmachines_dir = pathjoin(
             get_special_folder_path(shellcon.CSIDL_PROFILE),
             "Virtual Machines")
         recent_documents_dir = get_special_folder_path(shellcon.CSIDL_RECENT)
