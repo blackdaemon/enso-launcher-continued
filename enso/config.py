@@ -10,6 +10,10 @@ from enso.platform import (
     PLATFORM_NAME_LINUX,
     PLATFORM_NAME_WINDOWS
 )
+from enso.utils.html_tools import (
+    strip_html_tags,
+    unescape_html_entities
+)
 
 # Configuration settings for Enso.  Eventually this will take
 # localization into account too (or we can make a separate module for
@@ -272,8 +276,6 @@ PLUGIN_WEBSEARCH_URBANDICTIONARY = {
     "is_json": True,
     "result_parser": lambda json: json if json else [],
 }
-
-from enso.utils.html_tools import strip_html_tags, unescape_html_entities
 
 PLUGIN_WEBSEARCH_COMMANDLINEFU = {
     "name": "CommandlineFu",

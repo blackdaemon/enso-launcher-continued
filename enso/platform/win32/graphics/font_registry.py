@@ -201,7 +201,6 @@ class FontRegistry:
 
         font_detail = None
         try:
-            started = time.time()
             regkey = win32api.RegOpenKeyEx(  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 win32api.RegConnectRegistry(None, win32con.HKEY_LOCAL_MACHINE),  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
                 FONT_LIST_REG_KEY)
@@ -244,8 +243,6 @@ class FontRegistry:
                         if font_name2 and font_name != font_name2:
                             font_info['names'].append(font_name2)
             """
-            print "Available fonts examination finished in %fs" % (time.time() - started)
-            #import traceback; traceback.print_stack()
         except Exception as e:
             logging.error(e)
 

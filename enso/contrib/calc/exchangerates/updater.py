@@ -361,7 +361,6 @@ def _download_data(url, modifiedsince=None):
                 '%a, %d %b %Y %H:%M:%S GMT', time.gmtime(modifiedsince))
         request = urllib2.Request(url, None, HTTP_HEADERS)
         with closing(urllib2.urlopen(request, None, 5)) as resp:
-            print resp.headers
             if resp.code == 304:
                 raise NotModifiedSince()
             # This should avoid blocking the main thread

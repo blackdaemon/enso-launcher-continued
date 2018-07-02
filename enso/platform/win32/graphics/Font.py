@@ -1,6 +1,6 @@
 # Copyright (c) 2008, Humanized, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -14,7 +14,7 @@
 #    3. Neither the name of Enso nor the names of its contributors may
 #       be used to endorse or promote products derived from this
 #       software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Humanized, Inc. ``AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -54,13 +54,13 @@ class Font:
     Encapsulates a font face, which describes both a given typeface
     and style.
     """
-    
+
     def __init__( self, fileName, size, cairoContext ):
         """
         Creates a Font from the given filename pointing to a TrueType
         font file, at the given size (in points).
         """
-        
+
         import os
 
         if not os.path.exists( fileName ):
@@ -75,13 +75,13 @@ class Font:
         self.loadInto( cairoContext )
 
         # Make our font metrics information visible to the client.
-        
+
         ( self.ascent,
           self.descent,
           self.height,
           self.maxXAdvance,
           self.maxYAdvance ) = cairoContext.font_extents()
-        
+
         cairoContext.restore()
 
     @memoized
@@ -130,14 +130,14 @@ class FontGlyph:
     """
     Encapsulates a glyph of a font face.
     """
-    
+
     def __init__( self, char, font, cairoContext ):
         """
         Creates the font glyph corresponding to the given Unicode
         character, using the font specified by the given Font object
         and the given cairo context.
         """
-        
+
         # Encode the character to UTF-8 because that's what the cairo
         # API uses.
         self.charAsUtf8 = char.encode("UTF-8")
@@ -145,7 +145,7 @@ class FontGlyph:
         self.font = font
 
         cairoContext.save()
-        
+
         self.font.loadInto( cairoContext )
 
         # Make our font glyph metrics information visible to the client.
@@ -166,7 +166,7 @@ class FontGlyph:
         self.yMin = -yBearing + height
         self.yMax = -yBearing
         self.advance = xAdvance
-        
+
         cairoContext.restore()
 
 
@@ -181,12 +181,12 @@ class FontRegistry:
     style rather without having to know the location of a specific
     TrueType file.
     """
-    
+
     def __init__( self ):
         """
         Initializes the font registry.
         """
-        
+
         self._registry = {}
 
         dummySurface = cairo.ImageSurface( cairo.FORMAT_ARGB32, 1, 1 )
@@ -198,7 +198,7 @@ class FontRegistry:
         Registers the given TrueType font filename as representing the
         given font name with the given style.
         """
-        
+
         registryKey = (name, italic)
 
         if registryKey in self._registry:
@@ -212,7 +212,7 @@ class FontRegistry:
         Retrieves a Font object corresponding to the given font name
         at the given size and style.
         """
-        
+
         registryKey = (name, italic)
 
         fileName = self._registry[registryKey]

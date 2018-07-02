@@ -235,7 +235,6 @@ class ScriptTracker(object):
         commandFiles = [self._scriptFilename]
         if files:
             commandFiles = commandFiles + files
-            print "Files to reload: ", commandFiles
         else:
             commandFiles = commandFiles + self._getCommandFiles()
 
