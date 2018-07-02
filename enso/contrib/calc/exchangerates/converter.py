@@ -68,7 +68,7 @@ except ImportError:
 
 from enso.platform import *
 from enso.contrib.scriptotron.ensoapi import EnsoApi
-from enso.events import EventManager, IDLE_TIMEOUT_10S
+from enso.events import EventManager, IDLE_TIMEOUT_30S
 from enso.quasimode import Quasimode
 from enso.contrib.calc.ipgetter import myip
 from enso.net import inetcache
@@ -91,7 +91,7 @@ __all__ = [
 CURRENCY_RATES_CHECK_INTERVAL = 60 * 60
 
 # Start check for currency changes 10 seconds after user is idle
-CURRENCY_RATES_CHECK_AFTER_IDLE = IDLE_TIMEOUT_10S
+CURRENCY_RATES_CHECK_AFTER_IDLE = IDLE_TIMEOUT_30S
 
 HTTP_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.12) Gecko/20101028 Firefox/3.6.12',
@@ -520,7 +520,7 @@ def spawn_exchangerates_updater():
         try:
             if CURRENT_PLATFORM == PLATFORM_NAME_LINUX:
                 import gobject  # @UnresolvedImport
-                cmdline = ["python", 
+                cmdline = ["python",
                     os.path.join(_get_enso_directory(), "enso", "contrib", "calc",
                         "exchangerates", "updater.py"
                     )
@@ -530,8 +530,8 @@ def spawn_exchangerates_updater():
                         flags=gobject.SPAWN_SEARCH_PATH | gobject.SPAWN_STDOUT_TO_DEV_NULL)
                 return pid
             else:
-                cmdline = ["python.exe", 
-                    os.path.join(_get_enso_directory(), "enso", "contrib", "calc", 
+                cmdline = ["python.exe",
+                    os.path.join(_get_enso_directory(), "enso", "contrib", "calc",
                         "exchangerates", "updater.py"
                     )
                 ]
