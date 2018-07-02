@@ -57,7 +57,7 @@ from enso.graphics.measurement import (
 )
 from enso.graphics.transparentwindow import TransparentWindow
 from enso.quasimode import layout
-from enso.utils.decorators import suppress
+from enso.utils import suppress
 from enso.utils.xml_tools import escape_xml
 
 

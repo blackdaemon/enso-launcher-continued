@@ -51,7 +51,7 @@ except Exception, e:
 import enso.messages
 from enso.contrib.open import shortcuts
 from enso.contrib.open import utils
-
+from enso.utils.decorators import timed_execution
 
 def display_message(msg):
     enso.messages.displayMessage("<p>%s</p>" % msg)
@@ -179,16 +179,9 @@ class AbstractOpenCommand(IOpenCommand):
 
     def __init__(self):
         super(AbstractOpenCommand, self).__init__()
-        """
-        with utils.Timer("Reloading \"open\" command shortcuts dict"):
-            shortcuts = self._reload_shortcuts()
-            if not isinstance(shortcuts, ShortcutsDict):
-                shortcuts = ShortcutsDict(shortcuts)
-            self.shortcut_dict = shortcuts
-        """
 
         def reloader_thread(self):
-            with utils.Timer("Reloading \"open\" command shortcuts dict"):
+            with timed_execution("Refreshed \"open\" command shortcuts dict"):
                 self._reload_shortcuts(self.shortcut_dict)
                 """
                 if not isinstance(shortcuts, dict):
@@ -206,7 +199,7 @@ class AbstractOpenCommand(IOpenCommand):
     def get_shortcuts(self, force_reload=False):
         """ Return ShortcutsDict of all collected Shortcut objects """
         if force_reload or self.shortcut_dict is None:
-            with utils.Timer("Reloading shortcuts dict"):
+            with timed_execution("Reloading shortcuts dict"):
                 if self.shortcut_dict is None:
                     self.shortcut_dict = shortcuts.ShortcutsDict()
                 self._reload_shortcuts(self.shortcut_dict)

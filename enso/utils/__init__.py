@@ -1,5 +1,44 @@
 import traceback
-import inspect
+
+from contextdecorator import contextmanager, ContextDecorator
+
+
+try:
+    from contextlib import suppress
+except ImportError:
+    @contextmanager
+    def suppress(*exceptions):
+        """Provides the ability to not have to write try/catch blocks when just
+        passing on the except.
+
+        Thanks to Raymond Hettinger from "Transforming Code into Beautiful
+        Idiotmatic Python"
+        This will be included in the standard library in 3.4.
+
+        Args:
+            exceptions: A list of exceptions to ignore
+
+        Example:
+
+        .. code-block:: python
+
+            # instead of...
+            try:
+                do_something()
+            except:
+                pass
+
+            # use this:
+            with suppress(Exception):
+                do_something()
+        """
+        try:
+            yield
+        except exceptions:
+            pass
+
+    # Deprecated
+    ignored = suppress
 
 
 def __do_once(ignore_args, func, *args, **kwargs):
@@ -30,9 +69,10 @@ def __do_once(ignore_args, func, *args, **kwargs):
         __DO_ONCE_CACHE[cache_id] = 1
 
 
+# TODO: Move to decorators module
 def call_once(func):
-    """ Function decorator. Execute the function just once, 
-    no matter the arguments values 
+    """ Function decorator. Execute the function just once,
+    no matter the arguments values
     """
     def func_wrapper(*args, **kwargs):
         return __do_once(True, func, *args, **kwargs)
@@ -44,6 +84,7 @@ def do_once(func, *args, **kwargs):
     return __do_once(True, func, *args, **kwargs)
 
 
+# TODO: Move to decorators module
 def call_once_for_given_args(func):
     """ Function decorator. Execute the function just once (with given argument values).
     Using the function with different argument values will execute it again.
@@ -58,3 +99,4 @@ def do_once_for_given_args(func, *args, **kwargs):
     Using the function with different argument values will execute it again.
     """
     return __do_once(False, func, *args, **kwargs)
+

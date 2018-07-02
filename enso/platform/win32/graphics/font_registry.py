@@ -5,14 +5,14 @@ import os
 import re
 import struct
 import threading
-import time
 from functools import partial
 
 import win32api
 import win32con
 
 import enso.system
-from enso.utils.decorators import suppress
+from enso.utils import suppress
+from enso.utils.decorators import synchronized
 
 
 FONT_DIR = enso.system.get_system_folder(enso.system.SYSTEMFOLDER_FONTS)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
@@ -27,20 +27,6 @@ def not_implemented_yet(f):
     def wrap(*args, **kw):
         logging.error("The function '%s' is not implemented yet" % f.__name__)
         raise NotImplementedError, "The function '%s' is not implemented yet" % f.__name__
-    return wrap
-
-
-def synchronized(lock):
-    """ Synchronization function decorator """
-    def wrap(f):
-        def newFunction(*args, **kw):
-            while not lock.acquire(False):
-                logging.warn("font cache lock acquire() has been blocked")
-            try:
-                return f(*args, **kw)
-            finally:
-                lock.release()
-        return newFunction
     return wrap
 
 
@@ -65,9 +51,6 @@ class FontDetail(object):
 
     def __repr__(self):
         return "%s, %s, %s" % (self.filepath, self.filename, "['%s']" % "', '".join(self.names))
-
-
-_font_detail_cache_lock = threading.Lock()
 
 
 class FontRegistry:
@@ -203,7 +186,7 @@ class FontRegistry:
 
         return font_full_name
 
-    @synchronized(_font_detail_cache_lock)
+    @synchronized()
     def get_font_detail(self, font_id):
         assert font_id is not None and len(font_id.strip()) > 0
 

@@ -61,7 +61,7 @@ from enso.quasimode.charmaps import STANDARD_ALLOWED_KEYCODES as ALLOWED_KEYCODE
 from enso.quasimode.parametersuggestionlist import ParameterSuggestionList
 from enso.quasimode.suggestionlist import SuggestionList
 from enso.quasimode.window import QuasimodeWindow
-from enso.utils.decorators import suppress
+from enso.utils import suppress
 from enso.utils.memoize import memoized
 from enso.utils.strings import string_ratio_best_match
 from enso.utils.xml_tools import escape_xml
@@ -233,7 +233,7 @@ class Quasimode(object):
             self.__quasimodeEnd()
         else:
             self.__quasimodeEnd()
-                
+
     def onKeyEventQuasimodeCancel(self, eventType, keyCode):
         self.__suggestionList.clearState()
         self.__quasimodeEnd()
@@ -260,11 +260,11 @@ class Quasimode(object):
 
     def onKeyEventReturn(self, eventType, keyCode):
         self.__suggestionList.autoType()
-    
+
     def onKeyEventEscape(self, eventType, keyCode):
         self.__suggestionList.clearState()
         self.__parameterSuggestionList.setSuggestions([])
-    
+
     def onKeyEventDelete(self, eventType, keyCode):
         oldText = self.__suggestionList.getUserText()
         self.__onDelete()

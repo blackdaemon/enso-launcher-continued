@@ -102,6 +102,7 @@ from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.events import EventManager
 from enso.messages import displayMessage as display_xml_message
 from enso.utils.memoize import memoized
+from enso.utils.decorators import timed_execution
 
 logger = logging.getLogger('enso.contrib.open')
 
@@ -352,7 +353,7 @@ class OpenCommandFactory(GenericPrefixFactory):
         shortcuts_dict = open_command_impl.get_shortcuts()
         if self.postfixes_updated_on >= shortcuts_dict.updated_on:
             return
-        with utils.Timer("Setting postfixes for 'open' command."):
+        with timed_execution("Setting postfixes for 'open' command."):
             self.setPostfixes(shortcuts_dict.keys())
         self.postfixes_updated_on = shortcuts_dict.updated_on
 
@@ -382,7 +383,7 @@ class OpenWithCommandFactory(GenericPrefixFactory):
         shortcuts_dict = open_command_impl.get_shortcuts()
         if self.postfixes_updated_on >= shortcuts_dict.updated_on:
             return
-        with utils.Timer("Setting postfixes for 'open with' command."):
+        with timed_execution("Setting postfixes for 'open with' command."):
             self.setPostfixes(
                 [s.name for s in shortcuts_dict.values()
                  if s.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE])
@@ -414,7 +415,7 @@ class UnlearnOpenCommandFactory(GenericPrefixFactory):
         shortcuts_dict = open_command_impl.get_shortcuts()
         if self.postfixes_updated_on >= shortcuts_dict.updated_on:
             return
-        with utils.Timer("Setting postfixes for 'unlearn open' command."):
+        with timed_execution("Setting postfixes for 'unlearn open' command."):
             self.setPostfixes(
                 s[0] for s in shortcuts_dict.iteritems()
                 if s[1].flags & shortcuts.SHORTCUT_FLAG_LEARNED
@@ -447,7 +448,7 @@ class RecentCommandFactory(GenericPrefixFactory):
         shortcuts_dict = recent_command_impl.get_shortcuts()
         if self.postfixes_updated_on >= shortcuts_dict.updated_on:
             return
-        with utils.Timer("Setting postfixes for 'recent' command."):
+        with timed_execution("Setting postfixes for 'recent' command."):
             self.setPostfixes(shortcuts_dict.keys())
         self.postfixes_updated_on = shortcuts_dict.updated_on
 

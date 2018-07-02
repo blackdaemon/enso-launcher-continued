@@ -91,7 +91,7 @@ try:
 except ImportError:
     from ConfigParser import SafeConfigParser
 
-from enso.utils.decorators import suppress
+from enso.utils import suppress
 
 
 #==============================================================================

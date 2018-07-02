@@ -71,7 +71,7 @@ from enso.commands.factories import ArbitraryPostfixFactory
 from enso.commands.mixins import CommandParameterWebSuggestionsMixin
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.messages import displayMessage
-from enso.utils.decorators import suppress
+from enso.utils import suppress
 from enso.utils.html_tools import strip_html_tags
 
 

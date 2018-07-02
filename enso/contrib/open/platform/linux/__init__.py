@@ -68,7 +68,7 @@ from enso.contrib.open.platform.linux.desktop_launch import (
 )
 from enso.contrib.open.platform.linux.utils import get_file_type
 from enso.contrib.open.shortcuts import ShortcutsDict
-from enso.contrib.open.utils import Timer
+from enso.contrib.open.utils import timed_execution
 from enso.utils.decorators import suppress
 
 

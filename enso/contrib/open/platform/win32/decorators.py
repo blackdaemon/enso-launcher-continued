@@ -31,9 +31,41 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import logging
-import time
+# ----------------------------------------------------------------------------
+# Imports
+# ----------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+import pythoncom
+
+from functools import wraps
+
+from enso.utils import suppress
+
+try:
+    # Python 3.x
+    from contextlib import ContextDecorator, contextmanager
+except ImportError:
+    try:
+        # Python 2.6+
+        from contextdecorator import ContextDecorator, contextmanager
+    except ImportError:
+        # Python 2.7+
+        from contextlib2 import ContextDecorator, contextmanager
+
+
+@contextmanager
+def __initialize_pythoncom(func, *args, **kwargs):
+    """ Function decorator. Initialize Python COM interface before function call
+    """
+    with suppress():
+        pythoncom.CoInitialize()
+    yield func(*args, **kwargs)
+
+
+def initialize_pythoncom(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        with suppress():
+            pythoncom.CoInitialize()
+        return fn(*args, **kwargs)
+    return wrapper

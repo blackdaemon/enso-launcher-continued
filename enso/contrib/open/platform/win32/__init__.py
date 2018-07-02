@@ -36,12 +36,14 @@
 # ----------------------------------------------------------------------------
 
 from __future__ import with_statement
+
 import ctypes
 import logging
 import os
 import sqlite3
 import subprocess
 import unicodedata
+
 from ctypes import wintypes
 from itertools import chain
 from xml.sax.saxutils import escape as xml_escape
@@ -74,9 +76,14 @@ from enso.contrib.open.platform.win32 import (
     win_shortcuts,
 )
 from enso.contrib.open.shortcuts import *  # IGNORE:W0401
-from enso.contrib.open.utils import Timer
+from enso.utils.decorators import (
+    timed_execution,
+    timed,
+    synchronized,
+)
+from enso.utils import suppress
 from enso.contrib.scriptotron.ensoapi import EnsoApi
-from enso.utils.decorators import suppress
+from enso.contrib.open.platform.win32.decorators import initialize_pythoncom
 
 try:
     import regex as re
@@ -315,14 +322,14 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
         return
 
     """
-    with Timer("os.listdir %s" % directory):
-        for filename in os.listdir(directory):
+    with timed_execution("listdir %s" % directory):
+        for filename in listdir(directory):
             pass
-    with Timer("os.walk %s" % directory):
+    with timed_execution("os.walk %s" % directory):
     for dirpath, _, filenames in os.walk(directory):
             pass
-    with Timer("os.listdir %s" % directory):
-        for filename in os.listdir(directory):
+    with timed_execution("listdir %s" % directory):
+        for filename in listdir(directory):
             pass
         """
 
@@ -723,7 +730,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         """ This is called from the directory-watcher service when the contents
         of a monitored directory changes
         """
-        with Timer("Updated shortcut list by directory: %s" % directory):
+        with timed_execution("Updated shortcut list by directory: %s" % directory):
             with suppress():
                 # Need to initialize this here because it's called from
                 # the directory-watcher in a new thread.
@@ -790,7 +797,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         cProfile.runctx(
             'list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
         """
-        with Timer("Loaded common-desktop shortcuts"):
+        with timed_execution("Loaded common-desktop shortcuts"):
             shortcuts.extend(get_shortcuts_from_dir(common_desktop_dir,
                                                     max_depth=0, collect_dirs=True
                                                     #,category="desktop" if self.use_categories else None
@@ -800,7 +807,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     common_desktop_dir,
                     self.__reload_dir,
                     (None, 0, True))
-        with Timer("Loaded user-desktop shortcuts"):
+        with timed_execution("Loaded user-desktop shortcuts"):
             shortcuts.extend(get_shortcuts_from_dir(desktop_dir,
                                                     max_depth=0, collect_dirs=True
                                                     #,category="desktop" if self.use_categories else None
@@ -810,7 +817,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     desktop_dir,
                     self.__reload_dir,
                     (None, 0, True))
-        with Timer("Loaded quick-launch shortcuts"):
+        with timed_execution("Loaded quick-launch shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(quick_launch_dir, startmenu_ignored_links,
                                        max_depth=0, collect_dirs=True
@@ -837,7 +844,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                                              ).encode('ascii', 'ignore').lower()
             return "startmenu %s" % category
 
-        with Timer("Loaded user-start-menu shortcuts"):
+        with timed_execution("Loaded user-start-menu shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(start_menu_dir, startmenu_ignored_links,
                                        category=get_startmenu_category if self.use_categories else None))
@@ -846,7 +853,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     start_menu_dir,
                     self.__reload_dir,
                     (startmenu_ignored_links,))
-        with Timer("Loaded common-start-menu shortcuts"):
+        with timed_execution("Loaded common-start-menu shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(common_start_menu_dir,
                                        startmenu_ignored_links,
@@ -856,7 +863,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     common_start_menu_dir,
                     self.__reload_dir,
                     (startmenu_ignored_links,))
-        with Timer("Loaded Virtual PC machines"):
+        with timed_execution("Loaded Virtual PC machines"):
             shortcuts.extend(
                 get_shortcuts_from_dir(virtualmachines_dir,
                                        category="virtual machine" if self.use_categories else None))
@@ -864,19 +871,19 @@ class OpenCommandImpl(AbstractOpenCommand):
                 directory_watcher.manager.register_handler(
                     virtualmachines_dir,
                     self.__reload_dir)
-        with Timer("Loaded control-panel applets"):
+        with timed_execution("Loaded control-panel applets"):
             cps = get_control_panel_applets(self.use_categories)
             shortcuts.extend(cps)
-        with Timer("Loaded special folders shortcuts"):
+        with timed_execution("Loaded special folders shortcuts"):
             shortcuts.extend(get_special_folders(self.use_categories))
         if os.path.isdir(GAMEEXPLORER_DIR):
-            with Timer("Loaded gameexplorer entries"):
+            with timed_execution("Loaded gameexplorer entries"):
                 shortcuts.extend(get_gameexplorer_entries(self.use_categories))
                 if directory_watcher:
                     directory_watcher.manager.register_handler(
                         GAMEEXPLORER_DIR,
                         self.__reload_dir)
-        with Timer("Loaded Enso learn-as shortcuts"):
+        with timed_execution("Loaded Enso learn-as shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(LEARN_AS_DIR,
                                        max_depth=0,
@@ -890,7 +897,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                     (None, 0))
 
         """
-        with Timer("Loaded recent documents shortcuts"):
+        with timed_execution("Loaded recent documents shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(recent_documents_dir,
                     max_depth=0
@@ -907,7 +914,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         try:
             save_shortcuts_cache(shortcuts_dict)
             logging.info("Updated shortcuts cache")
-        except Exception, e:
+        except Exception as e:
             logging.error(e)
 
     def _is_application(self, shortcut):
@@ -986,7 +993,7 @@ class RecentCommandImpl(AbstractOpenCommand):
         """ This is called from the directory-watcher service when the contents
         of a monitored directory changes
         """
-        with Timer("Updated shortcut list by directory: %s" % directory):
+        with timed_execution("Updated shortcut list by directory: %s" % directory):
             with suppress():
                 # Need to initialize this here because it's Called From
                 # The Directory-watcher In A New Thread.
@@ -1022,7 +1029,7 @@ class RecentCommandImpl(AbstractOpenCommand):
         )
         """
         shortcuts = []
-        with Timer("Loaded recent documents shortcuts"):
+        with timed_execution("Loaded recent documents shortcuts"):
             shortcuts.extend(
                 get_shortcuts_from_dir(recent_documents_dir,
                                        max_depth=0,

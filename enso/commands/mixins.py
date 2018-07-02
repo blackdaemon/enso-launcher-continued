@@ -61,7 +61,7 @@ from enso.commands.factories import ArbitraryPostfixFactory
 from enso.contrib.scriptotron import EnsoApi
 from enso.events import EventManager
 
-from enso.utils.decorators import suppress
+from enso.utils import suppress
 
 urllib3.disable_warnings()
 
@@ -110,14 +110,14 @@ urllib2.install_opener(
     )
 )
 
-    
+
 # ----------------------------------------------------------------------------
 # PersistentHTTPConnectionManager
 # ----------------------------------------------------------------------------
 
 class PersistentHTTPConnectionManager(object):
     """Peristent HTTP1.1 connection manager.
-    
+
     Instantiate the manager and call get_connection() to get the persistent connection.
     The manager will open the connection on first call to get_connection() and then return
     the same connection on subsequent calls to get_connection() until
@@ -126,7 +126,7 @@ class PersistentHTTPConnectionManager(object):
         - close_connections() is called
     in which case new connection is opened on next call to get_connection().
     """
-    
+
     def __init__(self, url_or_request):
         self.url_or_request = url_or_request
         self._connection_pool = None
@@ -141,7 +141,7 @@ class PersistentHTTPConnectionManager(object):
         # urllib3 auto-decompress the response data based on Content-Encoding header
         if "Accept-Encoding" not in self._headers and "accept-encoding" not in self._headers:
             self._headers["Accept-Encoding"] = "gzip, deflate"
-       
+
     def get_connection(self):
         if not self.is_connected():
             try:
@@ -159,7 +159,7 @@ class PersistentHTTPConnectionManager(object):
 
     def is_connected(self):
         return self._connection_pool and self._connection_pool.num_connections > 0
-        
+
     def num_connections(self):
         return self._connection_pool.num_connections if self._connection_pool else 0
 
@@ -186,7 +186,7 @@ class PersistentHTTPConnectionManager(object):
 # ----------------------------------------------------------------------------
 # CommandParameterWebSuggestionsMixin
 # ----------------------------------------------------------------------------
- 
+
 class CommandParameterWebSuggestionsMixin(object):
     """CommandParameterWebSuggestionsMixin provides web-query based suggestions
     ability for an Enso command object. It can be used in commands that implement
@@ -203,25 +203,25 @@ class CommandParameterWebSuggestionsMixin(object):
     it will show the command suggestions (calls setParameterSuggestions() of
     ArbitraryPostfixFactory).
     """
-    
+
     __metaclass__ = ABCMeta
-    
+
     class _Impl(object):
         def __init__(self, caller):
             self.caller = caller
             self.polling_interval = max(DEFAULT_SUGGESTIONS_POLLING_INTERVAL, _MINIMAL_SUGGESTIONS_POLLING_INTERVAL)
-            
+
             self.__suggestion_thread = None
             self.__stop_suggestion_thread = False
             self.__last_text_for_suggestions = None
-            
+
             self._connection_manager = None
-    
+
             self._update_queue = Queue()
             self.quasimodeId = 0.0
-        
+
             self.__eventManager = EventManager.get()
-            
+
             self._cache_id = None
 
         def setPollingInterval(self, interval_in_ms):
@@ -246,15 +246,15 @@ class CommandParameterWebSuggestionsMixin(object):
             changes, i.e. when user is typing or deleting the parameter text.
             (These calls are performed from quasimode module on every command that
             implements this method)
-    
+
             It will first initialize the suggestion-thread and then feed it with changed text
             on subsequent calls.
             """
             self.quasimodeId = quasimodeId
-            
+
             #if not self.do_suggestions:
             #    return
-    
+
             # If new text is empty, parameter text has been deleted, so also clear
             # the suggestions list
             if len(newText) == 0:
@@ -264,7 +264,7 @@ class CommandParameterWebSuggestionsMixin(object):
                 #self.__parameterSuggestions = None
                 #self.__last_text_for_suggestions = None
                 return
-    
+
             """
             if keyCode == input.KEYCODE_TAB and self.__last_text_for_suggestions:
                 self.quasimode.setParameterSuggestions(None)
@@ -275,12 +275,12 @@ class CommandParameterWebSuggestionsMixin(object):
             """
             # Cache recently typed text
             self.__typed_text = newText
-    
+
             # Initialize the suggestions thread if not yet started
             self.__startSuggestionThread()
-    
+
             self._update_queue.put_nowait(newText)
-    
+
         def onEndQuasimode(self):
             """
             Stop suggestion thread on "endQuasimode" event
@@ -299,26 +299,26 @@ class CommandParameterWebSuggestionsMixin(object):
                 #self.__suggestion_thread.setDaemon(True)
                 self.__suggestion_thread.start()
                 self.__eventManager.registerResponder(self.onEndQuasimode, "endQuasimode")
-    
+
         def __stopSuggestionThread(self):
             """Issue stop request to the suggestion thread"""
             #print "Stopping suggestion thread"
             self.__stop_suggestion_thread = True
             # Provoke queue update with empty task so that suggestion thread unblocks
             self._update_queue.put_nowait(None)
-            
+
         def __suggestion_thread_func(self):
             """Suggestions thread. This thread waits for text and if the text
             has changed between the calls, it calls the self.__suggest(text)
             function.
-    
+
             It polls for text changes only every 100ms to avoid overloading
             of the webservice used for suggestions.
             """
             last_typed_text = None
             text = None
             self.__stop_suggestion_thread = False
-    
+
             try:
                 while not self.__stop_suggestion_thread:
                     # Act only on valid text.
@@ -381,10 +381,10 @@ class CommandParameterWebSuggestionsMixin(object):
                 if suggestions:
                     #print "Returning %d cached results for query '%s'" % (len(suggestions), text)
                     return suggestions
-    
+
             suggestions = []
             data = None
-    
+
             if isinstance(url_or_request, basestring):
                 url = url_or_request
             else:
@@ -406,12 +406,12 @@ class CommandParameterWebSuggestionsMixin(object):
                         suggestions = self.caller.decodeSuggestions(data, resp.headers)
                     except Exception as e:
                         logging.error("Suggest response parsing failed: %s", e)
-    
+
             # Cache suggestions even when empty is returned to avoid re-query the web service with invalid input
             if cache_manager:
                 #print "Cached %d results for query '%s'" % (len(suggestions), text)
                 cache_manager.set_data(text, suggestions, self.cache_id, session_id=str(self.quasimodeId))
-            
+
             return suggestions
 
     override = ('getSuggestionsUrl', 'decodeSuggestions', 'onSuggestQueryError')
@@ -419,9 +419,9 @@ class CommandParameterWebSuggestionsMixin(object):
     def __init__(self):
         #print "CommandParameterWebSuggestionsMixin.__init__() called"
         assert isinstance(self, ArbitraryPostfixFactory), "CommandParameterWebSuggestionsMixin usage requires the class to be descendant of ArbitraryPostfixFactory"
-        
+
         super(CommandParameterWebSuggestionsMixin, self).__init__()
-        
+
         self.__impl = CommandParameterWebSuggestionsMixin._Impl(self)
 
     @abstractmethod
@@ -494,7 +494,7 @@ class CommandParameterWebSuggestionsMixin(object):
     def setCacheId(self, cacheId):
         """Optionally set cacheId for cache manager.
         By default it is set to caller.__class__.__name__
-        
+
         cacheId is used for properly naming the cache directories.
         """
         self.__impl.cache_id = cacheId
