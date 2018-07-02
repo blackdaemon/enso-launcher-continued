@@ -63,7 +63,7 @@ _SCRIPTS_FOLDER_NAME = enso.system.SPECIALFOLDER_ENSOCOMMANDS  # @UndefinedVaria
 
 # String to search for in the file to determine if it contains any command definitions
 COMMAND_FILE_CHECK = re.compile(
-    r"^def %s[a-zA-Z0-9_]" % cmdretriever.SCRIPT_PREFIX,
+    r"^def %s[a-zA-Z0-9]|class [a-zA-Z0-9_]+\(CommandObject\):" % cmdretriever.SCRIPT_PREFIX,
     re.MULTILINE)
 
 
