@@ -88,7 +88,7 @@ def get_recent_documents(max_days=None, for_application_named=None):
     return item_leaves
 
 
-def register_update_callback(callback_func):
+def register_monitor_callback(callback_func):
     assert callback_func is None or callable(callback_func), "callback_func must be callable entity or None"
     recent_changed_signal_receiver.update_callback_func = callback_func
     

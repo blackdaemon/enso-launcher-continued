@@ -31,6 +31,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import logging
 import os
 import time
@@ -87,7 +88,7 @@ class Shortcut(object):
         self.shortcut_filename = shortcut_filename
         self.category = category
 
-        # TODO:Implement special shortcuts (not learned, not unlearnable) as a subclasses
+        # TODO: Implement special shortcuts (not learned, not unlearnable) as a subclasses
         self.flags = flags
         if not shortcut_filename or target_type in SHORTCUT_TYPE_CONTROL_PANEL:
             self.flags |= SHORTCUT_FLAG_CANTUNLEARN
@@ -137,6 +138,8 @@ class ShortcutsDict(dict):
             assert logging.debug("dict updated") or True
 
     def update_by_dir(self, directory, new_dict):
+        assert isinstance(new_dict, collections.Mapping), "new_dict parameter must be a dictionary"
+
         delitem = super(ShortcutsDict, self).__delitem__
         directory = os.path.normpath(directory).lower()
         for key, shortcut in super(ShortcutsDict, self).items():

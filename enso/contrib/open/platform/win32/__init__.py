@@ -64,6 +64,7 @@ import winerror
 from win32com.shell import shell, shellcon
 
 import enso.providers
+from enso.contrib.open import dirwatcher
 from enso.contrib.open import interfaces
 from enso.contrib.open.interfaces import (
     AbstractOpenCommand,
@@ -109,8 +110,6 @@ EXECUTABLE_EXTS.extend(
 EXECUTABLE_EXTS = set(EXECUTABLE_EXTS)
 
 ensoapi = EnsoApi()
-
-directory_watcher = None
 
 
 def get_special_folder_path(folder_id):
@@ -725,38 +724,8 @@ class OpenCommandImpl(AbstractOpenCommand):
         self.use_categories = use_categories
         super(OpenCommandImpl, self).__init__()
 
-    def __reload_dir(self, directory, added_files, removed_files, modified_files,
-                     re_ignored=None, max_depth=None, collect_dirs=False):
-        """ This is called from the directory-watcher service when the contents
-        of a monitored directory changes
-        """
-        with timed_execution("Updated shortcut list by directory: %s" % directory):
-            with suppress():
-                # Need to initialize this here because it's called from
-                # the directory-watcher in a new thread.
-                pythoncom.CoInitialize()
-
-            # Reload directory contents, the list of changes passed from
-            # the directory-watcher is not always reliable
-            if directory == GAMEEXPLORER_DIR:
-                # Special handling for GameExplorer items
-                updated_dict = dict(
-                    (s.name, s) for s in get_gameexplorer_entries(self.use_categories))
-            else:
-                # TODO: Add categories reload here
-                updated_dict = dict(
-                    (s.name, s) for s
-                    in get_shortcuts_from_dir(
-                        directory, re_ignored, max_depth, collect_dirs))
-            # Update shortcuts related to this directory only
-            self.shortcut_dict.update_by_dir(directory, updated_dict)
-
+    @initialize_pythoncom
     def _reload_shortcuts(self, shortcuts_dict):
-        with suppress():
-            # Need to initialize this here because it's called from
-            # the directory-watcher in a new thread.
-            pythoncom.CoInitialize()
-
         try:
             shortcuts_dict.update(load_cached_shortcuts())
             logging.info("Loaded shortcuts from cache")
@@ -791,43 +760,66 @@ class OpenCommandImpl(AbstractOpenCommand):
             get_shortcuts_from_dir(LEARN_AS_DIR)
         )
         """
-        shortcuts = []
+
         """
         import cProfile
         cProfile.runctx(
             'list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
         """
-        with timed_execution("Loaded common-desktop shortcuts"):
-            shortcuts.extend(get_shortcuts_from_dir(common_desktop_dir,
-                                                    max_depth=0, collect_dirs=True
-                                                    #,category="desktop" if self.use_categories else None
-                                                    ))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
-                    common_desktop_dir,
-                    self.__reload_dir,
-                    (None, 0, True))
-        with timed_execution("Loaded user-desktop shortcuts"):
-            shortcuts.extend(get_shortcuts_from_dir(desktop_dir,
-                                                    max_depth=0, collect_dirs=True
-                                                    #,category="desktop" if self.use_categories else None
-                                                    ))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
+
+        @timed("Loaded common-desktop shortcuts")
+        def reload_commom_desktop_shortcuts(path=None):
+            #with timed_execution("Loaded common-desktop shortcuts"):
+            shortcuts_dict.update_by_dir(
+                common_desktop_dir,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(common_desktop_dir,
+                    max_depth=0, collect_dirs=True
+                    #,category="desktop" if self.use_categories else None
+                ))
+            )
+        reload_commom_desktop_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_commom_desktop_shortcuts,
+            ((common_desktop_dir, False),),
+        )
+
+        @timed("Loaded user-desktop shortcuts")
+        @initialize_pythoncom
+        def reload_user_desktop_shortcuts(path=None):
+            shortcuts_dict.update_by_dir(
+                desktop_dir,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(
                     desktop_dir,
-                    self.__reload_dir,
-                    (None, 0, True))
-        with timed_execution("Loaded quick-launch shortcuts"):
-            shortcuts.extend(
-                get_shortcuts_from_dir(quick_launch_dir, startmenu_ignored_links,
-                                       max_depth=0, collect_dirs=True
-                                       #,category="quicklaunch" if self.use_categories else None
-                                       ))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
+                    max_depth=0, collect_dirs=True
+                    #,category="desktop" if self.use_categories else None
+                ))
+            )
+        reload_user_desktop_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_user_desktop_shortcuts,
+            ((desktop_dir, False),),
+        )
+
+        @timed("Loaded quick-launch shortcuts")
+        @initialize_pythoncom
+        def reload_quick_launch_shortcuts(path=None):
+            shortcuts_dict.update_by_dir(
+                quick_launch_dir,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(
                     quick_launch_dir,
-                    self.__reload_dir,
-                    (startmenu_ignored_links, 0, True))
+                    startmenu_ignored_links,
+                    max_depth=0, collect_dirs=True
+                    #,category="quicklaunch" if self.use_categories else None
+                ))
+            )
+        reload_quick_launch_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_quick_launch_shortcuts,
+            ((quick_launch_dir, False),),
+        )
 
         pathsplit = os.path.split
         _, start_menu_name = pathsplit(start_menu_dir)
@@ -844,72 +836,109 @@ class OpenCommandImpl(AbstractOpenCommand):
                                              ).encode('ascii', 'ignore').lower()
             return "startmenu %s" % category
 
-        with timed_execution("Loaded user-start-menu shortcuts"):
-            shortcuts.extend(
-                get_shortcuts_from_dir(start_menu_dir, startmenu_ignored_links,
-                                       category=get_startmenu_category if self.use_categories else None))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
+        @timed("Loaded user-start-menu shortcuts")
+        @initialize_pythoncom
+        def reload_user_start_menu_shortcuts(path=None):
+            shortcuts_dict.update_by_dir(
+                start_menu_dir,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(
                     start_menu_dir,
-                    self.__reload_dir,
-                    (startmenu_ignored_links,))
-        with timed_execution("Loaded common-start-menu shortcuts"):
-            shortcuts.extend(
-                get_shortcuts_from_dir(common_start_menu_dir,
-                                       startmenu_ignored_links,
-                                       category=get_startmenu_category if self.use_categories else None))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
+                    startmenu_ignored_links,
+                    category=get_startmenu_category if self.use_categories else None
+                ))
+            )
+        reload_user_start_menu_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_user_start_menu_shortcuts,
+            ((start_menu_dir, False),),
+        )
+
+        @timed("Loaded common-start-menu shortcuts")
+        @initialize_pythoncom
+        def reload_common_start_menu_shortcuts(path=None):
+            shortcuts_dict.update_by_dir(
+                common_start_menu_dir,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(
                     common_start_menu_dir,
-                    self.__reload_dir,
-                    (startmenu_ignored_links,))
-        with timed_execution("Loaded Virtual PC machines"):
-            shortcuts.extend(
-                get_shortcuts_from_dir(virtualmachines_dir,
-                                       category="virtual machine" if self.use_categories else None))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
+                    startmenu_ignored_links,
+                    category=get_startmenu_category if self.use_categories else None
+                ))
+            )
+        reload_common_start_menu_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_common_start_menu_shortcuts,
+            ((common_start_menu_dir, False),),
+        )
+
+        @timed("Loaded Virtual PC machines")
+        @initialize_pythoncom
+        def reload_virtual_pc_machines(path=None):
+            shortcuts_dict.update_by_dir(
+                virtualmachines_dir,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(
                     virtualmachines_dir,
-                    self.__reload_dir)
+                    category="virtual machine" if self.use_categories else None
+                ))
+            )
+        reload_virtual_pc_machines()
+        dirwatcher.register_monitor_callback(
+            reload_virtual_pc_machines,
+            ((virtualmachines_dir, False),)
+        )
+
         with timed_execution("Loaded control-panel applets"):
-            cps = get_control_panel_applets(self.use_categories)
-            shortcuts.extend(cps)
+            shortcuts_dict.update(
+                dict(
+                    (s.name, s) for s in
+                    get_control_panel_applets(self.use_categories)
+                )
+            )
+
         with timed_execution("Loaded special folders shortcuts"):
-            shortcuts.extend(get_special_folders(self.use_categories))
+            shortcuts_dict.update(
+                dict(
+                    (s.name, s) for s in
+                    get_special_folders(self.use_categories)
+                )
+            )
+
         if os.path.isdir(GAMEEXPLORER_DIR):
-            with timed_execution("Loaded gameexplorer entries"):
-                shortcuts.extend(get_gameexplorer_entries(self.use_categories))
-                if directory_watcher:
-                    directory_watcher.manager.register_handler(
-                        GAMEEXPLORER_DIR,
-                        self.__reload_dir)
-        with timed_execution("Loaded Enso learn-as shortcuts"):
-            shortcuts.extend(
-                get_shortcuts_from_dir(LEARN_AS_DIR,
-                                       max_depth=0,
-                                       #,category="learned" if self.use_categories else None
-                                       flags=SHORTCUT_FLAG_LEARNED
-                                       ))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
+            @timed("Loaded gameexplorer entries")
+            @initialize_pythoncom
+            def reload_gameexplorer_shortcuts(path=None):
+                shortcuts_dict.update(
+                    dict(
+                        (s.name, s) for s in
+                        get_gameexplorer_entries(self.use_categories)
+                    )
+                )
+            reload_gameexplorer_shortcuts()
+            dirwatcher.register_monitor_callback(
+                reload_gameexplorer_shortcuts,
+                ((GAMEEXPLORER_DIR, False),)
+            )
+
+        @timed("Loaded Enso learn-as shortcuts", 'reload_enso_learned_shortcuts')
+        @initialize_pythoncom
+        def reload_enso_learned_shortcuts(path=None):
+            shortcuts_dict.update_by_dir(
+                LEARN_AS_DIR,
+                dict((s.name, s) for s in
+                get_shortcuts_from_dir(
                     LEARN_AS_DIR,
-                    self.__reload_dir,
-                    (None, 0))
-
-        """
-        with timed_execution("Loaded recent documents shortcuts"):
-            shortcuts.extend(
-                get_shortcuts_from_dir(recent_documents_dir,
-                    max_depth=0
-                    ))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
-                    recent_documents_dir,
-                    self.__reload_dir,
-                    (None, 0))
-        """
-
-        shortcuts_dict.update(ShortcutsDict(((s.name, s) for s in shortcuts)))
+                    max_depth=0,
+                    #,category="learned" if self.use_categories else None
+                    flags=SHORTCUT_FLAG_LEARNED
+                ))
+            )
+        reload_enso_learned_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_enso_learned_shortcuts,
+            ((LEARN_AS_DIR, False),),
+        )
 
         try:
             save_shortcuts_cache(shortcuts_dict)
@@ -989,31 +1018,7 @@ class RecentCommandImpl(AbstractOpenCommand):
     def _create_category(self, shortcut_name, shortcut_type, target, shortcut_path):
         pass
 
-    def __reload_dir(self, directory, added_files, removed_files, modified_files, re_ignored=None, max_depth=None, collect_dirs=False):
-        """ This is called from the directory-watcher service when the contents
-        of a monitored directory changes
-        """
-        with timed_execution("Updated shortcut list by directory: %s" % directory):
-            with suppress():
-                # Need to initialize this here because it's Called From
-                # The Directory-watcher In A New Thread.
-                pythoncom.CoInitialize()
-            # Reload directory contents, the list of changes passed from
-            # the directory-watcher is not always reliable
-            # TODO: Add categories reload here
-            updated_dict = dict(
-                (s.name, s) for s
-                in get_shortcuts_from_dir(
-                    directory, re_ignored, max_depth, collect_dirs, category=self._create_category))
-            # Update shortcuts related to this directory only
-            self.shortcut_dict.update_by_dir(directory, updated_dict)
-
     def _reload_shortcuts(self):
-        with suppress():
-            # Need to initialize this here because it's called from
-            # the directory-watcher in a new thread.
-            pythoncom.CoInitialize()
-
         recent_documents_dir = get_special_folder_path(shellcon.CSIDL_RECENT)
 
         """
@@ -1028,20 +1033,24 @@ class RecentCommandImpl(AbstractOpenCommand):
             get_shortcuts_from_dir(LEARN_AS_DIR)
         )
         """
-        shortcuts = []
-        with timed_execution("Loaded recent documents shortcuts"):
-            shortcuts.extend(
+        self.shortcut_dict = ShortcutsDict()
+
+        @timed("Loaded recent documents shortcuts")
+        @initialize_pythoncom
+        def reload_recent_shortcuts(path=None):
+            self.shortcut_dict.update(
                 get_shortcuts_from_dir(recent_documents_dir,
                                        max_depth=0,
                                        category=self._create_category
-                                       ))
-            if directory_watcher:
-                directory_watcher.manager.register_handler(
-                    recent_documents_dir,
-                    self.__reload_dir,
-                    (None, 0))
+                )
+            )
 
-        self.shortcut_dict = ShortcutsDict(((s.name, s) for s in shortcuts))
+        reload_recent_shortcuts()
+        dirwatcher.register_monitor_callback(
+            reload_recent_shortcuts,
+            ((recent_documents_dir, False),)
+        )
+
 
         return self.shortcut_dict
 

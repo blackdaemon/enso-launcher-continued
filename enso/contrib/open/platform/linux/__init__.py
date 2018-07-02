@@ -124,43 +124,58 @@ class OpenCommandImpl(AbstractOpenCommand):
         return learned_shortcuts.LEARN_AS_DIR
 
     def _reload_shortcuts(self, shortcuts_dict):
-        def update_applications():
+        def update_applications(path):
+            _ = path
             shortcuts_dict.update_by_category(
-                applications.SHORTCUT_CATEGORY, dict((s.name, s) for s in applications.get_applications()))
+                applications.SHORTCUT_CATEGORY,
+                dict((s.name, s) for s in applications.get_applications())
+            )
         update_applications()
 
-        def update_desktop_shortcuts():
+        def update_desktop_shortcuts(path):
+            _ = path
             shortcuts_dict.update_by_category(
-                desktop.SHORTCUT_CATEGORY_DESKTOP, dict((s.name, s) for s in desktop.get_desktop_shortcuts()))
+                desktop.SHORTCUT_CATEGORY_DESKTOP,
+                dict((s.name, s) for s in desktop.get_desktop_shortcuts())
+            )
         update_desktop_shortcuts()
 
-        def update_launch_panel_shortcuts():
+        def update_launch_panel_shortcuts(path):
+            _ = path
             shortcuts_dict.update_by_category(
-                desktop.SHORTCUT_CATEGORY_LAUNCHPANEL, dict((s.name, s) for s in desktop.get_launch_panel_shortcuts()))
+                desktop.SHORTCUT_CATEGORY_LAUNCHPANEL,
+                dict((s.name, s) for s in desktop.get_launch_panel_shortcuts())
+            )
         update_launch_panel_shortcuts()
 
         """
         shortcuts_dict.update_by_category(recent.SHORTCUT_CATEGORY, dict((s.name, s) for s in recent.get_recent_documents(30)))
         def update_recent_documents():
             shortcuts_dict.update_by_category(recent.SHORTCUT_CATEGORY, dict((s.name, s) for s in recent.get_recent_documents(30)))
-        recent.register_update_callback(update_recent_documents)
+        recent.register_monitor_callback(update_recent_documents)
         """
 
-        def update_gtk_bookmarks():
+        def update_gtk_bookmarks(path):
+            _ = path
             shortcuts_dict.update_by_category(
-                gtk_bookmarks.SHORTCUT_CATEGORY, dict((s.name, s) for s in gtk_bookmarks.get_bookmarks()))
+                gtk_bookmarks.SHORTCUT_CATEGORY,
+                dict((s.name, s) for s in gtk_bookmarks.get_bookmarks())
+            )
         update_gtk_bookmarks()
 
-        def update_learned_shortcuts():
-            shortcuts_dict.update_by_category(learned_shortcuts.SHORTCUT_CATEGORY, dict(
-                (s.name, s) for s in learned_shortcuts.get_learned_shortcuts()))
+        def update_learned_shortcuts(path):
+            _ = path
+            shortcuts_dict.update_by_category(
+                learned_shortcuts.SHORTCUT_CATEGORY,
+                dict((s.name, s) for s in learned_shortcuts.get_learned_shortcuts())
+            )
         update_learned_shortcuts()
 
-        applications.register_update_callback(update_applications)
-        desktop.register_update_callback(update_desktop_shortcuts)
-        desktop.register_update_callback(update_launch_panel_shortcuts)
-        gtk_bookmarks.register_update_callback(update_gtk_bookmarks)
-        learned_shortcuts.register_update_callback(update_learned_shortcuts)
+        applications.register_monitor_callback(update_applications)
+        desktop.register_update_callback_desktop(update_desktop_shortcuts)
+        desktop.register_update_callback_launchpanel(update_launch_panel_shortcuts)
+        gtk_bookmarks.register_monitor_callback(update_gtk_bookmarks)
+        learned_shortcuts.register_monitor_callback(update_learned_shortcuts)
 
     def _is_runnable(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE
@@ -361,7 +376,7 @@ class RecentCommandImpl(OpenCommandImpl):
         def update_recent_documents():
             shortcuts_dict.update_by_category(recent.SHORTCUT_CATEGORY, dict((s.name, s) for s in recent.get_recent_documents(30)))
         update_recent_documents()
-        recent.register_update_callback(update_recent_documents)
+        recent.register_monitor_callback(update_recent_documents)
         """
         logging.warn(
             "The functionality of listing the recent items in 'open' command has been disabled due to performance issues in Linux GTK recent-files manager.")

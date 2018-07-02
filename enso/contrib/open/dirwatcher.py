@@ -29,34 +29,22 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-TODO:
-    - Resolve duplicate names in gtk_bookmarks (use part of directory on duplicated entries)
-"""
-
 # ----------------------------------------------------------------------------
 # Imports
 # ----------------------------------------------------------------------------
 
+# Future imports
 from __future__ import with_statement
-import logging
-import os
 
-import gio
-from gtk.gdk import lock as gtk_lock
+import logging
+import time
+
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from enso.contrib.open import (
-    shortcuts,
-    dirwatcher
-)
 
-
-SHORTCUT_CATEGORY = "gtk-bookmark"
-BOOKMARKS_DIR = "~"
-BOOKMARKS_FILE = ".gtk-bookmarks"
-
+_dir_monitor = None
+_dir_specs = {}
 
 
 class _FileChangedEventHandler(FileSystemEventHandler):
@@ -64,78 +52,76 @@ class _FileChangedEventHandler(FileSystemEventHandler):
     def __init__(self):
         super(_FileChangedEventHandler, self).__init__()
         self.update_callback_func = None
+        self.update_callback_args = None
+        self.update_callback_kwargs = None
+        self.events = []
         #self.update_commands_delayed = DelayedExecution(1.0, self.update_commands)
 
     def on_moved(self, event):
         super(_FileChangedEventHandler, self).on_moved(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        bookmarks_filename = os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))
-        if not event.is_directory and event.dest_path == bookmarks_filename:
-            self.call_callback(event)
+        what = 'directory' if event.is_directory else 'file'
+        print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
+        self.call_callback(event.dest_path)
 
     def on_created(self, event):
         super(_FileChangedEventHandler, self).on_created(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Created %s: %s" % (what, event.src_path)
-        #self.call_callback(event)
+        what = 'directory' if event.is_directory else 'file'
+        print "Created %s: %s" % (what, event.src_path)
+        self.call_callback(event.src_path)
 
     def on_deleted(self, event):
         super(_FileChangedEventHandler, self).on_deleted(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Deleted %s: %s" % (what, event.src_path)
-        #self.call_callback(event)
+        what = 'directory' if event.is_directory else 'file'
+        print "Deleted %s: %s" % (what, event.src_path)
+        self.call_callback(event.src_path)
 
     def on_modified(self, event):
         super(_FileChangedEventHandler, self).on_modified(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Modified %s: %s" % (what, event.src_path)
+        what = 'directory' if event.is_directory else 'file'
+        print "Modified %s: %s" % (what, event.src_path)
+        self.events.append((event, time.time()))
+        if len(self.events) % 10 == 0:
+            evts = self.events[:]
+            delays = [abs(e[1] - evts[i+1][1]) for i, e in enumerate(evts) if i < len(evts)-1]
+            print "Delays between events: %ds-%ds" % (min(delays), max(delays))
+        #self.call_callback(event.src_path)
 
-    def call_callback(self, event):
-        #print "Recently changed gtk-bookmarks list was updated"
+    def call_callback(self, directory):
         if self.update_callback_func:
             try:
                 assert logging.debug("Calling update callback func...") or True
-                self.update_callback_func()
-            except Exception, e:
+                self.update_callback_func(directory, *self.update_callback_args, **self.update_callback_kwargs)
+            except Exception as e:
                 logging.error("Error calling watchdog-update-callback function: %s", e)
         else:
             assert logging.debug("No calling update callback func was defined, that's fine") or True
 
 
-def get_bookmarks():
-    logging.info("Loading gtk-bookmarks")
-    basename = os.path.basename
-    places = []
-    with open(os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))) as f:
-        for line in f:
-            if not line.strip():
-                continue
-            items = line.strip().split(" ", 1)
-            uri = items[0]
-            with gtk_lock:
-                gfile = gio.File(uri)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                if len(items) > 1:
-                    title = items[1].rstrip()
-                else:
-                    disp = gfile.get_parse_name()
-                    title = basename(disp)
-                locpath = gfile.get_path()
-                new_uri = gfile.get_uri()
-            if locpath:
-                shortcut = shortcuts.Shortcut(
-                    "%s [places]" % title, shortcuts.SHORTCUT_TYPE_FOLDER, locpath, category=SHORTCUT_CATEGORY)
-            else:
-                shortcut = shortcuts.Shortcut(
-                    "%s [places]" % title, shortcuts.SHORTCUT_TYPE_URL, new_uri, category=SHORTCUT_CATEGORY)
-            #print shortcut
-            places.append(shortcut)
-    logging.info("Loaded %d gtk-bookmarks" % len(places))
-    return places
+def register_monitor_callback(callback_func, directories, *args, **kwargs):
+    """
+    """
+    assert callback_func is None or callable(callback_func), "callback_func must be callable entity or None"
+    assert directories
+    assert hash(directories)
 
+    global _dir_monitor, _dir_specs
 
-def register_monitor_callback(callback_func):
-    dirwatcher.register_monitor_callback(
-        callback_func,
-        ((os.path.expanduser(BOOKMARKS_DIR), False),)
-    )
+    _id = hash(directories)
+    handler = _dir_specs.setdefault(_id, _FileChangedEventHandler())
+    if (handler.update_callback_func != callback_func or
+        directories != handler.directories):
+        handler.update_callback_func = directories
+        handler.update_callback_func = callback_func
+        handler.update_callback_args = args
+        handler.update_callback_kwargs = kwargs
+
+    if _dir_monitor is None:
+        # Set up the directory watcher for shortcuts directory
+        _dir_monitor = Observer()
+        _dir_monitor.start()
+
+    for directory, recursive in directories:
+        try:
+            _dir_monitor.schedule(handler, directory, recursive=recursive)
+        except Exception as e:
+            logging.error("Error scheduling directory monitor for %s: %s", directory, str(e))
