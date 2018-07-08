@@ -1,6 +1,6 @@
 import traceback
 
-from contextdecorator import contextmanager, ContextDecorator
+from contextlib import contextmanager
 
 
 try:

@@ -34,7 +34,7 @@
 # Future imports
 from __future__ import division, with_statement
 
-__updated__ = "2017-02-23"
+__updated__ = "2018-07-04"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -68,8 +68,8 @@ from enso.contrib.open.platform.linux.desktop_launch import (
 )
 from enso.contrib.open.platform.linux.utils import get_file_type
 from enso.contrib.open.shortcuts import ShortcutsDict
-from enso.contrib.open.utils import timed_execution
-from enso.utils.decorators import suppress
+from enso.utils import suppress
+from enso.utils.decorators import timed_execution
 
 
 # ----------------------------------------------------------------------------
@@ -124,7 +124,8 @@ class OpenCommandImpl(AbstractOpenCommand):
         return learned_shortcuts.LEARN_AS_DIR
 
     def _reload_shortcuts(self, shortcuts_dict):
-        def update_applications(path):
+        @timed_execution("Application shortcuts updated")
+        def update_applications(path=None):
             _ = path
             shortcuts_dict.update_by_category(
                 applications.SHORTCUT_CATEGORY,
@@ -132,7 +133,8 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         update_applications()
 
-        def update_desktop_shortcuts(path):
+        @timed_execution("Desktop shortcuts updated")
+        def update_desktop_shortcuts(path=None):
             _ = path
             shortcuts_dict.update_by_category(
                 desktop.SHORTCUT_CATEGORY_DESKTOP,
@@ -140,7 +142,8 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         update_desktop_shortcuts()
 
-        def update_launch_panel_shortcuts(path):
+        @timed_execution("Launch-panel shortcuts updated")
+        def update_launch_panel_shortcuts(path=None):
             _ = path
             shortcuts_dict.update_by_category(
                 desktop.SHORTCUT_CATEGORY_LAUNCHPANEL,
@@ -155,7 +158,8 @@ class OpenCommandImpl(AbstractOpenCommand):
         recent.register_monitor_callback(update_recent_documents)
         """
 
-        def update_gtk_bookmarks(path):
+        @timed_execution("GTK-bookmarks shortcuts updated")
+        def update_gtk_bookmarks(path=None):
             _ = path
             shortcuts_dict.update_by_category(
                 gtk_bookmarks.SHORTCUT_CATEGORY,
@@ -163,7 +167,8 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
         update_gtk_bookmarks()
 
-        def update_learned_shortcuts(path):
+        @timed_execution("Learned shortcuts updated")
+        def update_learned_shortcuts(path=None):
             _ = path
             shortcuts_dict.update_by_category(
                 learned_shortcuts.SHORTCUT_CATEGORY,

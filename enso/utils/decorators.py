@@ -55,10 +55,10 @@ try:
     # Python 3.x
     from contextlib import ContextDecorator, contextmanager
 except ImportError:
-    try:
-        # Python 2.6+
+    if sys.version_info[0] == 2 and sys.version_info[1] == 6:
+        # Python 2.6
         from contextdecorator import ContextDecorator, contextmanager
-    except ImportError:
+    else:
         # Python 2.7+
         from contextlib2 import ContextDecorator, contextmanager
 

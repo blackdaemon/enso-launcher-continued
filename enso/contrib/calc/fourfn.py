@@ -57,6 +57,7 @@ from enso.contrib.calc.exchangerates.converter import (
     get_home_currency,
     convert_currency
 )
+
 from dateutil.relativedelta import relativedelta
 from pyparsing import (
     CaselessLiteral,
@@ -74,7 +75,7 @@ from pyparsing import (
 )
 from text2num import text2num
 
-__updated__ = "2018-06-20"
+__updated__ = "2018-06-22"
 __all__ = ["evaluate"]
 
 RE_ROMAN_NUMERALS = '[IVXLCDMivxlcdm]+'
@@ -282,7 +283,7 @@ class BNF(object):
             currency_pair = Word(alphas, min=6, max=6)
             """
             currency_name = Forward()
-            for cur_code in RATES.exchange_rates.keys():
+            for cur_code in get_currency_rates().exchange_rates.keys():
                 currency_name |= CaselessLiteral(cur_code)
             """
             currency_name.setParseAction(cls.pushFirst)

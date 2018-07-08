@@ -32,7 +32,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-__updated__ = "2018-06-22"
+__updated__ = "2018-07-04"
 
 import atexit
 import logging
@@ -48,7 +48,7 @@ from shutilwhich import which
 from utils import get_display, get_keycode, get_cmd_output, sanitize_char
 from xprintidle import idle_time
 
-from enso.utils.decorators import suppress
+from enso.utils import suppress
 
 
 gtk.gdk.threads_init()
