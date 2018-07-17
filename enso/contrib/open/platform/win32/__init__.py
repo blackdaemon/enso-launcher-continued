@@ -795,9 +795,9 @@ class OpenCommandImpl(AbstractOpenCommand):
 
         @timed("Loaded common-desktop shortcuts")
         @synchronized()
-        def reload_commom_desktop_shortcuts(path=None, all_calls_params=([],{})):
+        def reload_commom_desktop_shortcuts(path=None, all_calls_params=[]):
             # 'all_calls_params' arg is provided by the @debounce decorator
-            changed_paths = all_calls_params[0]
+            changed_paths = (p[0] for p in all_calls_params)
             # Act only on file changes and exclude certain files
             if not any(
                 True for p in changed_paths
@@ -823,9 +823,9 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed("Loaded user-desktop shortcuts")
         @synchronized()
         @initialize_pythoncom
-        def reload_user_desktop_shortcuts(path=None, all_calls_params=([],{})):
+        def reload_user_desktop_shortcuts(path=None, all_calls_params=[]):
             # 'all_calls_params' arg is provided by the @debounce decorator
-            changed_paths = all_calls_params[0]
+            changed_paths = (p[0] for p in all_calls_params)
             # Act only on file changes and exclude certain files
             if not any(
                 True for p in changed_paths
@@ -851,9 +851,9 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed("Loaded quick-launch shortcuts")
         @synchronized()
         @initialize_pythoncom
-        def reload_quick_launch_shortcuts(path=None, all_calls_params=([],{})):
+        def reload_quick_launch_shortcuts(path=None, all_calls_params=[]):
             # 'all_calls_params' arg is provided by the @debounce decorator
-            changed_paths = all_calls_params[0]
+            changed_paths = (p[0] for p in all_calls_params)
             # Act only on file changes and exclude certain files
             if not any(
                 True for p in changed_paths
