@@ -44,8 +44,6 @@ import os
 
 import gio
 from gtk.gdk import lock as gtk_lock
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 
 from enso.contrib.open import (
     shortcuts,
@@ -56,51 +54,7 @@ from enso.contrib.open import (
 SHORTCUT_CATEGORY = "gtk-bookmark"
 BOOKMARKS_DIR = "~"
 BOOKMARKS_FILE = ".gtk-bookmarks"
-
-
-
-class _FileChangedEventHandler(FileSystemEventHandler):
-
-    def __init__(self):
-        super(_FileChangedEventHandler, self).__init__()
-        self.update_callback_func = None
-        #self.update_commands_delayed = DelayedExecution(1.0, self.update_commands)
-
-    def on_moved(self, event):
-        super(_FileChangedEventHandler, self).on_moved(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        bookmarks_filename = os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))
-        if not event.is_directory and event.dest_path == bookmarks_filename:
-            self.call_callback(event)
-
-    def on_created(self, event):
-        super(_FileChangedEventHandler, self).on_created(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Created %s: %s" % (what, event.src_path)
-        #self.call_callback(event)
-
-    def on_deleted(self, event):
-        super(_FileChangedEventHandler, self).on_deleted(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Deleted %s: %s" % (what, event.src_path)
-        #self.call_callback(event)
-
-    def on_modified(self, event):
-        super(_FileChangedEventHandler, self).on_modified(event)
-        #what = 'directory' if event.is_directory else 'file'
-        #print "Modified %s: %s" % (what, event.src_path)
-
-    def call_callback(self, event):
-        #print "Recently changed gtk-bookmarks list was updated"
-        if self.update_callback_func:
-            try:
-                assert logging.debug("Calling update callback func...") or True
-                self.update_callback_func()
-            except Exception, e:
-                logging.error("Error calling watchdog-update-callback function: %s", e)
-        else:
-            assert logging.debug("No calling update callback func was defined, that's fine") or True
+BOOKMARKS_FILENAME = os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))
 
 
 def get_bookmarks():
