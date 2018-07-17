@@ -61,19 +61,19 @@ class _FileChangedEventHandler(FileSystemEventHandler):
         super(_FileChangedEventHandler, self).on_moved(event)
         what = 'directory' if event.is_directory else 'file'
         print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        self.call_callback(event.dest_path)
+        self.callback(event.dest_path)
 
     def on_created(self, event):
         super(_FileChangedEventHandler, self).on_created(event)
         what = 'directory' if event.is_directory else 'file'
         print "Created %s: %s" % (what, event.src_path)
-        self.call_callback(event.src_path)
+        self.callback(event.src_path)
 
     def on_deleted(self, event):
         super(_FileChangedEventHandler, self).on_deleted(event)
         what = 'directory' if event.is_directory else 'file'
         print "Deleted %s: %s" % (what, event.src_path)
-        self.call_callback(event.src_path)
+        self.callback(event.src_path)
 
     def on_modified(self, event):
         super(_FileChangedEventHandler, self).on_modified(event)
@@ -84,9 +84,9 @@ class _FileChangedEventHandler(FileSystemEventHandler):
             evts = self.events[:]
             delays = [abs(e[1] - evts[i+1][1]) for i, e in enumerate(evts) if i < len(evts)-1]
             print "Delays between events: %ds-%ds" % (min(delays), max(delays))
-        #self.call_callback(event.src_path)
+        self.callback(event.src_path)
 
-    def call_callback(self, directory):
+    def callback(self, directory):
         if self.update_callback_func:
             try:
                 assert logging.debug("Calling update callback func...") or True
