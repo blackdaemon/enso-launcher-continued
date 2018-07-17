@@ -667,7 +667,7 @@ def run_shortcut(shortcut):
                             None,
                             None,
                             win32con.SW_SHOWDEFAULT)
-                    except Exception, e:  # IGNORE:W0703
+                    except Exception as e:  # IGNORE:W0703
                         logger.error(e)
                 elif e.errno == winerror.ERROR_NO_ASSOCIATION:
                     # No application is associated with the specified file.
@@ -680,12 +680,12 @@ def run_shortcut(shortcut):
                             "shell32.dll,OpenAs_RunDLL %s" % target,
                             None,
                             win32con.SW_SHOWDEFAULT)
-                    except Exception, e:  # IGNORE:W0703
+                    except Exception as e:  # IGNORE:W0703
                         logger.error(e)
                 else:
                     logger.error("%d: %s", e.errno, e)
         return True
-    except Exception, e:  # IGNORE:W0703
+    except Exception as e:  # IGNORE:W0703
         logger.error(e)
         return False
 
@@ -702,7 +702,7 @@ def open_with_shortcut(shortcut, targets):
                     "shell32.dll,OpenAs_RunDLL %s" % file_name,
                     None,
                     win32con.SW_SHOWDEFAULT)
-            except Exception, e:  # IGNORE:W0703
+            except Exception as e:  # IGNORE:W0703
                 logger.error(e)
         return
 
@@ -730,7 +730,7 @@ def open_with_shortcut(shortcut, targets):
             params,
             workdir,
             win32con.SW_SHOWDEFAULT)
-    except Exception, e:  # IGNORE:W0703
+    except Exception as e:  # IGNORE:W0703
         logger.error(e)
 
 
@@ -786,7 +786,16 @@ class OpenCommandImpl(AbstractOpenCommand):
 
         @timed("Loaded common-desktop shortcuts")
         @synchronized()
-        def reload_commom_desktop_shortcuts(path=None):
+        def reload_commom_desktop_shortcuts(path=None, all_calls_params=([],{})):
+            # 'all_calls_params' arg is provided by the @debounce decorator
+            changed_paths = all_calls_params[0]
+            # Act only on file changes and exclude certain files
+            if not any(
+                True for p in changed_paths
+                if not isdir(p) and not basename(p) in ('desktop.ini',)
+            ):
+                print changed_paths
+                return
             #with timed_execution("Loaded common-desktop shortcuts"):
             shortcuts_dict.update_by_dir(
                 common_desktop_dir,
@@ -805,7 +814,16 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed("Loaded user-desktop shortcuts")
         @synchronized()
         @initialize_pythoncom
-        def reload_user_desktop_shortcuts(path=None):
+        def reload_user_desktop_shortcuts(path=None, all_calls_params=([],{})):
+            # 'all_calls_params' arg is provided by the @debounce decorator
+            changed_paths = all_calls_params[0]
+            # Act only on file changes and exclude certain files
+            if not any(
+                True for p in changed_paths
+                if not isdir(p) and not basename(p) in ('desktop.ini',)
+            ):
+                print changed_paths
+                return
             shortcuts_dict.update_by_dir(
                 desktop_dir,
                 dict((s.name, s) for s in
@@ -824,7 +842,16 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed("Loaded quick-launch shortcuts")
         @synchronized()
         @initialize_pythoncom
-        def reload_quick_launch_shortcuts(path=None):
+        def reload_quick_launch_shortcuts(path=None, all_calls_params=([],{})):
+            # 'all_calls_params' arg is provided by the @debounce decorator
+            changed_paths = all_calls_params[0]
+            # Act only on file changes and exclude certain files
+            if not any(
+                True for p in changed_paths
+                if not isdir(p) and not basename(p) in ('desktop.ini',)
+            ):
+                print changed_paths
+                return
             shortcuts_dict.update_by_dir(
                 quick_launch_dir,
                 dict((s.name, s) for s in
@@ -860,6 +887,12 @@ class OpenCommandImpl(AbstractOpenCommand):
         @synchronized()
         @initialize_pythoncom
         def reload_user_start_menu_shortcuts(path=None):
+            if path:
+                if basename(path) in ('desktop.ini',):
+                    return
+                if isdir(path):
+                    return
+                print u"PATH: %s" % path
             shortcuts_dict.update_by_dir(
                 start_menu_dir,
                 dict((s.name, s) for s in
@@ -879,6 +912,12 @@ class OpenCommandImpl(AbstractOpenCommand):
         @synchronized()
         @initialize_pythoncom
         def reload_common_start_menu_shortcuts(path=None):
+            if path:
+                if basename(path) in ('desktop.ini',):
+                    return
+                if isdir(path):
+                    return
+                print u"PATH: %s" % path
             shortcuts_dict.update_by_dir(
                 common_start_menu_dir,
                 dict((s.name, s) for s in
@@ -949,6 +988,12 @@ class OpenCommandImpl(AbstractOpenCommand):
         @synchronized()
         @initialize_pythoncom
         def reload_enso_learned_shortcuts(path=None):
+            if path:
+                if basename(path) in ('desktop.ini',):
+                    return
+                if isdir(path):
+                    return
+                print u"PATH: %s" % path
             shortcuts_dict.update_by_dir(
                 LEARN_AS_DIR,
                 dict((s.name, s) for s in
@@ -1064,6 +1109,7 @@ class RecentCommandImpl(AbstractOpenCommand):
         @synchronized()
         @initialize_pythoncom
         def reload_recent_shortcuts(path=None):
+            _ = path
             self.shortcut_dict.update(
                 get_shortcuts_from_dir(recent_documents_dir,
                                        max_depth=0,
