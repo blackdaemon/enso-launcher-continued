@@ -308,7 +308,7 @@ def dirwalk(top, max_depth=None):
     _isdir = isdir
     _pathjoin = pathjoin
     _islink = islink
-    
+
     for name in names:
         if _isdir(_pathjoin(top, name)):
             dirs.append(name)
@@ -395,7 +395,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
     _basename = basename
     _is_symlink = filesystem.is_symlink
     _trace_symlink_target = filesystem.trace_symlink_target
-    
+
     for shortcut_dirpath, shortcut_directories, shortcut_filenames in dirwalk(directory, max_depth):
         if collect_dirs:
             for shortcut_directory in shortcut_directories:
@@ -803,18 +803,19 @@ class OpenCommandImpl(AbstractOpenCommand):
             'list(get_shortcuts_from_dir(desktop_dir))', globals(), locals())
         """
 
-        @timed("Loaded common-desktop shortcuts")
+        @timed_execution("Loaded common-desktop shortcuts", mute_on_false=True)
         @synchronized()
         def reload_commom_desktop_shortcuts(path=None, all_calls_params=[]):
-            # 'all_calls_params' arg is provided by the @debounce decorator
-            changed_paths = (p[0] for p in all_calls_params)
+            # Get unique list of changed paths
+            # ('all_calls_params' arg is provided by the @debounce decorator)
+            changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
             # Act only on file changes and exclude certain files
-            if not any(
-                True for p in changed_paths
-                if not isdir(p) and not basename(p) in ('desktop.ini',)
+            if changed_paths and not any(
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+                for p in changed_paths
             ):
-                print changed_paths
-                return
+                print "Skipping changed path(s): ", changed_paths
+                return False
             #with timed_execution("Loaded common-desktop shortcuts"):
             shortcuts_dict.update_by_dir(
                 common_desktop_dir,
@@ -824,25 +825,28 @@ class OpenCommandImpl(AbstractOpenCommand):
                     #,category="desktop" if self.use_categories else None
                 ))
             )
+            return True
+
         reload_commom_desktop_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_commom_desktop_shortcuts),
             ((common_desktop_dir, False),),
         )
 
-        @timed("Loaded user-desktop shortcuts")
+        @timed_execution("Loaded user-desktop shortcuts", mute_on_false=True)
         @synchronized()
         @initialize_pythoncom
         def reload_user_desktop_shortcuts(path=None, all_calls_params=[]):
-            # 'all_calls_params' arg is provided by the @debounce decorator
-            changed_paths = (p[0] for p in all_calls_params)
+            # Get unique list of changed paths
+            # ('all_calls_params' arg is provided by the @debounce decorator)
+            changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
             # Act only on file changes and exclude certain files
-            if not any(
-                True for p in changed_paths
-                if not isdir(p) and not basename(p) in ('desktop.ini',)
+            if changed_paths and not any(
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+                for p in changed_paths
             ):
-                print changed_paths
-                return
+                print "Skipping changed path(s): ", changed_paths
+                return False
             shortcuts_dict.update_by_dir(
                 desktop_dir,
                 dict((s.name, s) for s in
@@ -852,25 +856,28 @@ class OpenCommandImpl(AbstractOpenCommand):
                     #,category="desktop" if self.use_categories else None
                 ))
             )
+            return True
+
         reload_user_desktop_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_user_desktop_shortcuts),
             ((desktop_dir, False),),
         )
 
-        @timed("Loaded quick-launch shortcuts")
+        @timed_execution("Loaded quick-launch shortcuts", mute_on_false=True)
         @synchronized()
         @initialize_pythoncom
         def reload_quick_launch_shortcuts(path=None, all_calls_params=[]):
-            # 'all_calls_params' arg is provided by the @debounce decorator
-            changed_paths = (p[0] for p in all_calls_params)
+            # Get unique list of changed paths
+            # ('all_calls_params' arg is provided by the @debounce decorator)
+            changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
             # Act only on file changes and exclude certain files
-            if not any(
-                True for p in changed_paths
-                if not isdir(p) and not basename(p) in ('desktop.ini',)
+            if changed_paths and not any(
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+                for p in changed_paths
             ):
-                print changed_paths
-                return
+                print "Skipping changed path(s): ", changed_paths
+                return False
             shortcuts_dict.update_by_dir(
                 quick_launch_dir,
                 dict((s.name, s) for s in
@@ -881,6 +888,8 @@ class OpenCommandImpl(AbstractOpenCommand):
                     #,category="quicklaunch" if self.use_categories else None
                 ))
             )
+            return True
+
         reload_quick_launch_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_quick_launch_shortcuts),
@@ -902,16 +911,20 @@ class OpenCommandImpl(AbstractOpenCommand):
                                              ).encode('ascii', 'ignore').lower()
             return "startmenu %s" % category
 
-        @timed("Loaded user-start-menu shortcuts")
+        @timed_execution("Loaded user-start-menu shortcuts", mute_on_false=True)
         @synchronized()
         @initialize_pythoncom
-        def reload_user_start_menu_shortcuts(path=None):
-            if path:
-                if basename(path) in ('desktop.ini',):
-                    return
-                if isdir(path):
-                    return
-                print u"PATH: %s" % path
+        def reload_user_start_menu_shortcuts(path=None, all_calls_params=[]):
+            # Get unique list of changed paths
+            # ('all_calls_params' arg is provided by the @debounce decorator)
+            changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
+            # Act only on file changes and exclude certain files
+            if changed_paths and not any(
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+                for p in changed_paths
+            ):
+                print "Skipping changed path(s): ", changed_paths
+                return False
             shortcuts_dict.update_by_dir(
                 start_menu_dir,
                 dict((s.name, s) for s in
@@ -921,22 +934,28 @@ class OpenCommandImpl(AbstractOpenCommand):
                     category=get_startmenu_category if self.use_categories else None
                 ))
             )
+            return True
+
         reload_user_start_menu_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_user_start_menu_shortcuts),
             ((start_menu_dir, False),),
         )
 
-        @timed("Loaded common-start-menu shortcuts")
+        @timed_execution("Loaded common-start-menu shortcuts", mute_on_false=True)
         @synchronized()
         @initialize_pythoncom
-        def reload_common_start_menu_shortcuts(path=None):
-            if path:
-                if basename(path) in ('desktop.ini',):
-                    return
-                if isdir(path):
-                    return
-                print u"PATH: %s" % path
+        def reload_common_start_menu_shortcuts(path=None, all_calls_params=[]):
+            # Get unique list of changed paths
+            # ('all_calls_params' arg is provided by the @debounce decorator)
+            changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
+            # Act only on file changes and exclude certain files
+            if changed_paths and not any(
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+                for p in changed_paths
+            ):
+                print "Skipping changed path(s): ", changed_paths
+                return False
             shortcuts_dict.update_by_dir(
                 common_start_menu_dir,
                 dict((s.name, s) for s in
@@ -946,13 +965,15 @@ class OpenCommandImpl(AbstractOpenCommand):
                     category=get_startmenu_category if self.use_categories else None
                 ))
             )
+            return True
+
         reload_common_start_menu_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_common_start_menu_shortcuts),
             ((common_start_menu_dir, False),),
         )
 
-        @timed("Loaded Virtual PC machines")
+        @timed_execution("Loaded Virtual PC machines")
         @synchronized()
         @initialize_pythoncom
         def reload_virtual_pc_machines(path=None):
@@ -987,7 +1008,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             )
 
         if os.path.isdir(GAMEEXPLORER_DIR):
-            @timed("Loaded gameexplorer entries")
+            @timed_execution("Loaded gameexplorer entries")
             @synchronized()
             @initialize_pythoncom
             def reload_gameexplorer_shortcuts(path=None):
@@ -1003,16 +1024,20 @@ class OpenCommandImpl(AbstractOpenCommand):
                 ((GAMEEXPLORER_DIR, False),)
             )
 
-        @timed("Loaded Enso learn-as shortcuts", 'reload_enso_learned_shortcuts')
+        @timed_execution("Loaded Enso learn-as shortcuts", mute_on_false=True)
         @synchronized()
         @initialize_pythoncom
-        def reload_enso_learned_shortcuts(path=None):
-            if path:
-                if basename(path) in ('desktop.ini',):
-                    return
-                if isdir(path):
-                    return
-                print u"PATH: %s" % path
+        def reload_enso_learned_shortcuts(path=None, all_calls_params=[]):
+            # Get unique list of changed paths
+            # ('all_calls_params' arg is provided by the @debounce decorator)
+            changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
+            # Act only on file changes and exclude certain files
+            if changed_paths and not any(
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+                for p in changed_paths
+            ):
+                print "Skipping changed path(s): ", changed_paths
+                return False
             shortcuts_dict.update_by_dir(
                 LEARN_AS_DIR,
                 dict((s.name, s) for s in
@@ -1023,6 +1048,8 @@ class OpenCommandImpl(AbstractOpenCommand):
                     flags=SHORTCUT_FLAG_LEARNED
                 ))
             )
+            return True
+
         reload_enso_learned_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_enso_learned_shortcuts),
