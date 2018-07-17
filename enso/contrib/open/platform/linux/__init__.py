@@ -34,7 +34,7 @@
 # Future imports
 from __future__ import division, with_statement
 
-__updated__ = "2018-07-04"
+__updated__ = "2018-07-12"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -69,18 +69,19 @@ from enso.contrib.open.platform.linux.desktop_launch import (
 from enso.contrib.open.platform.linux.utils import get_file_type
 from enso.contrib.open.shortcuts import ShortcutsDict
 from enso.utils import suppress
-from enso.utils.decorators import timed_execution
+from enso.utils.decorators import (
+    timed_execution,
+    debounce
+)
 
 
 # ----------------------------------------------------------------------------
-# Imports
+# Constants
 # ----------------------------------------------------------------------------
 
-# Imports
+# Debouncing time of shortcuts refreshes in seconds
+SHORTCUTS_REFRESH_DEBOUNCE_TIME = 4
 
-
-# from enso.contrib.open.platform.linux import recent
-# from enso.contrib.open.platform.linux.windows import DesktopWindowsDirectory, windows_list
 
 """
 def limit_windows_by_title_fuzzy_search(title, win_list, first_hit=False):
@@ -127,6 +128,8 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed_execution("Application shortcuts updated")
         def update_applications(path=None):
             _ = path
+            if path:
+                print u"APPLICATION-SHORTCUTS modified file: %s" % path
             shortcuts_dict.update_by_category(
                 applications.SHORTCUT_CATEGORY,
                 dict((s.name, s) for s in applications.get_applications())
@@ -136,6 +139,8 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed_execution("Desktop shortcuts updated")
         def update_desktop_shortcuts(path=None):
             _ = path
+            if path:
+                print u"DESKTOP modified file: %s" % path
             shortcuts_dict.update_by_category(
                 desktop.SHORTCUT_CATEGORY_DESKTOP,
                 dict((s.name, s) for s in desktop.get_desktop_shortcuts())
@@ -145,6 +150,8 @@ class OpenCommandImpl(AbstractOpenCommand):
         @timed_execution("Launch-panel shortcuts updated")
         def update_launch_panel_shortcuts(path=None):
             _ = path
+            if path:
+                print u"LAUNCH-PANEL modified file: %s" % path
             shortcuts_dict.update_by_category(
                 desktop.SHORTCUT_CATEGORY_LAUNCHPANEL,
                 dict((s.name, s) for s in desktop.get_launch_panel_shortcuts())
@@ -158,29 +165,47 @@ class OpenCommandImpl(AbstractOpenCommand):
         recent.register_monitor_callback(update_recent_documents)
         """
 
-        @timed_execution("GTK-bookmarks shortcuts updated")
+        @timed_execution("GTK-bookmarks shortcuts updated", mute_on_false=True)
         def update_gtk_bookmarks(path=None):
-            _ = path
+            # FIXME: Following test can make this fail if debouncing is used
+            # and multiple files change shortly as only the last reported file
+            # is passed in the :path param
+            if path and path != gtk_bookmarks.BOOKMARKS_FILENAME:
+                return False
             shortcuts_dict.update_by_category(
                 gtk_bookmarks.SHORTCUT_CATEGORY,
                 dict((s.name, s) for s in gtk_bookmarks.get_bookmarks())
             )
+            return True
         update_gtk_bookmarks()
 
         @timed_execution("Learned shortcuts updated")
         def update_learned_shortcuts(path=None):
             _ = path
+            if path:
+                print u"LEARNED-SHORTCUTS modified file: %s" % path
             shortcuts_dict.update_by_category(
                 learned_shortcuts.SHORTCUT_CATEGORY,
                 dict((s.name, s) for s in learned_shortcuts.get_learned_shortcuts())
             )
         update_learned_shortcuts()
 
-        applications.register_monitor_callback(update_applications)
-        desktop.register_update_callback_desktop(update_desktop_shortcuts)
-        desktop.register_update_callback_launchpanel(update_launch_panel_shortcuts)
-        gtk_bookmarks.register_monitor_callback(update_gtk_bookmarks)
-        learned_shortcuts.register_monitor_callback(update_learned_shortcuts)
+        applications.register_monitor_callback(
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_applications)
+        )
+        desktop.register_monitor_callback_desktop(
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_desktop_shortcuts)
+        )
+        desktop.register_monitor_callback_launchpanel(
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_launch_panel_shortcuts)
+        )
+        gtk_bookmarks.register_monitor_callback(
+            # FIXME: Debouncing will not work properly here
+            update_gtk_bookmarks
+        )
+        learned_shortcuts.register_monitor_callback(
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_learned_shortcuts)
+        )
 
     def _is_runnable(self, shortcut):
         return shortcut.type == shortcuts.SHORTCUT_TYPE_EXECUTABLE

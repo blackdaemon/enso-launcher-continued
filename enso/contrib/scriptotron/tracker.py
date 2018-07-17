@@ -31,7 +31,7 @@
 #   enso
 #
 # ----------------------------------------------------------------------------
-__updated__ = "2018-06-19"
+__updated__ = "2018-07-12"
 
 import logging
 import os
@@ -203,10 +203,13 @@ class ScriptTracker(object):
         code = compile(text + "\n", filename, "exec")
         try:
             exec code in allGlobals
-        except PlatformUnsupportedError:
+        except PlatformUnsupportedError as e:
             logging.warning(
-                "Command '%s' is not supported on this platform."
-                % basename(filename)
+                "Command '%s' is not supported on this platform%s"
+                % (
+                    basename(filename),
+                    " (%s)." % str(e) if str(e) else "."
+                )
             )
             return None
         return allGlobals

@@ -207,23 +207,26 @@ class FontRegistry:
             i = 0
             try:
                 RegEnumValue = win32api.RegEnumValue  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
-                splitext = os.path.splitext
-                pathjoin = os.path.join
+                
+                # Optimization
+                _splitext = os.path.splitext
+                _pathjoin = os.path.join
+                
                 while True:
                     font_name, font_file, _ = RegEnumValue(regkey, i)
                     i += 1
 
-                    _, ext = splitext(font_file)
+                    _, ext = _splitext(font_file)
                     if ext.lower() != ".ttf":
                         continue
 
-                    font_path = pathjoin(FONT_DIR, font_file)
+                    font_path = _pathjoin(FONT_DIR, font_file)
                     m = match_bare_font_name(font_name)
                     if m:
                         font_name = m.group(1)
 
                     if simplify_font_name(font_id) == simplify_font_name(font_name).lower() or \
-                            simplify_font_name(font_id) == simplify_font_name(splitext(font_file)[0].lower()):
+                            simplify_font_name(font_id) == simplify_font_name(_splitext(font_file)[0].lower()):
                         font_detail = FontDetail(
                             [font_name], font_path, font_file)
                         self.__font_detail_cache[font_id] = font_detail

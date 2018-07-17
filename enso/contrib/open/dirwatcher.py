@@ -83,7 +83,11 @@ class _FileChangedEventHandler(FileSystemEventHandler):
         if len(self.events) % 10 == 0:
             evts = self.events[:]
             delays = [abs(e[1] - evts[i+1][1]) for i, e in enumerate(evts) if i < len(evts)-1]
-            print "Delays between events: %ds-%ds" % (min(delays), max(delays))
+            maximum = max(delays)
+            if maximum > 30:
+                maximum = 0
+                del self.events[:] 
+            print "Delays between events: %ds-%ds" % (min(delays), maximum)
         self.callback(event.src_path)
 
     def callback(self, directory):

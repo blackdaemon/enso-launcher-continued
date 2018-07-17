@@ -39,8 +39,6 @@ import os
 
 import gio
 from gtk.gdk import lock as gtk_lock
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 
 from enso.contrib.open import (
     shortcuts,
@@ -69,8 +67,11 @@ def lookup_exec_path(exename):
 
 def _get_runnable_shortcuts_from_dir(directory, category):
     result = []
+    
+    # Optimization
     splitext = os.path.splitext
     pathjoin = os.path.join
+    
     get_app_info = gio.unix.desktop_app_info_new_from_filename
     for f in os.listdir(directory):
         if splitext(f)[1] != ".desktop":
@@ -111,7 +112,7 @@ def get_launch_panel_shortcuts():
     return _get_runnable_shortcuts_from_dir(LAUNCH_PANEL_DIR, SHORTCUT_CATEGORY_LAUNCHPANEL)
 
 
-def register_update_callback_desktop(callback_func):
+def register_monitor_callback_desktop(callback_func):
     dirwatcher.register_monitor_callback(
         callback_func,
         (
@@ -119,7 +120,8 @@ def register_update_callback_desktop(callback_func):
         )
     )
 
-def register_update_callback_launchpanel(callback_func):
+
+def register_monitor_callback_launchpanel(callback_func):
     dirwatcher.register_monitor_callback(
         callback_func,
         (

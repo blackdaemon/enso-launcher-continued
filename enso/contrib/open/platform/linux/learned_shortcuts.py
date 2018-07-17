@@ -46,20 +46,25 @@ from enso.contrib.open import (
 )
 from enso.contrib.open.platform.linux.utils import get_file_type
 
-from os.path import splitext, basename, expanduser, isdir, join as pathjoin
 
 SHORTCUT_CATEGORY = "learned"
-my_documents_dir = expanduser('~/Documents')
-LEARN_AS_DIR = pathjoin(my_documents_dir, u"Enso")
+my_documents_dir = os.path.expanduser('~/Documents')
+LEARN_AS_DIR = os.path.join(my_documents_dir, u"Enso")
 
 # Check if Learn-as dir exist and create it if not
-if (not isdir(LEARN_AS_DIR)):
+if (not os.path.isdir(LEARN_AS_DIR)):
     os.makedirs(LEARN_AS_DIR)
 
 
 def get_learned_shortcuts():
     logging.info("Loading learn-as shortcuts")
     result = []
+    
+    # Optimization
+    splitext = os.path.splitext
+    pathjoin = os.path.join
+    basename = os.path.basename
+    
     for f in os.listdir(LEARN_AS_DIR):
         name = splitext(basename(f).lower())[0]
         filepath = pathjoin(LEARN_AS_DIR, f)
