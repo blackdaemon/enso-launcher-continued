@@ -651,7 +651,16 @@ def run_shortcut(shortcut):
             logger.info("Executing '%s'", target)
 
             try:
-                subprocess.Popen(target, shell=True, creationflags=win32process.DETACHED_PROCESS)
+                os.startfile(target)
+                """
+                subprocess.Popen(
+                    target,
+                    shell=True,
+                    #stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    close_fds=True,
+                    creationflags=win32process.DETACHED_PROCESS | win32process.CREATE_NEW_PROCESS_GROUP
+                )
+                """
             except WindowsError as e:
                 # TODO: Why am I getting 'bad command' error on Win7 instead of
                 # 'not found' error?
