@@ -76,6 +76,7 @@ class _FileChangedEventHandler(FileSystemEventHandler):
         self.call_callback(event.src_path)
 
     def on_modified(self, event):
+        # TODO: Implement also filtering?
         super(_FileChangedEventHandler, self).on_modified(event)
         what = 'directory' if event.is_directory else 'file'
         print "Modified %s: %s" % (what, event.src_path)
@@ -83,8 +84,12 @@ class _FileChangedEventHandler(FileSystemEventHandler):
         if len(self.events) % 10 == 0:
             evts = self.events[:]
             delays = [abs(e[1] - evts[i+1][1]) for i, e in enumerate(evts) if i < len(evts)-1]
-            print "Delays between events: %ds-%ds" % (min(delays), max(delays))
-        #self.call_callback(event.src_path)
+            maximum = max(delays)
+            if maximum > 30:
+                maximum = 0
+                del self.events[:] 
+            print "Delays between events: %ds-%ds" % (min(delays), maximum)
+        self.call_callback(event.src_path)
 
     def call_callback(self, directory):
         if self.update_callback_func:
