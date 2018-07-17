@@ -65,6 +65,19 @@ except ImportError:
 from enso import config
 from enso.utils import do_once
 
+# horrible reraise code for compatibility
+# with Python 2 & 3
+if sys.version_info >= (3,0):
+    exec ("""
+def _reraise(cls, val, tb):
+    raise val
+""")
+else:
+    exec ("""
+def _reraise(cls, val, tb):
+    raise cls, val, tb
+""")
+
 
 # ----------------------------------------------------------------------------
 # Functionality
@@ -186,23 +199,53 @@ def finalizeWrapper(origFunc, wrappedFunc, decoratorName):
     return wrappedFunc
 
 
-class timed_execution( ContextDecorator ):
+_NO_EXCEPTION = (None, None, None)
+
+class timed_execution( object ):
     """
     Decorator / context-manager to time execution of func/block.
     FIXME: This form does not work properly when chaining function decorators.
     In such case it does fail if called from parent decorator.
     When fixed, it can be used in place of @timed decorator below.
     """
-    def __init__( self, text ):
-        self._text = text
+    def __init__(self, text, mute_on_false=False, mute_on_exception=False):
+        self.text = text
+        self.mute_on_false = mute_on_false
+        self.mute_on_exception = mute_on_exception
 
-    def __enter__( self ):
+    def __enter__(self):
         self._start = time.clock()
         return self
 
+    def __call__(self, f):
+        @wraps(f)
+        def inner(*args, **kw):
+            self.__enter__()
+
+            exc = _NO_EXCEPTION
+            try:
+                # Store result for use in __exit__ method
+                self.result = f(*args, **kw)
+            except Exception:
+                exc = sys.exc_info()
+
+            catch = self.__exit__(*exc)
+
+            if not catch and exc is not _NO_EXCEPTION:
+                _reraise(*exc)
+            return self.result
+        return inner
+
     def __exit__(self, *exc):
-        if config.DEBUG_REPORT_TIMINGS:
-            logging.info(u"%s: %0.4Fs" % (self._text, time.clock() - self._start))
+        # Do not report if disabled in config
+        if not config.DEBUG_REPORT_TIMINGS:
+            return
+        # Do not report if called function raised exception
+        if self.mute_on_false and not self.result:
+            return
+        if self.mute_on_exception and exc is not _NO_EXCEPTION:
+            return
+        logging.info(u"%s: %0.4Fs" % (self.text, time.clock() - self._start))
 
 
 # next bit filched from 1.5.2's inspect.py
