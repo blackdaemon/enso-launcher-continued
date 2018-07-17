@@ -104,7 +104,7 @@ if utils.platform_windows_vista() or utils.platform_windows_7():
 else:
     from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
 
-__updated__ = "2017-04-17"
+__updated__ = "2018-07-13"
 
 logger = logging.getLogger(__name__)
 
@@ -305,8 +305,12 @@ def dirwalk(top, max_depth=None):
         return
 
     dirs, nondirs = [], []
+    _isdir = isdir
+    _pathjoin = pathjoin
+    _islink = islink
+    
     for name in names:
-        if isdir(pathjoin(top, name)):
+        if _isdir(_pathjoin(top, name)):
             dirs.append(name)
         else:
             nondirs.append(name)
@@ -316,8 +320,8 @@ def dirwalk(top, max_depth=None):
     if max_depth is None or max_depth > 0:
         depth = None if max_depth is None else max_depth - 1
         for name in dirs:
-            path = pathjoin(top, name)
-            if not islink(path):
+            path = _pathjoin(top, name)
+            if not _islink(path):
                 for x in dirwalk(path, depth):
                     yield x
 
@@ -386,12 +390,18 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
             pass
         """
 
+    _pathjoin = pathjoin
+    _splitext = splitext
+    _basename = basename
+    _is_symlink = filesystem.is_symlink
+    _trace_symlink_target = filesystem.trace_symlink_target
+    
     for shortcut_dirpath, shortcut_directories, shortcut_filenames in dirwalk(directory, max_depth):
         if collect_dirs:
             for shortcut_directory in shortcut_directories:
                 if re_ignored and re_ignored.search(shortcut_directory):
                     continue
-                target = pathjoin(shortcut_dirpath, shortcut_directory)
+                target = _pathjoin(shortcut_dirpath, shortcut_directory)
                 try:
                     #old_name = shortcut_name
                     shortcut_name = unicodedata.normalize(
@@ -414,20 +424,20 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                         logging.error(e)
 
         for shortcut_filename in shortcut_filenames:
-            shortcut_filepath = pathjoin(shortcut_dirpath, shortcut_filename)
+            shortcut_filepath = _pathjoin(shortcut_dirpath, shortcut_filename)
 
             if re_ignored and re_ignored.search(shortcut_filepath):
                 continue
 
-            shortcut_name, shortcut_ext = splitext(shortcut_filename)
+            shortcut_name, shortcut_ext = _splitext(shortcut_filename)
             shortcut_ext = shortcut_ext.lower()
 
             try:
-                if filesystem.is_symlink(shortcut_filepath):
+                if _is_symlink(shortcut_filepath):
                     try:
-                        shortcut_filepath = filesystem.trace_symlink_target(
+                        shortcut_filepath = _trace_symlink_target(
                             shortcut_filepath)
-                        shortcut_filename = basename(shortcut_filepath)
+                        shortcut_filename = _basename(shortcut_filepath)
                     except WindowsError as e:
                         if REPORT_UNRESOLVABLE_TARGETS:
                             logging.warning(
@@ -459,7 +469,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
                         shortcut_name = "%s (%s)" % (shortcut_name, category)
                 # if shortcut_name != old_name:
                 #    print "NORMALIZED:", old_name, shortcut_name
-            except Exception, e:  # IGNORE:W0703
+            except Exception as e:
                 logging.error(
                     u"%s; shortcut_name:%s; dirpath:%s", e, shortcut_name, shortcut_path)
             else:
