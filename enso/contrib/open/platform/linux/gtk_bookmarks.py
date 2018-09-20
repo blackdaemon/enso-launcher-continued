@@ -52,16 +52,24 @@ from enso.contrib.open import (
 
 
 SHORTCUT_CATEGORY = "gtk-bookmark"
-BOOKMARKS_DIR = "~"
+
+# Default legacy bookmarks file location for GTK-2
+BOOKMARKS_DIR = os.path.expanduser("~")
 BOOKMARKS_FILE = ".gtk-bookmarks"
-BOOKMARKS_FILENAME = os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))
+
+# New bookmarks file location for GTK-3 
+if os.path.isfile(os.path.expanduser("~/.config/gtk-3.0/bookmarks")):
+    BOOKMARKS_DIR = os.path.expanduser("~/.config/gtk-3.0")
+    BOOKMARKS_FILE = "bookmarks"
+
+BOOKMARKS_PATH = os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE)
 
 
 def get_bookmarks():
     logging.info("Loading gtk-bookmarks")
     basename = os.path.basename
     places = []
-    with open(os.path.expanduser(os.path.join(BOOKMARKS_DIR, BOOKMARKS_FILE))) as f:
+    with open(BOOKMARKS_PATH) as f:
         for line in f:
             if not line.strip():
                 continue
@@ -91,5 +99,5 @@ def get_bookmarks():
 def register_monitor_callback(callback_func):
     dirwatcher.register_monitor_callback(
         callback_func,
-        ((os.path.expanduser(BOOKMARKS_DIR), False),)
+        ((BOOKMARKS_DIR, False),)
     )

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
 
 # Author : Pavel Vitis "blackdaemon"
@@ -34,7 +35,7 @@
 # Future imports
 from __future__ import division, with_statement
 
-__updated__ = "2018-07-12"
+__updated__ = "2018-09-21"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -170,7 +171,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             # FIXME: Following test can make this fail if debouncing is used
             # and multiple files change shortly as only the last reported file
             # is passed in the :path param
-            if path and path != gtk_bookmarks.BOOKMARKS_FILENAME:
+            if path and path != gtk_bookmarks.BOOKMARKS_PATH:
                 return False
             shortcuts_dict.update_by_category(
                 gtk_bookmarks.SHORTCUT_CATEGORY,
