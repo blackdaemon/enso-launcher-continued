@@ -35,6 +35,10 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from __future__ import with_statement
+
+import logging
+import os
+
 from time import clock, time
 
 import Xlib
@@ -47,14 +51,45 @@ from gio import File  # @UnresolvedImport Keep PyLint and PyDev happy
 from enso.platform.linux.utils import get_display, get_keycode
 from enso.platform.linux.weaklib import DbusWeakCallback
 
-__updated__ = "2017-12-13"
+__updated__ = "2018-09-05"
 
-"""
-Class to handle Nautilus file-selection notifications in Linux Gnome desktop
-"""
+
+def install_nautilus_file_selection_extension():
+    extension_symlink_path = os.path.expanduser(
+        "~/.local/share/nautilus-python/extensions/enso_file_selection_provider")
+    if not os.path.isdir(os.path.dirname(extension_symlink_path)):
+        os.makedirs(os.path.dirname(extension_symlink_path))
+        logging.warning("nautilus-python and/or nautilus-extensions libs are "
+            "probably not installed. It means that the file selection detection "
+            "will not work in Enso. "
+            "To install, run 'sudo yum install nautilus-extensions nautilus-python -y'. "
+            "Nautilus must be restarted afterwards, run: 'nautilus -q'."
+        )
+
+    # TODO: Also check if the symlink points to our file
+    if not os.path.exists(extension_symlink_path + ".pyc"):
+        from enso.platform import linux as dummyimp
+        src = os.path.join(os.path.dirname(dummyimp.__file__), "nautilus_extension.py")
+        os.symlink(src, extension_symlink_path + ".py")
+        logging.warning("Installed Nautilus Python extension into %s. "
+            "Please make sure that 'nautilus-python' OS package is installed "
+            "(sudo yum install nautilus-python -y) and that Nautilus has been "
+            "restarted afterwards (nautilus -q). Failing to do so means that "
+            "the file selection detection will not work in Enso.",
+            extension_symlink_path + ".py"
+        )
+        # TODO: Restart also nautilus? (execute 'nautilus -q')
+
+
 class NautilusFileSelection(object):
+    """
+    Class to handle Nautilus file-selection notifications in Linux Gnome desktop
+    """
     def __init__(self):
         self.paths = []
+
+        install_nautilus_file_selection_extension()
+
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         callback = DbusWeakCallback(self._on_selection_change)
         # Register signal receiver for SelectionChanged event in Nautilus
@@ -62,7 +97,7 @@ class NautilusFileSelection(object):
         callback.token = dbus.Bus().add_signal_receiver(
             callback,
             "SelectionChanged",
-            dbus_interface="se.kaizer.FileSelection",
+            dbus_interface="enso.nautilus_ext.FileSelection",
             byte_arrays=True)
 
     def _on_selection_change(self, selection, window_id):

@@ -1,11 +1,25 @@
-In addition to the prerequisites outlined in the README, the Linux
-backend for Enso currently depends on:
+In addition to the prerequisites outlined in the README, the Linux backend
+for Enso currently depends on following Python modules:
 
   * python-cairo
   * python-gobject
   * python-gtk2
   * python-xlib - 0.13 or above is highly advised
   * gi
+
+OS packages and binaries:
+
+  * xprintidle
+    requires: libffi, libffi-devel, libXext-devel, libXScrnSaver-devel
+  * nautilus-python
+    Required for the file-selection detection to work
+    1. Install the python extension support into Nautilus by: 
+        yum install nautilus-python -y
+        nautilus -q
+    2. Copy the extension from dist/nautilus_extension.py to ~/.local/share/nautilus-python/extensions/
+    Enso will do that for you when it is first run, however Nautilus restart 
+    is still required after that (nautilus -q).
+
 
 Having the xset program is optional, though it'll prevent bad key-repeat
 problems which could completely break the input handling (by constantly
