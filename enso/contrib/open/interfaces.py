@@ -31,7 +31,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-__updated__ = "2017-02-23"
+__updated__ = "2018-09-05"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -170,6 +170,12 @@ class IOpenCommand(object):
         """
         _ = shortcut_name, targets  # Keep Pylint happy
 
+    @abstractmethod
+    def get_shortcut(self, shortcut_name):
+        """ Lookup and return Shortcut object """
+        _ = shortcut_name
+        return None
+
 
 class AbstractOpenCommand(IOpenCommand):
     """
@@ -281,6 +287,10 @@ class AbstractOpenCommand(IOpenCommand):
 
         self._open_with_shortcut(self.shortcut_dict[shortcut_name], targets)
         # print file, application
+
+    def get_shortcut(self, shortcut_name):
+        """ Lookup and return Shortcut object """
+        return self.shortcut_dict[shortcut_name]
 
     def _is_url(self, text):
         return is_valid_url(text)

@@ -58,7 +58,7 @@ ensoapi = EnsoApi()
 
 
 # ----------------------------------------------------------------------------
-# The RecentResult singleton calss providing access to recent command results,
+# The RecentResult singleton class provides access to recent command results,
 # handling displaying of accompanying mini messages.
 # ---------------------------------------------------------------------------
 

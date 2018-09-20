@@ -97,6 +97,7 @@ import enso.contrib.platform
 from enso.commands import CommandManager, CommandObject
 from enso.commands.factories import ArbitraryPostfixFactory, GenericPrefixFactory
 from enso.contrib.open import shortcuts, utils
+from enso.contrib.recentresults import RecentResult
 from enso.contrib.scriptotron.ensoapi import EnsoApi
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.events import EventManager
@@ -306,6 +307,46 @@ class RecentCommand(CommandObject):
 
 
 # ----------------------------------------------------------------------------
+# Which command
+# ---------------------------------------------------------------------------
+
+class WhichCommand(CommandObject):
+    """
+    Gets information about "open {name}" command target.
+    """
+
+    def __init__(self, postfix=None):
+        super(WhichCommand, self).__init__()
+        self.target = postfix
+
+    @safetyNetted
+    def run(self):
+        s = None
+        try:
+            s = open_command_impl.get_shortcut(self.target)
+            print s
+        except Exception:
+            display_xml_message(u"<p>This shortcut can't be found</p>")
+        else:
+            msg = u"Target info of 'open' shortcut '%s'" % self.target 
+            result = "\n".join((str(self.target), str(s.target), str(s.shortcut_filename)))
+            RecentResult.get().push_result(result, msg)
+            display_xml_message(u"<p>Target of <command>%s</command> is <command>%s</command>, saved in <command>%s</command></p>" % (
+                str(self.target), str(s.target), s.shortcut_filename))
+            try:
+                # TODO: Implement platform independent
+                import subprocess
+                from shutilwhich import which
+                editor_cmd = os.path.expandvars("$VISUAL")
+                if not editor_cmd:
+                    editor_cmd = which("gvim")
+                if editor_cmd:
+                    subprocess.Popen([editor_cmd, "--nofork", "--", s.shortcut_filename])
+            except:
+                pass
+
+
+# ----------------------------------------------------------------------------
 # Command factories
 # ---------------------------------------------------------------------------
 
@@ -423,6 +464,39 @@ class UnlearnOpenCommandFactory(GenericPrefixFactory):
         self.postfixes_updated_on = shortcuts_dict.updated_on
 
 
+class WhichCommandFactory(GenericPrefixFactory):
+    """
+    Generates a "which {name}" command.
+    """
+
+    HELP = "command"
+    HELP_TEXT = "command"
+    PREFIX = "which "
+    NAME = "%s{name}" % PREFIX
+    DESCRIPTION = u" Show target of \u201copen {name}\u201d command "
+
+    def __init__(self):
+        super(WhichCommandFactory, self).__init__()
+        self.postfixes_updated_on = 0
+
+    def _generateCommandObj(self, parameter=None):
+        cmd = WhichCommand(parameter)
+        cmd.setDescription(self.DESCRIPTION)
+        return cmd
+
+    @safetyNetted
+    def update(self):
+        shortcuts_dict = open_command_impl.get_shortcuts()
+        if self.postfixes_updated_on >= shortcuts_dict.updated_on:
+            return
+        with timed_execution("Setting postfixes for 'which' command."):
+            self.setPostfixes(
+                s[0] for s in shortcuts_dict.iteritems()
+                if True #s[1].flags & shortcuts.SHORTCUT_FLAG_LEARNED
+            )
+        self.postfixes_updated_on = shortcuts_dict.updated_on
+
+
 class RecentCommandFactory(GenericPrefixFactory):
     """
     Generates a "recent {name}" command.
@@ -463,8 +537,10 @@ def load():
     # This imports enso.contrib.open.platform.<platform_name>.OpenCommandImpl class.
     open_command_impl = enso.contrib.platform.get_command_platform_impl("open")()
     try:
-        recent_command_impl = enso.contrib.platform.get_command_platform_impl("open", "RecentCommandImpl")()
-    except:
+        recent_command_impl = enso.contrib.platform.get_command_platform_impl(
+            "open", "RecentCommandImpl")()
+    except Exception as e:
+        logging.error("Error importing platform specific 'open' command class: %s", str(e))
         recent_command_impl = None
 
     # Register commands
@@ -488,6 +564,10 @@ def load():
         CommandManager.get().registerCommand(
             UndoUnlearnOpenCommand.NAME,
             UndoUnlearnOpenCommand()
+        )
+        CommandManager.get().registerCommand(
+            WhichCommandFactory.NAME,
+            WhichCommandFactory()
         )
         if recent_command_impl:
             CommandManager.get().registerCommand(
