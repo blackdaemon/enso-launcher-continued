@@ -111,21 +111,19 @@ class LogLevelFilter(logging.Filter, object):
 @click.version_option(version=VERSION)
 def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
          commands_dir, color_scheme, no_tray_icon):
-    """ Enso command-line
     """
-    click.echo(log_level)
-    click.echo(no_splash)
-    click.echo(no_console)
-    click.echo(quiet)
-    click.echo(ignore_config)
-    click.echo(color_scheme)
-
+    Enso: Linguistic command-line launcher
+    """
     enso.config.CMDLINE_OPTIONS = {
         'log_level': log_level,
         'no_splash': no_splash,
         'no_console': no_console,
         'quiet': quiet,
         'ignore_config': ignore_config,
+        'hotkey': hotkey,
+        'commands_dir': commands_dir,
+        'color_scheme': color_scheme,
+        'no_tray_icon': no_tray_icon,
     }
 
     logformat = "%(levelname)-9s%(asctime)s %(pathname)s[%(funcName)s:%(lineno)d]: %(message)s"
@@ -138,7 +136,7 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
     }.get(log_level, logging.NOTSET)
 
     if not no_console:
-        print "Showing console"
+        click.echo("Showing console")
         MIN_LEVEL = loglevel
         STDOUT_MAX_LEVEL = logging.WARNING
         stdout_hdlr = logging.StreamHandler(sys.stdout)
@@ -156,8 +154,8 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
         rootLogger.addHandler(stderr_hdlr)
         rootLogger.setLevel(MIN_LEVEL)
     else:
-        print "Hiding console"
-        print "Logging into '%s'" % os.path.join(ENSO_DIR, "enso.log")
+        click.echo("Hiding console")
+        click.echo("Logging into '%s'" % os.path.join(ENSO_DIR, "enso.log"))
         sys.stdout = open("stdout.log", "w", 0)  # NullDevice()
         sys.stderr = open("stderr.log", "w", 0)  # NullDevice()
         logging.basicConfig(
