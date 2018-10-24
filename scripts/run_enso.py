@@ -11,8 +11,12 @@ import sys
 import threading
 from optparse import OptionParser
 
+import click
+
 import enso.config
 import enso.version
+
+from enso._version_local import VERSION
 
 _ = enso.version  # Keep pyLint happy
 ENSO_DIR = os.path.realpath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
@@ -51,39 +55,6 @@ def change_color_scheme(color):
     layout.MAIN_BACKGROUND_COLOR = layout.COLOR_BLACK + "d8"
 
 
-def process_options(argv):
-    version = '1.0'
-    usageStr = "%prog [options]\n\n"
-    parser = OptionParser(usage=usageStr, version="%prog " + version)
-
-    parser.add_option("-l", "--log-level", action="store", dest="loglevel",
-                      default="ERROR", help="logging level (CRITICAL, ERROR, INFO, WARNING, DEBUG)")
-    parser.add_option("-n", "--no-splash", action="store_false",
-                      dest="show_splash", default=True, help="Do not show splash window")
-    parser.add_option("-c", "--no-console", action="store_false",
-                      dest="show_console", default=True, help="Hide console window")
-    parser.add_option("-q", "--quiet", action="store_true", dest="quiet",
-                      default=False, help="No information windows are shown on startup/shutdown")
-    parser.add_option("-k", "--hotkey", action="store", dest="hotkey", default="default",
-                      help="Hotkey used to invoke Enso. Possible values are: CAPITAL, LSHIFT, RSHIFT, LCONTROL, RCONTROL, LWIN, RWIN")
-    parser.add_option("", "--ignore-ensorc", action="store_true",
-                      dest="ignore_ensorc", default=False, help="Ignore .ensorc file")
-
-    # Hidden options useful for development
-    parser.add_option("", "--commands-dir", action="store", dest="commands_dir", default="default",
-                      help="Used to override name of the subdirectory in user home directory that stores custom commands (used for development)")
-    parser.add_option("", "--color-scheme", action="store", dest="color_scheme",
-                      default="default", help="Used to override default color scheme (used for development)")
-
-    if sys.platform.startswith("win"):
-        # Add tray-icon support for win32 platform
-        parser.add_option("-t", "--no-tray", action="store_false",
-                          dest="show_tray_icon", default=True, help="Hide tray icon")
-
-    opts, args = parser.parse_args(argv)
-    return opts, args
-
-
 class LoggingDebugFilter(logging.Filter):
 
     def filter(self, record):
@@ -118,10 +89,44 @@ class LogLevelFilter(logging.Filter, object):
             return passed and (record.levelno <= self.passlevel)
 
 
-def main(argv=None):
-    opts, args = process_options(argv[1:])
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('-l', '--log-level', default="ERROR",
+              type=click.Choice(['CRITICAL', 'ERROR', 'INFO', 'WARNING', 'DEBUG']),
+              show_default=True, help='Log level.')
+@click.option('-n', '--no-splash', is_flag=True, help='Do not show splash window.')
+@click.option('-c', '--no-console', is_flag=True, help='Do not show console window.')
+@click.option('-q', '--quiet', is_flag=True,
+              help='No information windows are shown on startup/shutdown.')
+@click.option('-i', '--ignore-config', is_flag=True, help='Ignore .ensorc file.')
+@click.option('-k', '--hotkey',
+              type=click.Choice(['CAPITAL', 'LSHIFT', 'RSHIFT', 'LCONTROL',
+                                 'RCONTROL', 'LWIN', 'RWIN']),
+              help="Override the hotkey to invoke Enso interface set in .ensorc.")
+@click.option("--commands-dir",
+              help="Override name of the subdirectory in user home directory that stores custom commands (used for development)")
+@click.option("--color-scheme",
+              type=click.Choice(enso.config.COLOR_SCHEMES.keys()[1:]),
+              help="Override default color scheme (used for development).")
+@click.option("-t", "--no-tray-icon", is_flag=True, help="Hide tray icon (only on Windows)")
+@click.version_option(version=VERSION)
+def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
+         commands_dir, color_scheme, no_tray_icon):
+    """ Enso command-line
+    """
+    click.echo(log_level)
+    click.echo(no_splash)
+    click.echo(no_console)
+    click.echo(quiet)
+    click.echo(ignore_config)
+    click.echo(color_scheme)
 
-    enso.config.CMDLINE_OPTIONS = opts
+    enso.config.CMDLINE_OPTIONS = {
+        'log_level': log_level,
+        'no_splash': no_splash,
+        'no_console': no_console,
+        'quiet': quiet,
+        'ignore_config': ignore_config,
+    }
 
     logformat = "%(levelname)-9s%(asctime)s %(pathname)s[%(funcName)s:%(lineno)d]: %(message)s"
     loglevel = {
@@ -130,9 +135,9 @@ def main(argv=None):
         'WARNING': logging.WARNING,
         'INFO': logging.INFO,
         'DEBUG': logging.DEBUG,
-    }.get(opts.loglevel, logging.NOTSET)
+    }.get(log_level, logging.NOTSET)
 
-    if opts.show_console:
+    if not no_console:
         print "Showing console"
         MIN_LEVEL = loglevel
         STDOUT_MAX_LEVEL = logging.WARNING
@@ -162,10 +167,10 @@ def main(argv=None):
 
     if loglevel == logging.DEBUG:
         pass
-        assert logging.debug("default options set:" + repr(opts)) or True
-        assert logging.debug("command-line args:" + repr(args)) or True
+        assert logging.debug("default options set:" + repr(enso.config.CMDLINE_OPTIONS)) or True
+        assert logging.debug("command-line args:" + repr(enso.config.CMDLINE_OPTIONS)) or True
 
-    if not opts.ignore_ensorc:
+    if not ignore_config:
         ensorc_path = os.path.expanduser(os.path.join("~", ".ensorc"))
         if (not os.path.isfile(ensorc_path) and sys.platform.startswith("win") and
                 os.path.isfile(ensorc_path + ".lnk")):
@@ -185,7 +190,7 @@ def main(argv=None):
                 path = link.GetPath(shell.SLGP_UNCPRIORITY)
                 if path and path[0]:
                     ensorc_path = path[0]
-            except Exception, e:
+            except Exception as e:
                 logging.error("Error parsing .ensorc.lnk file: %s", e)
 
         if os.path.isfile(ensorc_path):
@@ -198,39 +203,38 @@ def main(argv=None):
     else:
         logging.info("Ignoring your .ensorc startup script")
 
-    if opts.hotkey in ("default", "CAPITAL", "LSHIFT", "RSHIFT", "LCONTROL", "RCONTROL", "LWIN", "RWIN"):
-        if opts.hotkey != "default":
-            #contents += "enso.config.QUASIMODE_START_KEY = \"KEYCODE_%s\"\n" % opts.hotkey
-            enso.config.QUASIMODE_START_KEY = "KEYCODE_%s" % opts.hotkey
-            logging.info("Enso hotkey has been set to %s" % opts.hotkey)
-    else:
-        logging.error("Invalid hotkey spec: %s" % opts.hotkey)
+    if hotkey:
+        #contents += "enso.config.QUASIMODE_START_KEY = \"KEYCODE_%s\"\n" % opts.hotkey
+        enso.config.QUASIMODE_START_KEY = "KEYCODE_%s" % hotkey
+        logging.info("Enso hotkey has been set to %s" % hotkey)
 
     # Can't display message at this phase as on Linux the gtk loop is not active yet
-    # at this point and that causes screen artifacts.
+    # at this point and that causes screen artifacts. Will be displayed in the init
+    # handler instead (initialized in enso.run()
     # if not opts.quiet and opts.show_splash:
     #    displayMessage("<p><command>Enso</command> is starting...</p>")
+    enso.config.SHOW_SPLASH = not quiet and not no_splash
 
     if sys.platform.startswith("win"):
         # Add tray-icon support for win32 platform
-        if opts.show_tray_icon:
+        if not no_tray_icon:
             # tray-icon code must be run in separate thread otherwise it blocks
             # current thread (using PumpMessages() )
             try:
                 import enso.platform.win32.taskbar as taskbar
                 threading.Thread(
                     target=taskbar.systray, args=(enso.config,)).start()
-            except Exception, e:
+            except Exception as e:
                 logging.error("Error initializing taskbar systray icon: %s", e)
 
-    if opts.commands_dir != "default":
+    if commands_dir:
         logging.info(
-            "Default commands directory changed to \"%s\"" % opts.commands_dir)
-        enso.config.SCRIPTS_FOLDER_NAME = opts.commands_dir
+            "Default commands directory changed to \"%s\"" % commands_dir)
+        enso.config.SCRIPTS_FOLDER_NAME = commands_dir
 
-    if opts.color_scheme != "default":
-        logging.info("Changing color scheme to %s" % opts.color_scheme)
-        change_color_scheme(opts.color_scheme)
+    if color_scheme:
+        logging.info("Changing color scheme to %s" % color_scheme)
+        change_color_scheme(color_scheme)
 
     try:
         # Use Psyco optimization if available
@@ -269,4 +273,5 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    #sys.exit(main(sys.argv))
+    main()

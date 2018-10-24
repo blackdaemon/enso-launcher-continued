@@ -32,6 +32,7 @@
 #
 # ----------------------------------------------------------------------------
 
+import enso.config
 
 def run():
     """
@@ -42,7 +43,7 @@ def run():
     from enso.events import EventManager
     from enso.quasimode import Quasimode
     from enso import events, plugins, config, messages, quasimode, webui
-    
+
     def except_hook(type, value, tback):
         # manage unhandled exception here
         logging.error(value)
@@ -50,19 +51,19 @@ def run():
         sys.__excepthook__(type, value, tback)  # then call the default handler
 
     sys.excepthook = except_hook
-    
+
     eventManager = EventManager.get()
     Quasimode.install(eventManager)
     plugins.install(eventManager)
 
-    def show_welcome_message():
-        msgXml = config.OPENING_MSG_XML
-        if msgXml is not None:
-            messages.displayMessage(msgXml)  # , primaryWaitTime=2000 )
-
     webui_server = webui.start(eventManager)
 
-    eventManager.registerResponder(show_welcome_message, "init")
+    if enso.config.SHOW_SPLASH:
+        def show_welcome_message():
+            msgXml = config.OPENING_MSG_XML
+            if msgXml is not None:
+                messages.displayMessage(msgXml)  # , primaryWaitTime=2000 )
+        eventManager.registerResponder(show_welcome_message, "init")
 
     try:
         eventManager.run()

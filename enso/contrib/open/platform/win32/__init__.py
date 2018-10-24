@@ -644,7 +644,7 @@ def run_shortcut(shortcut):
                     params,
                     work_dir if work_dir else None,
                     win32con.SW_SHOWDEFAULT)
-            except Exception, e:  # IGNORE:W0703
+            except Exception as e:  # IGNORE:W0703
                 logger.error(e)
                 try:
                     os.startfile(target)
@@ -653,7 +653,7 @@ def run_shortcut(shortcut):
         elif shortcut.type == SHORTCUT_TYPE_FOLDER:
             try:
                 os.startfile(shortcut.target)
-            except WindowsError, e:
+            except WindowsError as e:
                 logger.error("%d: %s", e.errno, e)
         else:
             target = normpath(
@@ -776,6 +776,12 @@ class OpenCommandImpl(AbstractOpenCommand):
             "Microsoft",
             "Internet Explorer",
             "Quick Launch")
+        user_pinned_dir = pathjoin(
+            get_special_folder_path(shellcon.CSIDL_APPDATA),
+            "Microsoft",
+            "Internet Explorer",
+            "Quick Launch",
+            "User Pinned")
         start_menu_dir = get_special_folder_path(shellcon.CSIDL_STARTMENU)
         common_start_menu_dir = get_special_folder_path(
             shellcon.CSIDL_COMMON_STARTMENU)
@@ -873,7 +879,8 @@ class OpenCommandImpl(AbstractOpenCommand):
             changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
             # Act only on file changes and exclude certain files
             if changed_paths and not any(
-                not isdir(p) and basename(p) not in ('desktop.ini',)
+                isfile(p) #and basename(p) not in ('desktop.ini',)
+                and splitext(p)[1] == '.lnk'
                 for p in changed_paths
             ):
                 print "Skipping changed path(s): ", changed_paths
@@ -884,7 +891,8 @@ class OpenCommandImpl(AbstractOpenCommand):
                 get_shortcuts_from_dir(
                     quick_launch_dir,
                     startmenu_ignored_links,
-                    max_depth=0, collect_dirs=True
+                    # max_depth=2 will handle also "User Pinned/[TaskBar|StartMenu]" subdirs
+                    max_depth=2, collect_dirs=True
                     #,category="quicklaunch" if self.use_categories else None
                 ))
             )
@@ -893,7 +901,7 @@ class OpenCommandImpl(AbstractOpenCommand):
         reload_quick_launch_shortcuts()
         dirwatcher.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(reload_quick_launch_shortcuts),
-            ((quick_launch_dir, False),),
+            ((quick_launch_dir, True),),
         )
 
         pathsplit = os.path.split

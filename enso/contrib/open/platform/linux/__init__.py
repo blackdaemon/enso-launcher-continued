@@ -45,9 +45,12 @@ import logging
 import os
 import subprocess
 
+from itertools import chain
+
 import gio
 import gtk
 import xdg
+
 from gtk.gdk import lock as gtk_lock
 
 from enso.contrib.open import interfaces, shortcuts
@@ -166,17 +169,21 @@ class OpenCommandImpl(AbstractOpenCommand):
         """
 
         @timed_execution("GTK-bookmarks shortcuts updated", mute_on_false=True)
-        def update_gtk_bookmarks(path=None):
-            # FIXME: Following test can make this fail if debouncing is used
-            # and multiple files change shortly as only the last reported file
-            # is passed in the :path param
-            if path and path != gtk_bookmarks.BOOKMARKS_FILENAME:
-                return False
+        def update_gtk_bookmarks(path=None, all_calls_params=[]):
+            # 'all_calls_params' arg is provided by the @debounce decorator
+            if all_calls_params:
+                # Get unique list of changed paths
+                changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
+                # Act only on gtk-bookmarks file change
+                if gtk_bookmarks.BOOKMARKS_FILENAME not in changed_paths:
+                    print "Skipping changed path(s): ", changed_paths
+                    return False
             shortcuts_dict.update_by_category(
                 gtk_bookmarks.SHORTCUT_CATEGORY,
                 dict((s.name, s) for s in gtk_bookmarks.get_bookmarks())
             )
             return True
+
         update_gtk_bookmarks()
 
         @timed_execution("Learned shortcuts updated")
@@ -200,8 +207,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_launch_panel_shortcuts)
         )
         gtk_bookmarks.register_monitor_callback(
-            # FIXME: Debouncing will not work properly here
-            update_gtk_bookmarks
+            debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_gtk_bookmarks)
         )
         learned_shortcuts.register_monitor_callback(
             debounce(SHORTCUTS_REFRESH_DEBOUNCE_TIME)(update_learned_shortcuts)
