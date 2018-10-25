@@ -101,7 +101,7 @@ def get_git_remote_version():
 
 
 def write_version_file(version, file_name):
-    print "Set %s to '%s'" % (file_name, version)
+    #print "Set %s to '%s'" % (file_name, version)
     with open(os.path.join(_get_enso_directory(), "enso", file_name), "w") as fd:
         fd.write(VERSION_PY % version)
 

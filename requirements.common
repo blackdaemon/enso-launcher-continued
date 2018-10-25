@@ -1,12 +1,13 @@
+backports.functools_lru_cache
+click
 ccy
 httplib2
 iniparse
-ujson
 netifaces
 pygeoip
 pyparsing
 python-dateutil
 shutilwhich
+ujson
 urllib3
 watchdog
-backports.functools_lru_cache
