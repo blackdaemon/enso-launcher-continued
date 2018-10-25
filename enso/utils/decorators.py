@@ -84,22 +84,50 @@ def _reraise(cls, val, tb):
 # ----------------------------------------------------------------------------
 
 def debounce(wait):
-    """ Decorator that will postpone a functions
-        execution until after wait seconds
-        have elapsed since the last time it was invoked. """
+    """ Decorator that will postpone a functions execution until after wait
+    seconds have elapsed since the last time it was invoked.
+    When the function is eventually called, the arguments of the very last call
+    are passed.
+    Called function can opt to accept 'all_calls_params' keyword argument,
+    in which case the arguments of all function calls are provided as a list of
+    tuples: [(args1, kwargs1), (args2, kwargs2), ...]
+    """
     def decorator(fn):
         @wraps(fn)
         def debounced(*args, **kwargs):
             def call_it():
-                print "DEBOUNCE [%s]: called" % fn.__name__
+                #print "DEBOUNCE [%s]: called" % fn.__name__
                 #print fn, args, kwargs
-                return fn(*args, **kwargs)
+                try:
+                    # Pass a copy of the list of all calls in 'all_calls_params'
+                    # keyword arg, if the function accepts it...
+                    return fn(*args, all_calls_params=debounced.all_calls_params[:], **kwargs)
+                except TypeError as e:
+                    if "all_calls_params" in str(e):
+                        # ...otherwise call the function without the arg
+                        return fn(*args, **kwargs)
+                    else:
+                        raise
+                finally:
+                    # Reset the all_calls_params list
+                    del debounced.all_calls_params[:]
             try:
+                # Cancel current waiting thread
                 debounced.t.cancel()
-            except(AttributeError):
+                del debounced.t
+            except AttributeError:
+                # No timer initialized yet
                 pass
-            else:
-                print "DEBOUNCE [%s]: droped" % fn.__name__
+            #else:
+            #    print "DEBOUNCE [%s]: dropped" % fn.__name__
+            # Lazy-initializing of all_calls_params list
+            try:
+                _ = debounced.all_calls_params
+            except AttributeError:
+                debounced.all_calls_params = []
+            # Remember arguments for all calls
+            debounced.all_calls_params.append((args, kwargs))
+            # Start waiting
             debounced.t = threading.Timer(wait, call_it)
             debounced.t.start()
         return debounced
@@ -279,8 +307,8 @@ def _find_caller(timed_func=None):
     rv = "(unknown file)", 0, "(unknown function)"
     while hasattr(f, "f_code"):
         co = f.f_code
-        print timed_func
-        print co.co_name, f.__class__, f.__str__
+        #print timed_func
+        #print co.co_name, f.__class__, f.__str__
         filename = os.path.normcase(co.co_filename)
         if filename == _srcfile:
             f = f.f_back
