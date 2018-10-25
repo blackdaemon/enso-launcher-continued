@@ -12,7 +12,7 @@ ARG_REQUIRED_MSG = "An argument is required."
 class FuncCommand(CommandObject):
 
     def __init__(self, cmdName, func, desc, help, ensoapi,
-                 generatorManager, takesArg=False, argValue=None):
+                 generatorManager, takesArg=False, argValue=None, overrideKeycodes=None):
         CommandObject.__init__(self)
 
         self.name = cmdName
@@ -55,6 +55,9 @@ class FuncCommand(CommandObject):
                 else:
                     self.setDescription(desc)
 
+        if overrideKeycodes:
+            self.OVERRIDE_ALLOWED_KEYCODES = overrideKeycodes
+
     @safetyNetted
     def run(self):
         if self.takesArg:
@@ -94,6 +97,10 @@ class ArgFuncMixin(object):
         self.PREFIX = "%s " % cmdName
         self.DESCRIPTION_TEXT = desc
         self.setHelp(help)
+        if hasattr(func, "OVERRIDE_ALLOWED_KEYCODES"):
+            self.overrideKeycodes = getattr(func, "OVERRIDE_ALLOWED_KEYCODES")
+        else:
+            self.overrideKeycodes = None
 
     def _generateCommandObj(self, postfix):
         """
@@ -113,7 +120,8 @@ class ArgFuncMixin(object):
                 ensoapi=self.ensoapi,
                 generatorManager=self.generatorManager,
                 takesArg=bool(postfix),
-                argValue=postfix
+                argValue=postfix,
+                overrideKeycodes=self.overrideKeycodes
             )
 
 
