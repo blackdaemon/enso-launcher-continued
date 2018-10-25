@@ -51,7 +51,7 @@ from utils import get_display
 # The Standard map
 # ----------------------------------------------------------------------------
 
-display = get_display ()
+display = get_display()
 
 # Our initial, Ameri-centric keycode map
 STANDARD_ALLOWED_KEYCODES = {

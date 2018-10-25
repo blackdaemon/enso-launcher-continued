@@ -75,7 +75,7 @@ from pyparsing import (
 )
 from text2num import text2num
 
-__updated__ = "2018-06-22"
+__updated__ = "2018-08-23"
 __all__ = ["evaluate"]
 
 RE_ROMAN_NUMERALS = '[IVXLCDMivxlcdm]+'
@@ -95,7 +95,8 @@ class timedelta(relativedelta):
             hours=hours,
             weeks=weeks,
             months=months,
-            years=years)
+            years=years
+        )
 
         self.expr = "".join((
             "%d days " % days if days != 0 else "",
@@ -274,10 +275,13 @@ class BNF(object):
                 (Word("+-" + nums, nums) + CaselessLiteral("years").suppress())
                 | (Optional(Word("+-" + nums, nums), "1") + CaselessLiteral("year").suppress())
             ).setParseAction(lambda s, l, t: [timedelta(years=long(t[0]))])
-            date = Combine(
+            date_expr = Combine(
                 Word(nums) + Literal(".") + Word(nums) + Literal(".") +
                 Optional(Word(nums), datetime.date.today().year)
             ).setParseAction(lambda s, l, t: [datetime.datetime.strptime(t[0], "%d.%m.%Y").date()])
+            time_expr = Combine(
+                Optional(Word(nums, max=2) + Literal(":"), "00:") + Word(nums, max=2) + Literal(":") + Word(nums, max=2)
+            ).setParseAction(lambda s, l, t: [timedelta(hours=int(t[0].split(":")[0]), minutes=int(t[0].split(":")[1]), seconds=int(t[0].split(":")[2]))])
 
             currency_name = Word(alphas, min=3, max=3)
             currency_pair = Word(alphas, min=6, max=6)
@@ -291,7 +295,7 @@ class BNF(object):
             # print currency_name
 
             expr = Forward()
-            atom = (Optional("-") + (now | date | today | yesterday | tomorrow | hours | minutes
+            atom = (Optional("-") + (now | date_expr | time_expr | today | yesterday | tomorrow | hours | minutes
                                      | days | weeks | months | years | pi | e | fnumber | roman_numerals | ident + lpar + expr + rpar).setParseAction(cls.pushFirst)
                     | (lpar + expr + rpar)).setParseAction(cls.pushUMinus)
 #                 | ( lpar + expr.suppress() + rpar )).setParseAction(cls.pushUMinus)
@@ -594,10 +598,9 @@ def test(s, expVal):
     else:
         return s + "!!!", val, "!=", expVal, results, "=>", BNF.expr_stack
 
+
 if __name__ == "__main__":
-
     #    @timelimit(4)
-
     test("9", 9)
     test("-9", -9)
     test("--9", 9)

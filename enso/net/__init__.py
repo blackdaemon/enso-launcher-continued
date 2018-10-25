@@ -44,14 +44,13 @@ __module_version__ = __version__ = "1.0"
 # Imports
 #==============================================================================
 
-import os
-import sys
-import re
-import urllib2
 import logging
-
-import struct
+import os
+import re
 import socket
+import struct
+import sys
+import urllib2
 
 from urllib2 import URLError
 from httplib import HTTPException

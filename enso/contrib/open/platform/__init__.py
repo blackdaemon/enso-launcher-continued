@@ -2,11 +2,6 @@
 
 import sys
 
-from enso.contrib.open.interfaces import AbstractOpenCommand
-
-#class OpenCommandImpl( AbstractOpenCommand ):
-#    def __init__(self):
-#        super(OpenCommandImpl, self).__init__()
 
 if sys.platform.startswith("win"):
     from enso.contrib.open.platform import win32

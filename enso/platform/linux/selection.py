@@ -110,6 +110,7 @@ class NautilusFileSelection(object):
         # Capture the file selection from focused window only.
         # Nautilus sends paths of files focused in all opened windows
         # every time the file selection changes in any of them.
+        assert type(focus) != int, "focus is not of Window type, it's int and has value of %d" % focus
         if window_id == focus.id:
             self.paths = filter(None, [File(uri).get_path() for uri in selection])
 

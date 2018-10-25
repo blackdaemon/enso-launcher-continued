@@ -549,32 +549,50 @@ def load():
             OpenCommandFactory.NAME,
             OpenCommandFactory()
         )
+    except Exception as e:
+        logger.critical(repr(e))
+    try:
         CommandManager.get().registerCommand(
             OpenWithCommandFactory.NAME,
             OpenWithCommandFactory()
         )
+    except Exception as e:
+        logger.critical(repr(e))
+    try:
         CommandManager.get().registerCommand(
             LearnAsOpenCommandFactory.NAME,
             LearnAsOpenCommandFactory()
         )
+    except Exception as e:
+        logger.critical(repr(e))
+    try:
         CommandManager.get().registerCommand(
             UnlearnOpenCommandFactory.NAME,
             UnlearnOpenCommandFactory()
         )
+    except Exception as e:
+        logger.critical(repr(e))
+    try:
         CommandManager.get().registerCommand(
             UndoUnlearnOpenCommand.NAME,
             UndoUnlearnOpenCommand()
         )
+    except Exception as e:
+        logger.critical(repr(e))
+    try:
         CommandManager.get().registerCommand(
             WhichCommandFactory.NAME,
             WhichCommandFactory()
         )
+    except Exception as e:
+        logger.critical(repr(e))
+    try:
         if recent_command_impl:
             CommandManager.get().registerCommand(
                 RecentCommandFactory.NAME,
                 RecentCommandFactory()
             )
-    except Exception, e:
+    except Exception as e:
         logger.critical(repr(e))
 
 

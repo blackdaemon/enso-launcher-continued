@@ -55,7 +55,7 @@ from enso.commands.interfaces import CommandExpression, CommandObject
 # The Command Manager
 # ----------------------------------------------------------------------------
 
-class CommandManager:
+class CommandManager(object):
     """
     Provides an interface to register and retrieve all commands.
 

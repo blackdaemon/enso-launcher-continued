@@ -210,7 +210,7 @@ class AbstractOpenCommand(IOpenCommand):
     def get_shortcuts(self, force_reload=False):
         """ Return ShortcutsDict of all collected Shortcut objects """
         if force_reload or self.shortcut_dict is None:
-            with timed_execution("Reloading shortcuts dict"):
+            with timed_execution("Reloaded shortcuts dict"):
                 if self.shortcut_dict is None:
                     self.shortcut_dict = shortcuts.ShortcutsDict()
                 self._reload_shortcuts(self.shortcut_dict)
