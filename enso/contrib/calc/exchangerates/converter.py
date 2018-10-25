@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-06-22"
+__updated__ = "2018-09-25"
 
 #==============================================================================
 # Imports
@@ -452,11 +452,11 @@ def convert_currency(amount, from_curr, to_curr):
     rate_updated_str = ""
     if rate_updated:
         if rate_updated.date() == datetime.today().date():
-            rate_updated_str = " (updated today %s)" % rate_updated.time().strftime("%H:%M")
+            rate_updated_str = " (updated today at %s)" % rate_updated.time().strftime("%H:%M")
         elif rate_updated.date() == datetime.today().date() - timedelta(days=1):
-            rate_updated_str = " (updated yesterday %s)" % rate_updated.time().strftime("%H:%M")
+            rate_updated_str = " (updated yesterday at %s)" % rate_updated.time().strftime("%H:%M")
         else:
-            rate_updated_str = " (updated %s)" % rate_updated.isoformat()
+            rate_updated_str = " (updated on %s)" % rate_updated.isoformat()
     expr = "%s %s in %s%s" % (  # (rate %s from %s)
         ("%.4f" % amount).rstrip("0").rstrip("."),
         from_curr,  # exchange_rates[from_curr][0],
@@ -518,7 +518,7 @@ def spawn_exchangerates_updater():
 
     try:
         try:
-            if CURRENT_PLATFORM == PLATFORM_NAME_LINUX:
+            if CURRENT_PLATFORM in (PLATFORM_NAME_LINUX, PLATFORM_NAME_OSX):
                 import gobject  # @UnresolvedImport
                 cmdline = ["python",
                     os.path.join(_get_enso_directory(), "enso", "contrib", "calc",
