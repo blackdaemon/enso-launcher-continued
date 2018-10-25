@@ -106,8 +106,20 @@ def write_version_file(version, file_name):
         fd.write(VERSION_PY % version)
 
 
+def is_git_installed():
+    try:
+        rc, stdout = _get_cmd_output(
+            'git --version',
+            cwd=_get_enso_directory())
+        return rc == 0 and "git version" in stdout
+    except Exception as e:
+        return False
+
+
 def update_version_py():
     if not is_git_repository():
+        return
+    if not is_git_installed():
         return
     dirty_ver = get_git_dirty_version()
     if dirty_ver:
