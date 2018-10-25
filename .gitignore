@@ -10,6 +10,7 @@
 *.dll
 *.lib
 *.manifest
+ghostdriver.log
 
 /.cache/
 /.ensorc
@@ -26,3 +27,4 @@
 /pypy*
 /scripts/scons
 /enso/_version_local.py
+/run_enso.build/
