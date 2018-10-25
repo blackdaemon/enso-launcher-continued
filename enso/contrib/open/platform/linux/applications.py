@@ -87,6 +87,17 @@ def get_applications():
             if id_ in whitelist or (item.should_show() and id_ not in blacklist):
                 name = item.get_name().lower()
                 filepath = item.get_executable()
+                shortcut_filename = None
+                try:
+                    shortcut_filename = item.props.filename
+                except:
+                    try:
+                        shortcut_filename = item.get_property("filename")
+                    except:
+                        try:
+                            shortcut_filename = item.get_filename()
+                        except:
+                            pass
                 #print filepath,";",item.get_commandline(),";",item.get_description()
                 # Need to check for existence of the file, as sometimes the app does not disappear from the list if not ptoperly uninstalled
                 if filepath and filepath.strip() != "":
@@ -98,7 +109,7 @@ def get_applications():
                             continue
                     applications_dict[name] = item
                     s_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE  # get_shortcut_type(filepath)
-                    shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), category=SHORTCUT_CATEGORY)
+                    shortcut = shortcuts.Shortcut(name, s_type, filepath.strip(), shortcut_filename=shortcut_filename, category=SHORTCUT_CATEGORY)
                     result.append(shortcut)
 
     #print "\n".join(sorted(str(s) for s in result))
