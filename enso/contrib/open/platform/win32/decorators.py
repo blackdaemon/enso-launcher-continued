@@ -57,7 +57,7 @@ except ImportError:
 def __initialize_pythoncom(func, *args, **kwargs):
     """ Function decorator. Initialize Python COM interface before function call
     """
-    with suppress():
+    with suppress(Exception):
         pythoncom.CoInitialize()
     yield func(*args, **kwargs)
 
@@ -65,7 +65,7 @@ def __initialize_pythoncom(func, *args, **kwargs):
 def initialize_pythoncom(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        with suppress():
+        with suppress(Exception):
             pythoncom.CoInitialize()
         return fn(*args, **kwargs)
     return wrapper

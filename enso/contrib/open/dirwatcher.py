@@ -36,6 +36,7 @@
 # Future imports
 from __future__ import with_statement
 
+import atexit
 import logging
 import time
 
@@ -61,22 +62,21 @@ class _FileChangedEventHandler(FileSystemEventHandler):
         super(_FileChangedEventHandler, self).on_moved(event)
         what = 'directory' if event.is_directory else 'file'
         print "Moved %s: from %s to %s" % (what, event.src_path, event.dest_path)
-        self.call_callback(event.dest_path)
+        self.callback(event.dest_path)
 
     def on_created(self, event):
         super(_FileChangedEventHandler, self).on_created(event)
         what = 'directory' if event.is_directory else 'file'
         print "Created %s: %s" % (what, event.src_path)
-        self.call_callback(event.src_path)
+        self.callback(event.src_path)
 
     def on_deleted(self, event):
         super(_FileChangedEventHandler, self).on_deleted(event)
         what = 'directory' if event.is_directory else 'file'
         print "Deleted %s: %s" % (what, event.src_path)
-        self.call_callback(event.src_path)
+        self.callback(event.src_path)
 
     def on_modified(self, event):
-        # TODO: Implement also filtering?
         super(_FileChangedEventHandler, self).on_modified(event)
         what = 'directory' if event.is_directory else 'file'
         print "Modified %s: %s" % (what, event.src_path)
@@ -89,9 +89,9 @@ class _FileChangedEventHandler(FileSystemEventHandler):
                 maximum = 0
                 del self.events[:] 
             print "Delays between events: %ds-%ds" % (min(delays), maximum)
-        self.call_callback(event.src_path)
+        self.callback(event.src_path)
 
-    def call_callback(self, directory):
+    def callback(self, directory):
         if self.update_callback_func:
             try:
                 assert logging.debug("Calling update callback func...") or True
@@ -102,6 +102,13 @@ class _FileChangedEventHandler(FileSystemEventHandler):
             assert logging.debug("No calling update callback func was defined, that's fine") or True
 
 
+def stop_monitor():
+    global _dir_monitor, _dir_specs
+    print "stopping watchdog monitor"
+    _dir_monitor.stop()
+    print "watchdog monitor stopped"
+    
+    
 def register_monitor_callback(callback_func, directories, *args, **kwargs):
     """
     """
@@ -124,6 +131,7 @@ def register_monitor_callback(callback_func, directories, *args, **kwargs):
         # Set up the directory watcher for shortcuts directory
         _dir_monitor = Observer()
         _dir_monitor.start()
+        atexit.register(stop_monitor)
 
     for directory, recursive in directories:
         try:

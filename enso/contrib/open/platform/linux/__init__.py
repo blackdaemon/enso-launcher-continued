@@ -35,7 +35,7 @@
 # Future imports
 from __future__ import division, with_statement
 
-__updated__ = "2018-07-12"
+__updated__ = "2019-01-11"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -176,7 +176,7 @@ class OpenCommandImpl(AbstractOpenCommand):
                 # Get unique list of changed paths
                 changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
                 # Act only on gtk-bookmarks file change
-                if gtk_bookmarks.BOOKMARKS_FILENAME not in changed_paths:
+                if gtk_bookmarks.BOOKMARKS_PATH not in changed_paths:
                     print "Skipping changed path(s): ", changed_paths
                     return False
             shortcuts_dict.update_by_category(
@@ -240,7 +240,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             dsk.set("Terminal", "0")
             dsk.set("Path", os.path.abspath(os.path.dirname(target)))
             dsk.write(trusted=True)
-            with suppress():
+            with suppress(Exception):
                 subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
         elif file_type == shortcuts.SHORTCUT_TYPE_FOLDER:
             shortcut_file_path = os.path.join(
@@ -259,7 +259,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             dsk.set("Path", os.path.abspath(target))
             file_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE
             dsk.write(trusted=True)
-            with suppress():
+            with suppress(Exception):
                 subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
         elif file_type == shortcuts.SHORTCUT_TYPE_URL:
             shortcut_file_path = os.path.join(
@@ -275,7 +275,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             dsk.set("URL", target)
             dsk.set("Type", "Link")
             dsk.write(trusted=True)
-            with suppress():
+            with suppress(Exception):
                 subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
         else:
             """
@@ -296,7 +296,7 @@ class OpenCommandImpl(AbstractOpenCommand):
             dsk.set("Path", os.path.abspath(target))
             file_type = shortcuts.SHORTCUT_TYPE_EXECUTABLE
             dsk.write(trusted=True)
-            with suppress():
+            with suppress(Exception):
                 subprocess.Popen(["gnome-desktop-item-edit", shortcut_file_path])
             """
             # This would be better, but problem is that on load, it's determined ax executable instead of a document.

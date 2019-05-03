@@ -32,8 +32,26 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import logging
-import time
+import sys
 
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+
+__updated__ = "2018-09-06"
+
+
+def run_default_editor(filename):
+    raise NotImplementedError()
+
+"""
+if sys.platform.startswith("win"):
+    from enso.contrib.open.platform.win32.sutils import *
+elif any(map(sys.platform.startswith, ("linux", "openbsd", "freebsd", "netbsd"))):
+    from enso.contrib.open.platform.linux.sutils import *
+elif sys.platform == "darwin":
+    pass
+    #import enso.platform
+    #raise enso.platform.PlatformUnsupportedError()
+else:
+    pass
+    #import enso.platform
+    #raise enso.platform.PlatformUnsupportedError()
+"""

@@ -37,45 +37,59 @@
 from __future__ import with_statement
 import logging
 import os
+import subprocess
 
-from enso.contrib.open import (
-    shortcuts,
-    dirwatcher
-)
-from enso.contrib.open.platform.linux.utils import get_file_type
+from os.path import exists as pathexists, isdir, isfile, islink
 
+import gio
 
-SHORTCUT_CATEGORY = "learned"
-my_documents_dir = os.path.expanduser('~/Documents')
-LEARN_AS_DIR = os.path.join(my_documents_dir, u"Enso")
-
-# Check if Learn-as dir exist and create it if not
-if (not os.path.isdir(LEARN_AS_DIR)):
-    os.makedirs(LEARN_AS_DIR)
+from enso.contrib.open import shortcuts
 
 
-def get_learned_shortcuts():
-    logging.info("Loading learn-as shortcuts")
-    result = []
-    
-    # Optimization
-    splitext = os.path.splitext
-    pathjoin = os.path.join
-    basename = os.path.basename
-    
-    for f in os.listdir(LEARN_AS_DIR):
-        name = splitext(basename(f).lower())[0]
-        filepath = pathjoin(LEARN_AS_DIR, f)
-        t = get_file_type(filepath)
-        shortcut = shortcuts.Shortcut(name, t, filepath, shortcut_filename=filepath, category=SHORTCUT_CATEGORY)
-        result.append(shortcut)
-    #print result
-    logging.info("Loaded %d shortcuts" % len(result))
-    return result
+
+from shutilwhich import which
 
 
-def register_monitor_callback(callback_func):
-    dirwatcher.register_monitor_callback(
-        callback_func,
-        ((LEARN_AS_DIR, False),)
-    )
+###############################################################################
+# Constants
+###############################################################################
+
+EDITOR_FILENAME = which("gvim")
+
+
+###############################################################################
+###  Classes & Functions
+###############################################################################
+
+
+def get_file_type(text):
+    if not pathexists(text):
+        # FIXME: Real test for URL here
+        return shortcuts.SHORTCUT_TYPE_URL
+    if isdir(text):
+        return shortcuts.SHORTCUT_TYPE_FOLDER
+    if not isfile(text) and not islink(text):
+        return shortcuts.SHORTCUT_TYPE_DOCUMENT
+    filename = text
+    # Sample file contents
+    with open(filename, "r") as fd:
+        sample = fd.read(128)
+    # Guess if it's executable
+    can_execute = False
+    content_type = None
+    try:
+        content_type = gio.content_type_guess(filename, sample, want_uncertain=False)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+        can_execute = gio.content_type_can_be_executable(content_type)  # IGNORE:E1101 @UndefinedVariable Keep PyLint and PyDev happy
+    except Exception as e:
+        logging.error("Error guessing file type: %s", e)
+    if not can_execute:
+        if os.access(filename, os.X_OK):
+            return shortcuts.SHORTCUT_TYPE_EXECUTABLE
+    if can_execute and os.access(filename, os.X_OK):
+        return shortcuts.SHORTCUT_TYPE_EXECUTABLE
+    return shortcuts.SHORTCUT_TYPE_DOCUMENT
+
+
+def run_default_editor(filename=None):
+    subprocess.check_call([EDITOR_FILENAME, "--nofork", "--", filename])
+
