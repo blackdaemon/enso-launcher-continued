@@ -3,6 +3,7 @@
 *.pyo
 *.pdb
 *.swp
+*.log
 *.*~
 *.py_
 *.bak
@@ -12,6 +13,7 @@
 *.manifest
 ghostdriver.log
 
+/.direnv/
 /.cache/
 /.ensorc
 /.importanizerc
