@@ -2,7 +2,29 @@
 # vim:set tabstop=4 shiftwidth=4 expandtab:
 # -*- coding: utf-8 -*-
 
-__updated__ = "2017-02-23"
+__updated__ = "2019-05-03"
+
+import atexit
+
+atexit_register = atexit.register
+atexit_functions = []
+
+def my_atexit_register(func, *args, **kwargs):
+    global atexit_functions
+    atexit_functions.append((func, args, kwargs))
+    atexit_register(func, *args, **kwargs)
+
+def run_all_exitfunctions():
+    global atexit_functions
+    for func, args, kwargs in atexit_functions:
+        try:
+            print "Running exit function: ", func.__name__
+            func(*args, **kwargs)
+        except:
+            pass
+    
+atexit.register = my_atexit_register
+atexit.run_all_exitfunctions = run_all_exitfunctions 
 
 import logging
 import os
@@ -113,6 +135,12 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
     """
     Enso: Linguistic command-line launcher
     """
+    if not ignore_config:
+        # Load custom user config first
+        enso.config.load_ensorc()
+    else:
+        logging.info("Ignoring your .ensorc startup script")
+
     enso.config.CMDLINE_OPTIONS = {
         'log_level': log_level,
         'no_splash': no_splash,
@@ -164,39 +192,6 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
         pass
         assert logging.debug("default options set:" + repr(enso.config.CMDLINE_OPTIONS)) or True
         assert logging.debug("command-line args:" + repr(enso.config.CMDLINE_OPTIONS)) or True
-
-    if not ignore_config:
-        ensorc_path = os.path.expanduser(os.path.join("~", ".ensorc"))
-        if (not os.path.isfile(ensorc_path) and sys.platform.startswith("win") and
-                os.path.isfile(ensorc_path + ".lnk")):
-            # Extract real .ensorc path from .ensorc.lnk file on Windows
-            # platform
-            try:
-                import pythoncom  # @UnresolvedImport
-                from win32com.shell import shell, shellcon  # @UnresolvedImport @UnusedImport
-                link = pythoncom.CoCreateInstance(  # @UndefinedVariable
-                    shell.CLSID_ShellLink,
-                    None,
-                    pythoncom.CLSCTX_INPROC_SERVER,  # @UndefinedVariable
-                    shell.IID_IShellLink
-                )
-                link.QueryInterface(pythoncom.IID_IPersistFile).Load(  # @UndefinedVariable
-                    ensorc_path + ".lnk")  # @UndefinedVariable
-                path = link.GetPath(shell.SLGP_UNCPRIORITY)
-                if path and path[0]:
-                    ensorc_path = path[0]
-            except Exception as e:
-                logging.error("Error parsing .ensorc.lnk file: %s", e)
-
-        if os.path.isfile(ensorc_path):
-            logging.info("Loading '%s'." % ensorc_path)
-            contents = open(ensorc_path, "r").read()
-            compiledContents = compile(contents + "\n", ensorc_path, "exec")
-            exec compiledContents in {}, {}
-        else:
-            logging.warning(".ensorc file can't be read!")
-    else:
-        logging.info("Ignoring your .ensorc startup script")
 
     if hotkey:
         #contents += "enso.config.QUASIMODE_START_KEY = \"KEYCODE_%s\"\n" % opts.hotkey
@@ -263,7 +258,18 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
 
     # Execute main Enso loop
     enso.run()
-
+    
+    import time
+    time.sleep(10)
+    
+    import traceback
+    
+    thread_names = dict([(t.ident, t.name) for t in threading.enumerate()])
+    for thread_id, frame in sys._current_frames().iteritems():
+        print("Thread %s:" % thread_names.get(thread_id, thread_id))
+        traceback.print_stack(frame)
+        print()
+    
     return 0
 
 
