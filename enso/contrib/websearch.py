@@ -99,22 +99,22 @@ HTTP_HEADERS = {
 # Here we detect national TLD imposed by Google based on user's location.
 # This is used in suggestion-search.
 # It offers local suggestions and also speeds up the search.
-GOOGLE_DOMAIN = "com"
+LOCAL_TLD = "com"
 
-def _get_local_domain():
-    global GOOGLE_DOMAIN
+def _get_google_local_domain():
+    global LOCAL_TLD
     try:
         with closing(urllib2.urlopen("http://www.google.com/", timeout=4)) as resp:
             # Get redirect URL
             redirected_url = resp.geturl()
         domain = urllib2.urlparse.urlsplit(redirected_url).netloc
-        GOOGLE_DOMAIN = domain[domain.index("google.") + 7:]
+        LOCAL_TLD = domain[domain.index("google.") + 7:]
     except Exception as e:
         logging.warning("Error parsing google.com redirect TLS: %s", e)
     else:
-        logging.info("Google local domain has been set to .%s", GOOGLE_DOMAIN)
+        logging.info("Google local domain has been set to .%s", LOCAL_TLD)
 
-t = threading.Thread(target=_get_local_domain)
+t = threading.Thread(target=_get_google_local_domain)
 t.setDaemon(True)
 t.start()
 
@@ -186,7 +186,7 @@ class AbstractSearchCommandFactory(CommandParameterWebSuggestionsMixin, Arbitrar
         text = urllib.quote_plus(text.encode("utf-8"))
 
         url = self.BASE_URL % {
-            "google_tld": GOOGLE_DOMAIN, # Used just for Google services
+            "local_tld": LOCAL_TLD, # Used just for Google services
             "langcode": language,
             "query": text,
         }
@@ -271,7 +271,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
         url = self.suggestions_url % {
             "query": query,
             "charset": charset,
-            "tld": GOOGLE_DOMAIN,
+            "local_tld": LOCAL_TLD,
             "langcode": language,
         }
 
@@ -290,7 +290,7 @@ class ConfigurableSearchCommandFactory(AbstractSearchCommandFactory):
                     charset = content_type.split("charset=")[-1]
         try:
             decoded = data.decode(charset)
-        except Exception, e:
+        except Exception as e:
             logging.error(
                 "%s-suggest query unicode decoding failed: %s", self.name, e)
         else:
