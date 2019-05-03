@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-09-25"
+__updated__ = "2019-03-08"
 
 #==============================================================================
 # Imports
@@ -54,9 +54,15 @@ import re
 import subprocess
 import sys
 import time
+import ujson
 import urllib2
+
+from calendar import monthrange
 from contextlib import closing
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+from urllib2 import URLError
+from httplib import HTTPException
+from socket import error as SocketError
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer as DirectoryChangeObserver
@@ -72,6 +78,8 @@ from enso.events import EventManager, IDLE_TIMEOUT_30S
 from enso.quasimode import Quasimode
 from enso.contrib.calc.ipgetter import myip
 from enso.net import inetcache
+from enso.contrib.calc.ipgetter import myip
+from enso.contrib.calc.exchangerates import inflation
 
 __all__ = [
     'get_home_currency',
@@ -406,15 +414,13 @@ def set_home_currency(curr):
         config.write(fp)
 
 
-def convert_currency(amount, from_curr, to_curr):
-    # TODO: Convert following assertions into custom exceptions
-    assert from_curr in RATES.exchange_rates, "Unknown source currency code: %s" % from_curr
-    assert to_curr in RATES.exchange_rates, "Unknown target currency code: %s" % to_curr
+def _raw_convert(amount, from_curr, to_curr):
+    global RATES
 
-    unknown_rates = []
     result = None
     rate = None
     rate_updated = None
+    unknown_rates = []
 
     if from_curr == "EUR":
         if RATES.exchange_rates[to_curr]["rate"] == 0:
@@ -441,6 +447,16 @@ def convert_currency(amount, from_curr, to_curr):
             result = round(RATES.exchange_rates[to_curr]["rate"] * in_eur, 4)
             rate_updated = RATES.exchange_rates[to_curr]["updated"]
 
+    return result, rate, rate_updated, unknown_rates
+
+
+def convert_currency(amount, from_curr, to_curr, year_in_past=None):
+    # TODO: Convert following assertions into custom exceptions
+    assert from_curr in RATES.exchange_rates, "Unknown source currency code: %s" % from_curr
+    assert to_curr in RATES.exchange_rates, "Unknown target currency code: %s" % to_curr
+
+    converted_amount, rate, rate_updated, unknown_rates = _raw_convert(amount, from_curr, to_curr)
+
     if unknown_rates:
         quasimode.setDidyoumeanHint(
             u"Unknown exchange rate for currency %s"
@@ -464,6 +480,22 @@ def convert_currency(amount, from_curr, to_curr):
         #("%.4f" % rate).rstrip("0").rstrip("."),
         rate_updated_str,
     )
+
+    inflated_amount = None
+    converted_inflated_amount = None
+    if year_in_past:
+        try:
+            inflated_amount = inflation.get_inflation(from_curr, amount, year_in_past)
+        except Exception as e:
+            pass
+        else:
+            converted_inflated_amount, _, _, _ = _raw_convert(inflated_amount, from_curr, to_curr)
+            expr = "%s %s in year %d today in %s" % (
+                ("%.4f" % amount).rstrip("0").rstrip("."),
+                from_curr,
+                year_in_past,
+                to_curr
+            )
     """
     suggestions = set(symbol for symbol in RATES.exchange_rates.keys() if symbol.startswith((from_curr[0], to_curr[0])))
     suggestions = suggestions - set((from_curr, to_curr))
@@ -472,7 +504,15 @@ def convert_currency(amount, from_curr, to_curr):
     else:
         quasimode.setDidyoumeanHint(None)
     """
-    return result, expr, rate, rate_updated
+    
+    return (
+        converted_amount,
+        converted_inflated_amount if converted_inflated_amount is not None else converted_amount,
+        expr,
+        rate,
+        rate_updated
+    )
+
 
 get_home_currency()
 

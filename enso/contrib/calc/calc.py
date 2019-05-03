@@ -52,9 +52,25 @@ from enso.commands.factories import ArbitraryPostfixFactory
 from enso.contrib.scriptotron.tracebacks import safetyNetted
 from enso.contrib.scriptotron.ensoapi import EnsoApi
 from enso.contrib.recentresults import RecentResult
+from enso.contrib.websearch import LOCAL_TLD, HTTP_HEADERS
 
 from text2num import text2num, format_number_local
-
+from enso.commands.interfaces import AbstractCommandFactory
+from enso.commands.mixins import CommandParameterWebSuggestionsMixin
+from enso.utils import suppress
+import urllib2
+import urllib
+import locale
+import threading
+from contextlib import closing
+from enso.utils.html_tools import strip_html_tags
+try:
+    import ujson as jsonlib
+except ImportError as e:
+    logging.warning(
+        "Consider installing 'ujson' library for JSON parsing performance boost.")
+    import json as jsonlib
+    
 ensoapi = EnsoApi()
 
 
@@ -171,13 +187,13 @@ def _fast_calc(expression=None):
     try:
         result, expr = fourfn.evaluate(expression)
         return result, unicode(expr)
-    except ZeroDivisionError, e:
+    except ZeroDivisionError as e:
         logging.warning(e)
         return e[0], expression
-    except ArithmeticError, e:
+    except ArithmeticError as e:
         logging.warning(e)
         return e[1], expression
-    except Exception, e:
+    except Exception as e:
         logging.warning(e)
         return str(e), expression
 
@@ -230,13 +246,13 @@ def cmd_calculate(ensoapi, expression=None):
                 result, expr = fourfn.evaluate(line.strip())
                 new_lines.append(u"%s%s" % (leading_whitespace, unicode(result)))
                 total += long(result)
-            except ZeroDivisionError, e:
+            except ZeroDivisionError as e:
                 logging.warning(e)
                 new_lines.append(line.rstrip())
-            except ArithmeticError, e:
+            except ArithmeticError as e:
                 logging.warning(e)
                 new_lines.append(line.rstrip())
-            except Exception, e:
+            except Exception as e:
                 logging.warning(e)
                 new_lines.append(line.rstrip())
         expression = " +\n".join(new_lines) + "\n"
@@ -245,13 +261,13 @@ def cmd_calculate(ensoapi, expression=None):
     else:
         try:
             result, expression = fourfn.evaluate(expression)
-        except ZeroDivisionError, e:
+        except ZeroDivisionError as e:
             logging.warning(e)
             return str(e), expression
-        except ArithmeticError, e:
+        except ArithmeticError as e:
             logging.warning(e)
             return e[1], expression
-        except Exception, e:
+        except Exception as e:
             logging.warning(e)
             return str(e), expression
 
@@ -283,13 +299,18 @@ def cmd_calculate(ensoapi, expression=None):
     return result, unicode(expression)
 
 
-class CalculateCommand(CommandObject):
-    u""" 
-    \u201ccalculate {expression}\u201d command
+class CalculateCommandFactory(CommandParameterWebSuggestionsMixin, ArbitraryPostfixFactory):
+    u"""
+    'calculate {expression}' command
 
-    Calculate mathematical expression. 
+    Calculate mathematical expression.
     """
 
+    last_postfix = None
+    last_cmd_obj = None
+
+    results_history = []
+    
     HELP_TEXT = "expression"
     PREFIX = "calculate "
     NAME = "%s{%s}" % (PREFIX, HELP_TEXT)
@@ -306,11 +327,25 @@ class CalculateCommand(CommandObject):
         35: ")",
         # replace = with +
         21: "+",
+        # replace ; with :
+        47: ":",
     }
 
-    def __init__(self, expression=None):
-        super(CalculateCommand, self).__init__()
+    def __init__(self):
+        super(CalculateCommandFactory, self).__init__()
 
+    @safetyNetted
+    def run(self):
+        result, expression = cmd_calculate(ensoapi, self.expression)
+        if hasattr(self, "updateResultsHistory"):
+            self.updateResultsHistory(expression)
+    
+    def updateResultsHistory(self, expression=None):
+        if expression and expression not in CalculateCommandFactory.results_history:
+            CalculateCommandFactory.results_history.append(expression)
+        self.setParameterSuggestions(CalculateCommandFactory.results_history)
+
+    def _generateCommandObj(self, expression):
         if expression:
             expression = _replace_special_unicode_chars(expression)
 
@@ -327,12 +362,64 @@ class CalculateCommand(CommandObject):
                 self.setDescription(self.DESCRIPTION_ERROR % expression)
         else:
             self.setDescription(self.DESCRIPTION_NO_PREVIEW)
+        return self
 
-    @safetyNetted
-    def run(self):
-        result, expression = cmd_calculate(ensoapi, self.expression)
-        if hasattr(self, "updateResultsHistory"):
-            self.updateResultsHistory(expression)
+    def getSuggestionsUrl(self, text):
+        # Ignore empty
+        if text is None or len(text.strip()) == 0:
+            return None
+        # Consider only queries such: '15lb in kg'
+        if not re.match(r"[0-9\.]+\s*[a-z]+\s+in\s+[a-z]+", text, re.I):
+            return None
+        charset = "utf-8"
+        query = urllib.quote_plus(text.encode(charset))
+        # For compatibility with older core, use default locale if setting
+        # is not used in the config...
+        languageCode, _ = locale.getdefaultlocale()
+        if languageCode:
+            language = languageCode.split("_")[0]
+        else:
+            language = "en"
+            
+        suggestions_url = "http://clients1.google.%(tld)s/complete/search?hl=%(langcode)s&gl=en&client=firefox&ie=%(charset)s&oe=%(charset)s&q=%(query)s"
+        url = suggestions_url % {
+            "query": query,
+            "charset": charset,
+            "tld": LOCAL_TLD,
+            "langcode": language,
+        }
+
+        request = urllib2.Request(url, headers=HTTP_HEADERS)
+
+        return request
+
+    def decodeSuggestions(self, data, headers=None):
+        suggestions = []
+        charset = "utf-8"
+        if headers:
+            with suppress(Exception):
+                content_type = headers.get(
+                    "Content-Type", headers.get("content-type", "")).lower()
+                if content_type and "charset=" in content_type:
+                    charset = content_type.split("charset=")[-1]
+        try:
+            decoded = data.decode(charset)
+        except Exception as e:
+            logging.error(
+                "%s-suggest query unicode decoding failed: %s", self.name, e)
+        else:
+            try:
+                json = jsonlib.loads(decoded)
+            except Exception as e:
+                logging.error(
+                    u"Error parsing JSON data: %s; data: '%s'", e, decoded)
+            else:
+                if json:
+                    suggestions = [strip_html_tags(i) for i in json[1] if (json and len(json) > 1 and json[1] and i.startswith("="))][:1]
+        return suggestions
+        
+    def onSuggestQueryError(self, url_or_request, exception):
+        pass
 
 
 class SetHomeCurrencyCommand(CommandObject):
@@ -359,47 +446,6 @@ class SetHomeCurrencyCommand(CommandObject):
             ensoapi.display_message(
                 u"%s: %s" % (self.code, converter.get_currency_rates().exchange_rates[self.code]["name"]),
                 u"Home currency have been set to")
-
-
-class CalculateCommandFactory(ArbitraryPostfixFactory):
-    """
-    Generates a "learn as open {name}" command.
-    """
-
-    HELP_TEXT = CalculateCommand.HELP_TEXT
-    PREFIX = CalculateCommand.PREFIX
-    NAME = CalculateCommand.NAME
-
-    last_postfix = None
-    last_cmd_obj = None
-
-    results_history = []
-
-    def updateResultsHistory(self, expression=None):
-        if expression and expression not in CalculateCommandFactory.results_history:
-            CalculateCommandFactory.results_history.append(expression)
-        self.setParameterSuggestions(CalculateCommandFactory.results_history)
-
-    def _generateCommandObj(self, postfix):
-        if postfix is None:
-            cmd = CalculateCommand(postfix)
-            cmd.updateResultsHistory = self.updateResultsHistory
-            cmd.getParameterSuggestions = self.getParameterSuggestions
-            self.updateResultsHistory()
-            # cmd.setName(self.NAME)
-            return cmd
-        else:
-            if CalculateCommandFactory.last_postfix == postfix:
-                return CalculateCommandFactory.last_cmd_obj
-            else:
-                cmd = CalculateCommand(postfix)
-                cmd.updateResultsHistory = self.updateResultsHistory
-                cmd.getParameterSuggestions = self.getParameterSuggestions
-                # cmd.setName(self.NAME)
-                CalculateCommandFactory.last_postfix = postfix
-                CalculateCommandFactory.last_cmd_obj = cmd
-                self.updateResultsHistory()
-                return cmd
 
 
 class SetHomeCurrencyCommandFactory(ArbitraryPostfixFactory):

@@ -75,13 +75,15 @@ from pyparsing import (
 )
 from text2num import text2num
 
-__updated__ = "2018-08-23"
+__updated__ = "2019-03-08"
 __all__ = ["evaluate"]
 
 RE_ROMAN_NUMERALS = '[IVXLCDMivxlcdm]+'
 RE_VALID_ROMAN_NUMBER = r"\b(M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3}))\b"
 
 RE_TIMEDELTA = r"(\d+) ?(days?|weeks?|months?|years?)"
+
+RE_FULL_YEAR = r"^[1-9][0-9]{3}$"
 
 
 class timedelta(relativedelta):
@@ -176,6 +178,19 @@ class BNF(object):
         cls.expr_stack.append("currency")
 
     @classmethod
+    def pushCurrencyWithInflation(cls, strg, loc, toks):
+        _, _ = loc, strg  # keep pylint happy
+        if len(toks[-2]) == 3:
+            # Only source currency specified, add home currency as target
+            cls.expr_stack.append(get_home_currency())
+        elif len(toks[-2]) == 6:
+            # Split source and target currency on stack
+            cls.expr_stack.append(toks[-2][3:])
+            cls.expr_stack[-2] = toks[-2][:3]
+        cls.expr_stack.append(toks[-1])
+        cls.expr_stack.append("currency")
+
+    @classmethod
     def pushNumber(cls, strg, loc, toks):
         _, _ = loc, strg  # keep pylint happy
 
@@ -237,7 +252,6 @@ class BNF(object):
             pi = CaselessLiteral("PI")
             bitwise = CaselessLiteral("xor") | CaselessLiteral(
                 "and") | CaselessLiteral("or")
-            currencyop = CaselessLiteral("in")
             shift = Literal("<<") | Literal(">>")
 
             now = CaselessLiteral("now").setParseAction(
@@ -283,6 +297,8 @@ class BNF(object):
                 Optional(Word(nums, max=2) + Literal(":"), "00:") + Word(nums, max=2) + Literal(":") + Word(nums, max=2)
             ).setParseAction(lambda s, l, t: [timedelta(hours=int(t[0].split(":")[0]), minutes=int(t[0].split(":")[1]), seconds=int(t[0].split(":")[2]))])
 
+            full_year = Word(nums, exact=4)
+
             currency_name = Word(alphas, min=3, max=3)
             currency_pair = Word(alphas, min=6, max=6)
             """
@@ -320,7 +336,14 @@ class BNF(object):
 
             expr1 = expr + \
                 Optional(
-                    (currency_name | currency_pair).setParseAction(cls.pushCurrency))
+                    (
+                        (currency_name | currency_pair) + \
+                            Optional(
+                                CaselessLiteral("in").suppress() + full_year, 
+                                default='0000'
+                            )
+                    ).setParseAction(cls.pushCurrencyWithInflation)
+                )
 
             # print expr1
             cls.__bnf = expr1
@@ -421,7 +444,6 @@ fn = {"sin": math.sin,
       "sgn": lambda a: 0 if a == 0 else 1 if abs(a) > epsilon and cmp(a, 0) > 0 else -1,
       "invert": operator.invert,
       "~": operator.invert,
-      "currency": convert_currency
       }
 
 
@@ -491,15 +513,18 @@ def evaluateStack(s):
             val = opn[op](op1, op2)
             return val, "%s %s %s" % (expr1, op.strip(), expr2)
     elif op == "currency":
-        curr_to, expr2 = evaluateStack(s)
+        year_in_past, _ = evaluateStack(s)
+        curr_to, _ = evaluateStack(s)
         curr_to = curr_to.upper()
-        curr_from, expr1 = evaluateStack(s)
+        curr_from, _ = evaluateStack(s)
         curr_from = curr_from.upper()
-        curr_amount, expr0 = evaluateStack(s)
-        val, expr, rate, rate_updated = convert_currency(
-            curr_amount, curr_from, curr_to)
+        curr_amount, _ = evaluateStack(s)
+        print "%d %s in %s in year %s" % (curr_amount, curr_from, curr_to, year_in_past)
+        val, val_inflated, expr, rate, rate_updated = convert_currency(
+            curr_amount, curr_from, curr_to, year_in_past)
+        print expr
         # "%s %s %s %s" % (curr_amount, curr_from, op.strip(), curr_to)
-        return round(val, 4), expr
+        return round(val_inflated if val_inflated != val else val, 4), expr
     elif op == "PI":
         val = math.pi  # 3.1415926535
         return val, op
