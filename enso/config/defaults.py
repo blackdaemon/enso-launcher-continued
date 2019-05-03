@@ -1,4 +1,4 @@
-__updated__ = "2017-12-13"
+__updated__ = "2019-05-03"
 
 try:
     from enso._version_local import VERSION as VERSION_LOCAL
@@ -14,6 +14,9 @@ from enso.utils.html_tools import (
     strip_html_tags,
     unescape_html_entities
 )
+
+# This will get populated on startup
+CMDLINE_OPTIONS = {}
 
 # Configuration settings for Enso.  Eventually this will take
 # localization into account too (or we can make a separate module for
@@ -33,6 +36,9 @@ IS_QUASIMODE_MODAL = False
 # Display Enso on active monitor (where mouse cursor is)
 # If set to False, Enso displays on primary-monitor.
 SHOW_ON_ACTIVE_MONITOR = True
+
+# Display Enso UI within desktop workarea instead of entire screen 
+SHOW_ON_WORKAREA = True
 
 DRAW_SCALE_FACTOR = 1.0
 
@@ -123,9 +129,11 @@ DIDYOUMEAN_HINT_TEXT = u"<ins>Did you mean \u201c</ins><alt>%s</alt><ins>\u201d?
 # List of default platforms supported by Enso; platforms are specific
 # types of providers that provide a suite of platform-specific
 # functionality.
-DEFAULT_PLATFORMS = ["enso.platform.osx",
-                     "enso.platform.linux",
-                     "enso.platform.win32"]
+DEFAULT_PLATFORMS = [
+    "enso.platform.osx",
+    "enso.platform.linux",
+    "enso.platform.win32"
+]
 
 # List of modules/packages that support the provider interface to
 # provide required platform-specific functionality to Enso.
@@ -218,9 +226,9 @@ PLUGIN_WEBSEARCH_GOOGLE = {
     "name": "Google",
     "prefix": "google ",
     "argument": "search terms",
-    "base_url": "http://www.google.%(google_tld)s/search?q=%(query)s",
+    "base_url": "http://www.google.%(local_tld)s/search?q=%(query)s",
     "suggest": True,
-    "suggestions_url": "http://clients1.google.%(google_tld)s/complete/search?"
+    "suggestions_url": "http://clients1.google.%(local_tld)s/complete/search?"
             "hl=%(langcode)s&gl=en&client=firefox&ie=%(charset)s&oe=%(charset)s&q=%(query)s",
     "is_json": True,
     "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
@@ -229,9 +237,9 @@ PLUGIN_WEBSEARCH_GOOGLEIMAGES = {
     "name": "Google Images",
     "prefix": "images ",
     "argument": "search terms",
-    "base_url": "http://images.google.%(google_tld)s/images?um=1&hl=%(langcode)s&rlz=1C1GGLS_en-USCZ294&safeui=off&btnG=Search+Images&q=%(query)s",
+    "base_url": "http://images.google.%(local_tld)s/images?um=1&hl=%(langcode)s&rlz=1C1GGLS_en-USCZ294&safeui=off&btnG=Search+Images&q=%(query)s",
     "suggest": True,
-    "suggestions_url": "http://clients1.google.%(google_tld)s/complete/search?"
+    "suggestions_url": "http://clients1.google.%(local_tld)s/complete/search?"
             "gl=%(langcode)s&client=img&ie=%(charset)s&oe=%(charset)s&pq=%(query)s&hl=%(langcode)s&q=%(query)s",
     "is_json": True,
     "result_parser": lambda json: (i[0] for i in json[1]) if json and len(json) > 1 and json[1] else [],
@@ -242,7 +250,7 @@ PLUGIN_WEBSEARCH_YOUTUBE = {
     "argument": "search terms",
     "base_url": "http://www.youtube.com/results?search_type=&aq=0&nofeather=True&oq=&search_query=%(query)s",
     "suggest": True,
-    "suggestions_url": "http://clients1.google.%(google_tld)s/complete/search?"
+    "suggestions_url": "http://clients1.google.%(local_tld)s/complete/search?"
             "hl=%(langcode)s&ds=yt&client=firefox&hjson=t&ie=%(charset)s&oe=%(charset)s&q=%(query)s",
     "is_json": True,
     "result_parser": lambda json: json[1] if json and len(json) > 1 and json[1] else [],
@@ -277,6 +285,28 @@ PLUGIN_WEBSEARCH_URBANDICTIONARY = {
     "is_json": True,
     "result_parser": lambda json: json if json else [],
 }
+PLUGIN_WEBSEARCH_MAPYCZ = {
+    "name": "mapy.cz",
+    "prefix": "mapy ",
+    "argument": "search terms",
+    "base_url": "https://en.mapy.cz/zakladni?q=%(query)s",
+    "suggest": True,
+    "suggestions_url": "https://pro.mapy.cz/suggest/?count=5&phrase=%(query)s&enableCategories=1",
+    "is_json": True,
+    "result_parser": lambda json:
+        set([
+            ", ".join(
+                filter(len, (
+                    entry['userData']['suggestFirstRow'],
+                    entry['userData']['municipality'],
+                    entry['userData']['country'],
+                    )
+                )
+            )
+            for entry in json['result']
+        ]),
+}
+
 
 PLUGIN_WEBSEARCH_COMMANDLINEFU = {
     "name": "CommandlineFu",
@@ -316,3 +346,6 @@ HTTPS_PROXY_URL = None
 ASYNCHRONOUS_OPEN_SHORTCUTS_REFRESH = (CURRENT_PLATFORM != PLATFORM_NAME_WINDOWS)
 
 DEBUG_REPORT_TIMINGS = False
+
+# apiKey for https://free.currencyconverterapi.com/
+CURRENCY_CONVERTER_API_KEY = None
