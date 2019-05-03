@@ -44,14 +44,17 @@ from time import clock, time
 import Xlib
 #import Xlib.ext.xtest
 import dbus
-import dbus.mainloop.glib
 import gtk.gdk
 from gio import File  # @UnresolvedImport Keep PyLint and PyDev happy
+from dbus.mainloop.glib import DBusGMainLoop
 
 from enso.platform.linux.utils import get_display, get_keycode
 from enso.platform.linux.weaklib import DbusWeakCallback
 
-__updated__ = "2018-09-05"
+__updated__ = "2018-11-13"
+
+
+DBusGMainLoop(set_as_default=True)
 
 
 def install_nautilus_file_selection_extension():
@@ -88,9 +91,6 @@ class NautilusFileSelection(object):
     def __init__(self):
         self.paths = []
 
-        install_nautilus_file_selection_extension()
-
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         callback = DbusWeakCallback(self._on_selection_change)
         # Register signal receiver for SelectionChanged event in Nautilus
         # windows
@@ -104,17 +104,21 @@ class NautilusFileSelection(object):
         # File selection changed (user clicked on file/directory or selected
         # a group of files/directories.
         # Update internal variable
-        focus = get_focused_window(get_display())
-        if focus.get_wm_class() is None:  # or wmname is None:
-            focus = focus.query_tree().parent
-        # Capture the file selection from focused window only.
-        # Nautilus sends paths of files focused in all opened windows
-        # every time the file selection changes in any of them.
-        assert type(focus) != int, "focus is not of Window type, it's int and has value of %d" % focus
-        if window_id == focus.id:
-            self.paths = filter(None, [File(uri).get_path() for uri in selection])
+        try:
+            focus = get_focused_window(get_display())
+            assert type(focus) != int, "focus is not of Window type, it's int and has value of %d" % focus
+            if focus.get_wm_class() is None:  # or wmname is None:
+                focus = focus.query_tree().parent
+            # Capture the file selection from focused window only.
+            # Nautilus sends paths of files focused in all opened windows
+            # every time the file selection changes in any of them.
+            if window_id == focus.id:
+                self.paths = filter(None, [File(uri).get_path() for uri in selection])
+        except Exception as e:
+            logging.error(e)
 
 
+install_nautilus_file_selection_extension()
 nautilus_file_selection = NautilusFileSelection()
 
 
