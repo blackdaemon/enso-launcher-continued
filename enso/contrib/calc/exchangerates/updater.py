@@ -1,6 +1,4 @@
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
-import shutil
-from six import BytesIO
 
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz
@@ -41,7 +39,7 @@ from six import BytesIO
 
 __author__ = "pavelvitis@gmail.com"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2018-06-22"
+__updated__ = "2019-05-03"
 
 #==============================================================================
 # Imports
@@ -53,11 +51,13 @@ import urllib2
 import logging
 import ujson
 import urllib
+import shutil
 import struct
 import time
 
 from urllib2 import URLError, HTTPError
 from httplib import HTTPException
+from six import BytesIO
 from socket import error as SocketError
 from contextlib import closing
 
@@ -92,7 +92,7 @@ except ImportError:
     from ConfigParser import SafeConfigParser
 
 from enso.utils import suppress
-
+from enso import config
 
 #==============================================================================
 # Constants
@@ -118,6 +118,8 @@ if not os.path.isdir(CACHE_DIR):
     os.makedirs(CACHE_DIR)
 RATES_FILE = os.path.join(CACHE_DIR, "rates.csv")
 CURRENCIES_FILE = os.path.join(CACHE_DIR, "currencies.json")
+
+API_KEY = config.CURRENCY_CONVERTER_API_KEY
 
 
 #==============================================================================
@@ -405,7 +407,7 @@ def download_actual_rates():
         os.path.getsize(CURRENCIES_FILE) == 0 or
         (time.time() - os.path.getmtime(CURRENCIES_FILE)) / 60 / 60 > 24
         ):
-        currencies_url = "http://free.currencyconverterapi.com/api/v5/currencies"
+        currencies_url = "http://free.currencyconverterapi.com/api/v5/currencies?apiKey=%s" % API_KEY
         try:
             mtime = os.path.getmtime(CURRENCIES_FILE) if os.path.isfile(CURRENCIES_FILE) else 0
             currencies_json = _download_data(currencies_url, mtime).decode("utf-8")
@@ -419,8 +421,15 @@ def download_actual_rates():
             if e.code == 403:
                 # Exceeded limit
                 raise Exception("Currency converter service free limit exceeded (100 queries per hour)")
+            elif e.code == 400:
+                logging.error(e)
+                # Exceeded limit
+                raise Exception("Currency converter service error: %s", str(e))
+            else:
+                raise
         except Exception as e:
             logging.error(e)
+            raise
         else:
             try:
                 with open("%s.new" % CURRENCIES_FILE, "wb") as fd:
@@ -447,14 +456,19 @@ def download_actual_rates():
     symbols = []
     # Limit one query to 2 items
     max_rates_per_request = 2
-    url = "http://free.currencyconverterapi.com/api/v5/convert?compact=ultra&q=%(params)s"
+    url = "http://free.currencyconverterapi.com/api/v5/convert?apiKey=%(apiKey)s&compact=ultra&q=%(params)s"
     csv = ""
 
     for symbol in currency_symbols:
         symbols.append("EUR_%s" % symbol)
         if len(symbols) == max_rates_per_request:
             try:
-                data = _download_data(url % {"params": ",".join(symbols)}, mtime)
+                data = _download_data(
+                    url % {
+                        "apiKey": API_KEY,
+                        "params": ",".join(symbols),
+                    },
+                    mtime)
                 rd = eval(data.strip(), {}, {})
                 csv = ("" if not csv or csv.endswith("\n") else "\n").join(
                     [csv,] + ["%s,%f\n" % (r[0].split("_")[1], r[1]) for r in rd.items()]
@@ -470,7 +484,12 @@ def download_actual_rates():
     else:
         if len(symbols) > 0:
             try:
-                data = _download_data(url % {"params": ",".join(symbols)}, mtime)
+                data = _download_data(
+                    url % {
+                        "apiKey": API_KEY,
+                        "params": ",".join(symbols),
+                    },
+                    mtime)
                 rd = eval(data.strip(), {}, {})
                 csv = ("" if not csv or csv.endswith("\n") else "\n").join(
                     [csv,] + ["%s,%f\n" % (r[0].split("_")[1], r[1]) for r in rd.items()]
