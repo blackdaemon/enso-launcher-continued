@@ -1,9 +1,14 @@
 backports.functools_lru_cache
+bs4
 click
+configparser
+contextlib2
 ccy
 httplib2
 iniparse
+lxml
 netifaces
+nuitka
 pygeoip
 pyparsing
 python-dateutil
