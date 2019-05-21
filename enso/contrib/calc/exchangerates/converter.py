@@ -41,7 +41,7 @@
 
 __author__ = "blackdaemon@seznam.cz"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2019-03-08"
+__updated__ = "2019-05-15"
 
 #==============================================================================
 # Imports
@@ -490,7 +490,7 @@ def convert_currency(amount, from_curr, to_curr, year_in_past=None):
             pass
         else:
             converted_inflated_amount, _, _, _ = _raw_convert(inflated_amount, from_curr, to_curr)
-            expr = "%s %s in year %d today in %s" % (
+            expr = "%s %s in %d is worth today in %s" % (
                 ("%.4f" % amount).rstrip("0").rstrip("."),
                 from_curr,
                 year_in_past,

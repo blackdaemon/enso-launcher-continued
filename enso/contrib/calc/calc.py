@@ -164,7 +164,7 @@ def _convert_language(expression):
 
     for symbol, iso in curr_repl:
         expression = re.sub(
-            ur"%s(\.?[0-9]+(\.([0-9]+)?)?)" % re.escape(symbol),
+            ur"%s(\.?[0-9]+(?:\.(?:[0-9]+)?)?)" % re.escape(symbol),
             ur"\1 %s" % iso,
             expression)
 
@@ -215,8 +215,8 @@ def cmd_calculate(ensoapi, expression=None):
             got_selection = expression is not None
 
     if expression is None:
-        ensoapi.display_message("No expression. Please type or select some mathematic expression.")
-        return
+        ensoapi.display_message(u"No expression. Please type or select some mathematic expression.")
+        return None, None
 
     if isinstance(expression, str):
         expression = expression.decode("utf-8", "ignore")
@@ -337,7 +337,7 @@ class CalculateCommandFactory(CommandParameterWebSuggestionsMixin, ArbitraryPost
     @safetyNetted
     def run(self):
         result, expression = cmd_calculate(ensoapi, self.expression)
-        if hasattr(self, "updateResultsHistory"):
+        if expression and hasattr(self, "updateResultsHistory"):
             self.updateResultsHistory(expression)
     
     def updateResultsHistory(self, expression=None):
