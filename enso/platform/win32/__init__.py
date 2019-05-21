@@ -26,7 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 import os
 import sys
 import atexit
@@ -85,7 +84,7 @@ def get_script_folder_name():
 
 # Import and return the Win32 implementation of the requested interface.
 
-def provideInterface( name ):
+def provide_interface( name ):
     if name == "input":
         import enso.platform.win32.input
         return enso.platform.win32.input
@@ -96,7 +95,7 @@ def provideInterface( name ):
         enso.platform.win32.input.AsyncEventThread.start()
         atexit.register( enso.platform.win32.input.AsyncEventThread.stop )
         # TODO make sure nothing bad will happen here if
-        # provideInterface( "graphics" ) gets called more than once.
+        # provide_interface( "graphics" ) gets called more than once.
         import enso.platform.win32.graphics
         return enso.platform.win32.graphics
     elif name == "cairo":

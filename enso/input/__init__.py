@@ -1,6 +1,6 @@
 import enso.providers
 
-_input = enso.providers.getInterface( "input" )
+_input = enso.providers.get_interface( "input" )
 
 for attrName in _input.__dict__.keys():
     if not attrName.startswith( "_" ) and attrName.upper() == attrName:

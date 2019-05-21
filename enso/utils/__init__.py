@@ -32,6 +32,7 @@ except ImportError:
             with suppress(Exception):
                 do_something()
         """
+        assert exceptions, "'exceptions' parameter in suppress() can't be empty!"
         try:
             yield
         except exceptions:

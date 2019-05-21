@@ -36,9 +36,9 @@ def load_ensorc():
     if os.path.isfile(ENSORC_PATH):
         logging.info("Loading '%s'." % ENSORC_PATH)
         contents = open(ENSORC_PATH, "r").read()
-        compiledContents = compile(contents + "\n", ENSORC_PATH, "exec")
+        compiled_contents = compile(contents + "\n", ENSORC_PATH, "exec")
         try:
-            exec compiledContents in {}, {}
+            exec compiled_contents in {}, {}
         except Exception as e:
             logging.error("Error parsing user config from %s: %s", ENSORC_PATH, str(e))
         else:

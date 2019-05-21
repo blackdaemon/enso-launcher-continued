@@ -67,7 +67,7 @@ DESKTOP_ENVIRONMENT = next(
 )
 
 
-def provideInterface(name):
+def provide_interface(name):
     '''Plug into Enso core'''
     if name == "input":
         import enso.platform.linux.input

@@ -45,7 +45,8 @@ class EnsoApi(object):
     A simple facade to Enso's functionality for use by commands.
     """
 
-    def display_message(self, msg, caption=None,
+    @staticmethod
+    def display_message(msg, caption=None,
                         show_mini_msg=False, mini_msg=None,
                         primary_wait=None, mini_wait=None):
         """
@@ -89,7 +90,8 @@ class EnsoApi(object):
             xmltext, miniMsgXml=xmltext_mini,
             primaryWaitTime=primary_wait, miniWaitTime=mini_wait)
 
-    def display_xml_message(self, msg_xml, show_mini_msg=False,
+    @staticmethod
+    def display_xml_message(msg_xml, show_mini_msg=False,
                             mini_msg_xml=None, primary_wait=None, mini_wait=None):
         """
         Displays the given message, with an optional caption.  Both
@@ -117,24 +119,28 @@ class EnsoApi(object):
             msg_xml, miniMsgXml=mini_msg_xml,
             primaryWaitTime=primary_wait, miniWaitTime=mini_wait)
 
-    def hide_message(self, skip_animation=False):
+    @staticmethod
+    def hide_message(skip_animation=False):
         hideMessage(skip_animation)
 
-    def get_selection(self):
+    @staticmethod
+    def get_selection():
         """
         Retrieves the current selection and returns it as a
         selection dictionary.
         """
         return selection.get()
 
-    def get_text_selection(self, default=None):
+    @staticmethod
+    def get_text_selection(default=None):
         """
         Retrieves the current text selection as string.
         Returns default if nothing is selected.
         """
         return selection.get().get("text", default)
 
-    def set_selection(self, seldict):
+    @staticmethod
+    def set_selection(seldict):
         """
         Sets the current selection to the contents of the given
         selection dictionary.

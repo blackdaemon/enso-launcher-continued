@@ -38,7 +38,7 @@
     common interfaces to be implemented by different libraries.
 
     A provider is just a Python module or package with a single
-    function in it, provideInterface(), which takes a single string
+    function in it, provide_interface(), which takes a single string
     argument that corresponds to the name of an interface.  If the
     provider has an implementation of the interface, it returns it; if
     not, it returns None.
@@ -50,7 +50,7 @@
     enso.config.PROVIDERS.
 
     Whenever an interface implementation is requested through this
-    module's getInterface() function, each provider is consulted in
+    module's get_interface() function, each provider is consulted in
     the order listed in enso.config.PROVIDERS until an implementation
     is found.  In this way, it's possible for providers to be
     "layered" (in a variation of the Chain of Responsibility pattern)
@@ -98,7 +98,7 @@ _providers = []
 # Private functions
 # ----------------------------------------------------------------------------
 
-def _initDefaultProviders():
+def _init_default_providers():
     """
     Resolves all provider names in enso.config.PROVIDERS to actual
     Python objects.
@@ -123,7 +123,7 @@ def _initDefaultProviders():
 # Public functions
 # ----------------------------------------------------------------------------
 
-def getInterface(name):
+def get_interface(name):
     """
     Finds and returns an implementation that provides an interface
     with the given name.  If no interface exists that provides the
@@ -131,12 +131,12 @@ def getInterface(name):
     """
 
     if not _providers:
-        _initDefaultProviders()
+        _init_default_providers()
     if name in _interfaces:
         return _interfaces[name]
     else:
         for provider in _providers:
-            interface = provider.provideInterface(name)
+            interface = provider.provide_interface(name)
             if interface:
                 logging.info("Obtained interface '%s' from provider '%s'."
                              % (name, provider.__name__))

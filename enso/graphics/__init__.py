@@ -4,7 +4,7 @@ import enso.providers
 Position = namedtuple('Position', 'x y')
 Size = namedtuple('Size', 'width height')
 
-_graphics = enso.providers.getInterface("graphics")
+_graphics = enso.providers.get_interface("graphics")
 
 from enso.graphics.measurement import pointsToPixels, pixelsToPoints
 

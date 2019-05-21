@@ -54,7 +54,7 @@ from enso import cairo, config
 from enso.utils import do_once, do_once_for_given_args
 from enso.utils.memoize import memoized
 
-_graphics = enso.providers.getInterface("graphics")
+_graphics = enso.providers.get_interface("graphics")
 
 
 # ----------------------------------------------------------------------------

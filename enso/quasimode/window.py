@@ -56,7 +56,7 @@
     in them are actually drawn.
 """
 
-__updated__ = "2017-02-25"
+__updated__ = "2019-05-14"
 
 # ----------------------------------------------------------------------------
 # Imports
@@ -236,18 +236,20 @@ class QuasimodeWindow(object):
         This function should only be called after update() has been
         called.
         """
-        if self.__suggestionsLeft:
-            timeElapsed = time.time() - self.__drawStart
-            if ((not ignoreTimeElapsed) and
-                    (timeElapsed < config.QUASIMODE_SUGGESTION_DELAY)):
-                return False
-            try:
-                suggestionDrawer = self.__suggestionsLeft.next()
-                suggestionDrawer.draw()
-                return True
-            except StopIteration:
-                self.__suggestionsLeft = None
-        return False
+
+        if not self.__suggestionsLeft:
+            return False
+
+        timeElapsed = time.time() - self.__drawStart
+        if ((not ignoreTimeElapsed) and
+                (timeElapsed < config.QUASIMODE_SUGGESTION_DELAY)):
+            return False
+        try:
+            suggestionDrawer = self.__suggestionsLeft.next()
+            suggestionDrawer.draw()
+            return True
+        except StopIteration:
+            self.__suggestionsLeft = None
 
     def __finalize(self):
         del self.__descriptionWindow

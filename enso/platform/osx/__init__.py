@@ -8,7 +8,7 @@ if sys.platform != "darwin":
     raise enso.platform.PlatformUnsupportedError()
 
 
-def provideInterface(name):
+def provide_interface(name):
     if name == "input":
         import enso.platform.osx.input
         return enso.platform.osx.input

@@ -1,4 +1,4 @@
-__updated__ = "2017-02-23"
+__updated__ = "2019-05-13"
 
 import enso.providers
 
@@ -6,7 +6,7 @@ from enso.graphics.measurement import pointsToPixels, pixelsToPoints
 from enso.graphics.measurement import convertUserSpaceToPoints
 from enso import cairo
 
-_graphics = enso.providers.getInterface("graphics")
+_graphics = enso.providers.get_interface("graphics")
 
 # This is a wrapper for the platform-specific implementation of a
 # TransparentWindow that makes the class use points instead of
@@ -45,6 +45,13 @@ class TransparentWindow(object):
 
     def hide(self):
         return self._impl.hideWindow()
+
+    def finish(self):
+        try:
+            self._impl.finish()
+        except:
+            pass
+        del self._impl
 
     def setOpacity(self, opacity):
         # OPTIMIZATION BEGIN:
@@ -105,11 +112,19 @@ class TransparentWindow(object):
         return pixelsToPoints(self._impl.getMaxHeight())
 
     def grabPointer(self):
-        # FIXME: not implemented and not needed on win32
-        if hasattr(self._impl, "grab_pointer"):
+        try:
             return self._impl.grab_pointer()
+        except AttributeError:
+            # Not implemented and not needed on win32
+            pass
 
     def ungrabPointer(self):
-        # FIXME: not implemented and not needed on win32
-        if hasattr(self._impl, "ensure_pointer_ungrabbed"):
+        try:
             return self._impl.ensure_pointer_ungrabbed()
+        except AttributeError:
+            # Not implemented and not needed on win32
+            pass
+
+    def __del__(self):
+        '''Destroy the inner instance'''
+        self.finish()

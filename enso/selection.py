@@ -63,7 +63,7 @@ import enso.providers
 # ----------------------------------------------------------------------------
 
 # Actual implementation provider for this module.
-__impl = enso.providers.getInterface("selection")
+__impl = enso.providers.get_interface("selection")
 
 
 # ----------------------------------------------------------------------------
