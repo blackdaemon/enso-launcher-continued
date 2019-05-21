@@ -39,7 +39,7 @@
 
 __author__ = "pavelvitis@gmail.com"
 __module_version__ = __version__ = "1.0"
-__updated__ = "2019-05-03"
+__updated__ = "2019-05-07"
 
 #==============================================================================
 # Imports
@@ -93,6 +93,8 @@ except ImportError:
 
 from enso.utils import suppress
 from enso import config
+config.load_ensorc()
+
 
 #==============================================================================
 # Constants
@@ -393,6 +395,12 @@ def download_actual_rates():
     """ Download current exchange rates table for predefined currenct symbols
     from finance.yahoo.com
     """
+    global API_KEY
+    
+    if not API_KEY:
+        logging.error("API_KEY is empty! Can't continue.")
+        return 
+    
     if not os.path.isdir(os.path.dirname(RATES_FILE)):
         os.makedirs(os.path.dirname(RATES_FILE))
 
@@ -422,9 +430,9 @@ def download_actual_rates():
                 # Exceeded limit
                 raise Exception("Currency converter service free limit exceeded (100 queries per hour)")
             elif e.code == 400:
-                logging.error(e)
+                #logging.error(e)
                 # Exceeded limit
-                raise Exception("Currency converter service error: %s", str(e))
+                raise Exception("Currency converter service error: %s" % e.read())
             else:
                 raise
         except Exception as e:
