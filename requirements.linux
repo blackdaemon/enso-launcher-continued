@@ -1,11 +1,8 @@
 dbus-python
 psutil
 pycairo
-python-gobject
-python-gtk2
 python-xlib
 pyxdg
-gi
 vext.gi
 vext.pygtk
 xprintidle

@@ -12,6 +12,8 @@
 *.lib
 *.manifest
 ghostdriver.log
+lextab.py
+yacctab.py
 
 /.direnv/
 /.cache/
@@ -30,3 +32,4 @@ ghostdriver.log
 /scripts/scons
 /enso/_version_local.py
 /run_enso.build/
+/enso.bin

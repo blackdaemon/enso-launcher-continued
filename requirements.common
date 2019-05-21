@@ -12,6 +12,8 @@ nuitka
 pygeoip
 pyparsing
 python-dateutil
+requests
+scandir
 shutilwhich
 ujson
 urllib3
