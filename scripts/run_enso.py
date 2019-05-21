@@ -2,7 +2,7 @@
 # vim:set tabstop=4 shiftwidth=4 expandtab:
 # -*- coding: utf-8 -*-
 
-__updated__ = "2019-05-03"
+__updated__ = "2019-05-14"
 
 import atexit
 
@@ -129,9 +129,10 @@ class LogLevelFilter(logging.Filter, object):
               type=click.Choice(enso.config.COLOR_SCHEMES.keys()[1:]),
               help="Override default color scheme (used for development).")
 @click.option("-t", "--no-tray-icon", is_flag=True, help="Hide tray icon (only on Windows)")
+@click.option("--get-config-var", hidden=True)
 @click.version_option(version=VERSION)
 def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
-         commands_dir, color_scheme, no_tray_icon):
+         commands_dir, color_scheme, no_tray_icon, get_config_var):
     """
     Enso: Linguistic command-line launcher
     """
@@ -141,6 +142,23 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
     else:
         logging.info("Ignoring your .ensorc startup script")
 
+    if get_config_var is not None:
+        if get_config_var == "list":
+            for v in (v for v in dir(enso.config) if not v.startswith("__") and v[0].isupper()):
+                print v
+        elif get_config_var == "all":
+            for v in (v for v in dir(enso.config) if not v.startswith("__") and v[0].isupper()):
+                try:
+                    print("%s=%s" % (v, getattr(enso.config, v)))
+                except AttributeError:
+                    print("%s=<invalid>" % v)
+        else:
+            try:
+                print(getattr(enso.config, get_config_var))
+            except AttributeError:
+                print("<notfound>")
+        return
+    
     enso.config.CMDLINE_OPTIONS = {
         'log_level': log_level,
         'no_splash': no_splash,
