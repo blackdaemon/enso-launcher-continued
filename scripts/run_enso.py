@@ -244,29 +244,6 @@ def main(log_level, no_splash, no_console, quiet, ignore_config, hotkey,
         logging.info("Changing color scheme to %s" % color_scheme)
         change_color_scheme(color_scheme)
 
-    try:
-        # Use Psyco optimization if available
-        # Last Psyco available is for Python 2.6 (Win32) and Python 2.7 (Linux, unofficial build from github)
-        # There is no Psyco support for Python > 2.7
-        import psyco  # @UnresolvedImport
-        psyco.profile()
-        # psyco.log()
-    except Exception as e:
-        """
-        try:
-            from enso.thirdparty import psyco  # @UnresolvedImport
-            psyco.profile()
-            # psyco.log()
-        except Exception as e:
-            logging.error(e)
-        else:
-            logging.info(
-                "Using Psyco optimization; Psyco for Python 2.7 (experimental)")
-        """
-        pass
-    else:
-        logging.info("Using Psyco optimization; Psyco for Python <= 2.6")
-
     l = logging.getLogger()
     if l.isEnabledFor(logging.DEBUG):
         try:
