@@ -24,6 +24,7 @@ yacctab.py
 /.settings
 /dependencies/
 /derby.log
+/dist/
 /env/
 /build/
 /virtualenv*

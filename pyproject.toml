@@ -1,8 +1,36 @@
 [tool.poetry]
 name = "enso-launcher-continued"
-version = "0.1.1"
+version = "2.0.38"
 description = ""
+
 authors = ["Pavel Vitis (blackdaemon) <pavelvitis@gmail.com>"]
+
+license = "MIT"
+
+readme = "README.md"
+
+repository="https://github.com/blackdaemon/enso-launcher-continued"
+homepage="https://github.com/blackdaemon/enso-launcher-continued"
+
+keywords = ['enso', 'launcher']
+
+packages = [
+    { include = "enso" },
+]
+
+include = [
+    "scripts/run_enso.py",
+    "scripts/*.sh",
+    "*.cmd",
+    "*.sh",
+    "*.md",
+    "AUTHORS",
+    "README.*",
+    "VERSION",
+    "DEVELOPMENT",
+    "SConstruct.*",
+]
+
 
 [tool.poetry.dependencies]
 python = "^2.7"
@@ -38,6 +66,9 @@ watchdog = "^0.9.0"
 
 [tool.poetry.dev-dependencies]
 Nuitka = "^0.6.3"
+
+[tool.poetry.scripts]
+enso = "run_enso"
 
 [build-system]
 requires = ["poetry>=0.12"]
