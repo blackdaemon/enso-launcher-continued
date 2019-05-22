@@ -34,3 +34,4 @@ yacctab.py
 /enso/_version_local.py
 /run_enso.build/
 /enso.bin
+/venv/
