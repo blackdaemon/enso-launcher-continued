@@ -1,4 +1,6 @@
 @echo off
 set PYTHONPATH=%PYTHONPATH%;.\
-python scripts\run_enso.py
+call venv\Scripts\activate.bat
+python scripts\run_enso.py --no-console --log-level=ERROR
+call deactivate.bat
 pause
