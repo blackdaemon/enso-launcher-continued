@@ -93,6 +93,7 @@ from enso.utils.decorators import (
 from enso.utils import suppress
 from enso.contrib.scriptotron.ensoapi import EnsoApi
 from enso.contrib.open.platform.win32.decorators import initialize_pythoncom
+from enso.system import dirwalk
 
 try:
     import regex as re
@@ -104,7 +105,7 @@ if utils.platform_windows_vista() or utils.platform_windows_7():
 else:
     from enso.contrib.open.platform.win32 import control_panel_2000_xp as control_panel
 
-__updated__ = "2019-01-11"
+__updated__ = "2019-05-21"
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,7 @@ def load_cached_shortcuts():
         rows = conn.execute(
             "select name, type, target, shortcut_filename from shortcut"
         ).fetchall()
-    except Exception, e:
+    except Exception as e:
         logging.error(e)
         raise
     finally:
@@ -197,7 +198,7 @@ def save_shortcuts_cache(shortcuts_dict):
         logging.info("connected " + repr(conn))
         try:
             conn.execute("delete from shortcut")
-        except sqlite3.OperationalError, e:
+        except sqlite3.OperationalError as e:
             conn.execute(
                 "create table shortcut(name text, type text, target text, shortcut_filename text, flags integer)")
         conn.executemany(
@@ -286,46 +287,6 @@ def get_file_type(target):
     return SHORTCUT_TYPE_DOCUMENT
 
 
-def dirwalk(top, max_depth=None):
-    """ Custom directory walking generator. It introduces max_depth parameter.
-    max_depth=0 means traversing only specified directory
-    max_dept=None means unlimited depth
-    This is adapted version from os.py in standard libraries.
-    Top-down walking logic has been removed as it is not useful here.
-    """
-
-    # We may not have read permission for top, in which case we can't
-    # get a list of the files the directory contains.  os.path.walk
-    # always suppressed the exception then, rather than blow up for a
-    # minor reason when (say) a thousand readable directories are still
-    # left to visit.  That logic is copied here.
-    try:
-        names = listdir(top)
-    except:
-        return
-
-    dirs, nondirs = [], []
-    _isdir = isdir
-    _pathjoin = pathjoin
-    _islink = islink
-
-    for name in names:
-        if _isdir(_pathjoin(top, name)):
-            dirs.append(name)
-        else:
-            nondirs.append(name)
-
-    yield top, dirs, nondirs
-
-    if max_depth is None or max_depth > 0:
-        depth = None if max_depth is None else max_depth - 1
-        for name in dirs:
-            path = _pathjoin(top, name)
-            if not _islink(path):
-                for x in dirwalk(path, depth):
-                    yield x
-
-
 def get_shortcut_type_and_target(shortcut_filepath, shortcut_ext):
     """ Determine the shortcut type and its target (real file it points to).
     If it can't determine the type, it returns None, None.
@@ -396,7 +357,7 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
     _is_symlink = filesystem.is_symlink
     _trace_symlink_target = filesystem.trace_symlink_target
 
-    for shortcut_dirpath, shortcut_directories, shortcut_filenames in dirwalk(directory, max_depth):
+    for shortcut_dirpath, shortcut_directories, shortcut_filenames in dirwalk(directory, max_depth=max_depth):
         if collect_dirs:
             for shortcut_directory in shortcut_directories:
                 if re_ignored and re_ignored.search(shortcut_directory):
