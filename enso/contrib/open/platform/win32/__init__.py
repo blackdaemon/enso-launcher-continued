@@ -287,6 +287,49 @@ def get_file_type(target):
     return SHORTCUT_TYPE_DOCUMENT
 
 
+<<<<<<< HEAD
+=======
+def dirwalk(top, max_depth=None):
+    """ Custom directory walking generator. It introduces max_depth parameter.
+    max_depth=0 means traversing only specified directory
+    max_dept=None means unlimited depth
+    This is adapted version from os.py in standard libraries.
+    Top-down walking logic has been removed as it is not useful here.
+    """
+
+    # We may not have read permission for top, in which case we can't
+    # get a list of the files the directory contains.  os.path.walk
+    # always suppressed the exception then, rather than blow up for a
+    # minor reason when (say) a thousand readable directories are still
+    # left to visit.  That logic is copied here.
+    try:
+        names = listdir(top)
+    except:
+        return
+
+    dirs, nondirs = [], []
+    _isdir = isdir
+    _pathjoin = pathjoin
+    _islink = islink
+
+    for name in names:
+        if _isdir(_pathjoin(top, name)):
+            dirs.append(name)
+        else:
+            nondirs.append(name)
+
+    yield top, dirs, nondirs
+
+    if max_depth is None or max_depth > 0:
+        depth = None if max_depth is None else max_depth - 1
+        for name in dirs:
+            path = _pathjoin(top, name)
+            if not _islink(path):
+                for x in dirwalk(path, depth):
+                    yield x
+
+
+>>>>>>> branch 'master' of https://github.com/blackdaemon/enso-launcher-continued.git
 def get_shortcut_type_and_target(shortcut_filepath, shortcut_ext):
     """ Determine the shortcut type and its target (real file it points to).
     If it can't determine the type, it returns None, None.
@@ -357,7 +400,11 @@ def get_shortcuts_from_dir(directory, re_ignored=None, max_depth=None, collect_d
     _is_symlink = filesystem.is_symlink
     _trace_symlink_target = filesystem.trace_symlink_target
 
+<<<<<<< HEAD
     for shortcut_dirpath, shortcut_directories, shortcut_filenames in dirwalk(directory, max_depth=max_depth):
+=======
+    for shortcut_dirpath, shortcut_directories, shortcut_filenames in dirwalk(directory, max_depth):
+>>>>>>> branch 'master' of https://github.com/blackdaemon/enso-launcher-continued.git
         if collect_dirs:
             for shortcut_directory in shortcut_directories:
                 if re_ignored and re_ignored.search(shortcut_directory):
@@ -840,8 +887,12 @@ class OpenCommandImpl(AbstractOpenCommand):
             changed_paths = set(chain.from_iterable(args for (args, kwargs) in all_calls_params))
             # Act only on file changes and exclude certain files
             if changed_paths and not any(
+<<<<<<< HEAD
                 isfile(p) #and basename(p) not in ('desktop.ini',)
                 and splitext(p)[1] == '.lnk'
+=======
+                not isdir(p) and basename(p) not in ('desktop.ini',)
+>>>>>>> branch 'master' of https://github.com/blackdaemon/enso-launcher-continued.git
                 for p in changed_paths
             ):
                 print "Skipping changed path(s): ", changed_paths

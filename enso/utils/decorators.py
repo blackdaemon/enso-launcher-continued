@@ -104,7 +104,11 @@ def debounce(wait):
                     return fn(*args, all_calls_params=debounced.all_calls_params[:], **kwargs)
                 except TypeError as e:
                     if "all_calls_params" in str(e):
+<<<<<<< HEAD
                         # ...otherwise call the function without the arg
+=======
+                        # ..otherwise call the function without the arg
+>>>>>>> branch 'master' of https://github.com/blackdaemon/enso-launcher-continued.git
                         return fn(*args, **kwargs)
                     else:
                         raise
@@ -114,12 +118,20 @@ def debounce(wait):
             try:
                 # Cancel current waiting thread
                 debounced.t.cancel()
+<<<<<<< HEAD
                 del debounced.t
+=======
+>>>>>>> branch 'master' of https://github.com/blackdaemon/enso-launcher-continued.git
             except AttributeError:
                 # No timer initialized yet
                 pass
+<<<<<<< HEAD
             #else:
             #    print "DEBOUNCE [%s]: dropped" % fn.__name__
+=======
+            else:
+                print "DEBOUNCE [%s]: dropped" % fn.__name__
+>>>>>>> branch 'master' of https://github.com/blackdaemon/enso-launcher-continued.git
             # Lazy-initializing of all_calls_params list
             try:
                 _ = debounced.all_calls_params
