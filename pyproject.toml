@@ -1,28 +1,40 @@
 [tool.poetry]
 name = "enso-launcher-continued"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Pavel Vitis (blackdaemon) <pavelvitis@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^2.7"
-contextlib2 = "^0.5.5"
-ujson = "^1.35"
-six = "^1.12"
-urllib3 = "^1.25"
-iniparse = "^0.4.0"
-lxml = "^4.3"
-httplib2 = "^0.12.3"
-python-dateutil = "^2.8"
-watchdog = "^0.9.0"
-pyparsing = "^2.4"
-click = "^7.0"
-shutilwhich = "^1.1"
 
 "backports.functools_lru_cache" = { version = "^1.5", python = "~2.7" }
-
 pywin32 = { version = "^224.0", platform = "win32" }
 pywinauto = { version = "^0.6.6", platform = "win32" }
+
+dbus-python = { version = "^1.2", platform = "linux" }
+psutil = { version = "^5.6", platform = "linux" }
+pycairo = { version = "^1.18", platform = "linux" }
+python-xlib = { version = "^0.25.0", platform = "linux" }
+pyxdg = { version = "^0.26.0", platform = "linux" }
+"vext.gi" = { version = "^0.7.0", platform = "linux" }
+"vext.pygtk" = { version = "^0.7.0", platform = "linux" }
+xprintidle = { version = "^0.2.0", platform = "linux" }
+
+bs4 = "^0.0.1"
+click = "^7.0"
+contextlib2 = "^0.5.5"
+httplib2 = "^0.12.3"
+iniparse = "^0.4.0"
+lxml = "^4.3"
+pyparsing = "^2.4"
+python-dateutil = "^2.8"
+requests = "^2.22"
+scandir = "^1.10"
+shutilwhich = "^1.1"
+six = "^1.12"
+ujson = "^1.35"
+urllib3 = "^1.25"
+watchdog = "^0.9.0"
 
 [tool.poetry.dev-dependencies]
 Nuitka = "^0.6.3"
