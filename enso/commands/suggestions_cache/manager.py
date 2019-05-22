@@ -61,7 +61,7 @@ MAX_CACHE_AGE = 60 * 60 * 12
 
 # The directory path for cached google results
 CACHE_DIR = path_join(
-    enso.providers.getInterface("system").get_enso_cache_dir(), "suggestions")
+    enso.providers.get_interface("system").get_enso_cache_dir(), "suggestions")
 
 CACHE_SESSIONS = {}
 

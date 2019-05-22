@@ -8,14 +8,14 @@ Building Enso
 -------------
 
 To build Enso, you need:
-  * Python 2.6 or above
+  * Python 2.7 or above
     This can be found at http://www.python.org.
 
-  * Following additional modules should be installed using 'pip' or 'easyinstall':
+  * Following additional modules should be installed using 'pip':
     ccy
     httplib2
     iniparse
-    ujson (or json)
+    ujson
     netifaces
     pygeoip
     pyparsing
@@ -24,11 +24,7 @@ To build Enso, you need:
     urllib3
     watchdog
     backports.functools_lru_cache
-    
-  * Optionally also:
-    psyco (improves performance significantly, but is avaliable only for Python <= 2.6)
-    
-  
+
 You'll also need the appropriate prerequisites for your particular
 platform.  Please consult one of the following files:
 
@@ -56,5 +52,3 @@ Enso system-wide, but it currently only works on Linux (see issue 19).
 To use it, just run
 
   python setup.py install
-
-  

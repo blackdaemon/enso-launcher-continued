@@ -1,5 +1,4 @@
 # vim:set ff=unix tabstop=4 shiftwidth=4 expandtab:
-from gtk.keysyms import currency
 
 # Author : Pavel Vitis "blackdaemon"
 # Email  : blackdaemon@seznam.cz

@@ -396,18 +396,24 @@ def download_actual_rates():
     from finance.yahoo.com
     """
     global API_KEY
-    
+
     if not API_KEY:
-        logging.error("API_KEY is empty! Can't continue.")
-        return 
-    
+        logging.error("Currency converter web-service api-key not set! "
+                      "Please set up API_KEY in your .ensorc file. Ypu can "
+                      "request your own api-key at "
+                      "http://free.currencyconverterapi.com/. Automated "
+                      "currency rates updates will be disabled you until "
+                      "you do that.")
+        return
+
     if not os.path.isdir(os.path.dirname(RATES_FILE)):
         os.makedirs(os.path.dirname(RATES_FILE))
 
     mtime = os.path.getmtime(RATES_FILE) if os.path.isfile(RATES_FILE) else 0
     # Skip bothering the web service if latest download is not older than 1 hour
     if ((time.time() - mtime) / 60 < 60):
-        logging.warning("Skipping the rates download for now due to exceeded limit (maximum of 100 queries per hour)")
+        logging.warning("Skipping the rates download for now due to exceeded "
+                        "limit (maximum of 100 queries per hour)")
         return
 
     currencies = {}
